@@ -1,0 +1,54 @@
+{
+  "title": "Sunset Coast / Street Life",
+  "kind": "Offline Blender render of actual browser scene geometry; not a browser screenshot",
+  "world_seed": 610,
+  "resolution": [
+    1200,
+    675
+  ],
+  "camera_three_y_up": [
+    9,
+    3.4,
+    41
+  ],
+  "target_three_y_up": [
+    9,
+    2.3,
+    0
+  ],
+  "lens_mm": 28,
+  "stats": {
+    "loaded": 25,
+    "buildings": 124,
+    "instances": 17555,
+    "pending": 0,
+    "drawCalls": 15,
+    "district": "PALM DECO · 棕榈艺廊"
+  },
+  "sources": [
+    "web/dist/infinite-city.js",
+    "web/dist/street-signs.js",
+    "web/dist/actors.js",
+    "web/dist/human-model.js",
+    "web/dist/gameplay.js",
+    "web/dist/assets/car.glb"
+  ],
+  "reference_direction": "Original architecture and models; sunny Vice City street scale, cream stucco, coral awnings, palm avenues and warm sun/cool shade informed by publicly available Rockstar GTA VI imagery.",
+  "reference_url": "https://www.rockstargames.com/VI/media/screenshots",
+  "renderer": "Blender 4.3.2 / Cycles / 24 samples / OIDN / AgX",
+  "limits": "Finite 25-chunk snapshot of the infinite generator. Facade shader masks are baked; street shaders use Blender equivalents. Lighting, camera and tone mapping differ from browser rendering.",
+  "rebuild_commands": [
+    "node scripts/export_infinite_preview.mjs --street --output /tmp/street-life.json",
+    "blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/street-life.json --output previews/street_life.png --blend scenes/street_life.blend --resolution 1200"
+  ],
+  "artifacts": {
+    "previews/street_life.png": {
+      "bytes": 1067397,
+      "sha256": "79dd731891f7685fae5fc7b9f4ee647a5851c217ae4b0d8b6b502504b2645f2c"
+    },
+    "scenes/street_life.blend": {
+      "bytes": 23100177,
+      "sha256": "5750e25b7bd064fbb3061cca19789c776a5af22231a2cb1c90ac66582c91d7d9"
+    }
+  }
+}

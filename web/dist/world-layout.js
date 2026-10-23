@@ -9,7 +9,7 @@ export const WORLD_SEED = 610;
 export const COLLISION_CACHE_LIMIT = 48;
 
 export const DISTRICTS = Object.freeze([
-  { id: 'deco', name: '棕榈艺廊', label: 'PALM DECO · 棕榈艺廊', colors: ['#d68578', '#b7c6af', '#c8abc8', '#e6d8bd'], accent: '#76e4cf', styles: ['deco', 'hotel'], floors: [5, 13] },
+  { id: 'deco', name: '棕榈艺廊', label: 'PALM DECO · 棕榈艺廊', colors: ['#e5c1ad', '#dce0cb', '#d6c8d5', '#eee4cf'], accent: '#c6877a', styles: ['deco', 'hotel'], floors: [5, 13] },
   { id: 'downtown', name: '玻璃天际线', label: 'SKYLINE · 玻璃天际线', colors: ['#5e8994', '#70909e', '#526d86', '#a0a4af'], accent: '#97e4eb', styles: ['glass', 'glass', 'hotel'], floors: [12, 30] },
   { id: 'oldtown', name: '霓虹旧城', label: 'OLD QUARTER · 霓虹旧城', colors: ['#9e5d53', '#b77c61', '#b08b73', '#d5b195'], accent: '#f3a66e', styles: ['brick', 'deco'], floors: [3, 7] },
   { id: 'garden', name: '花园住宅区', label: 'GARDEN HEIGHTS · 花园住宅区', colors: ['#d5d0b5', '#b7c6b3', '#cfb7a0', '#b2b9c6'], accent: '#a8dca8', styles: ['residential', 'residential', 'deco'], floors: [2, 6] },

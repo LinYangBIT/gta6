@@ -19,9 +19,20 @@ export function createUI(handlers = {}) {
   const steeringKnob = byId('steering-knob');
   let steeringPointer = null;
   let steeringValue = 0;
+  let currentMode = 'walk';
+  let moveX = 0, moveZ = 0;
   const last = {};
   let ready = false;
   let toastTimeout;
+  let orientationBlocked = false;
+  const portraitMedia = window.matchMedia?.('(pointer: coarse) and (orientation: portrait)');
+  function syncOrientation() {
+    const blocked = Boolean(portraitMedia?.matches && !document.body.classList.contains('allow-portrait'));
+    if (blocked === orientationBlocked) return;
+    orientationBlocked = blocked;
+    releaseAll();
+    handlers.orientation?.(blocked);
+  }
 
   function text(id, value) {
     const element = byId(id);
@@ -56,14 +67,28 @@ export function createUI(handlers = {}) {
     steeringValue = Math.max(-1, Math.min(1, Number(value) || 0));
     if (Math.abs(steeringValue) < 0.055) steeringValue = 0;
     steeringKnob.style.setProperty('--steering-x', `${-steeringValue * 30}px`);
+    steeringKnob.style.setProperty('--steering-y', '0px');
     steeringPad.setAttribute('aria-valuenow', String(Math.round(steeringValue * 100)));
     steeringPad.setAttribute('aria-valuetext', steeringValue === 0 ? '直行' : `${steeringValue > 0 ? '左转' : '右转'} ${Math.round(Math.abs(steeringValue) * 100)}%`);
     steeringPad.classList.toggle('is-pressed', steeringValue !== 0);
     handlers.steer?.(steeringValue);
   }
+  function setMove(x, z) {
+    const magnitude = Math.hypot(x, z);
+    const scale = magnitude > 1 ? 1 / magnitude : 1;
+    moveX = magnitude < .08 ? 0 : x * scale;
+    moveZ = magnitude < .08 ? 0 : z * scale;
+    steeringKnob.style.setProperty('--steering-x', `${moveX * 32}px`);
+    steeringKnob.style.setProperty('--steering-y', `${-moveZ * 32}px`);
+    steeringPad.setAttribute('aria-valuenow', String(Math.round(Math.hypot(moveX, moveZ) * 100)));
+    steeringPad.setAttribute('aria-valuetext', !moveX && !moveZ ? '站立' : '移动中');
+    steeringPad.classList.toggle('is-pressed', Boolean(moveX || moveZ));
+    handlers.move?.(moveX, moveZ);
+  }
   function releaseAll() {
     steeringPointer = null;
     setSteering(0);
+    setMove(0, 0);
     const controls = new Set(pointers.values());
     pointers.clear();
     for (const control of controls) handlers.touch?.(control, false);
@@ -91,8 +116,11 @@ export function createUI(handlers = {}) {
     world?.focus({ preventScroll: true });
   }
 
-  onClick('start-drive', () => { if (ready) handlers.start?.('drive'); });
-  onClick('start-cruise', () => { if (ready) handlers.start?.('cruise'); });
+  onClick('start-drive', () => { if (ready) handlers.start?.('walk'); });
+  onClick('start-cruise', () => { if (ready) handlers.start?.('free'); });
+  onClick('interact-button', () => { if (!byId('interact-button').disabled) { releaseAll(); handlers.interact?.(); world?.focus({ preventScroll: true }); } });
+  onClick('continue-portrait', () => { document.body.classList.add('allow-portrait'); syncOrientation(); world?.focus({ preventScroll: true }); });
+  onClick('rotate-fullscreen', () => handlers.fullscreen?.());
   onClick('new-city-button', () => { if (ready) { releaseAll(); handlers.newCity?.(); } });
   onClick('camera-button', () => handlers.camera?.());
   onClick('recenter-button', () => handlers.recenter?.());
@@ -117,6 +145,7 @@ export function createUI(handlers = {}) {
     dialog.addEventListener('close', () => {
       if (dialog === videoDialog && video) video.pause();
       dialogState();
+      if (!hud.hidden) world?.focus({ preventScroll: true });
     });
     dialog.addEventListener('keydown', event => event.stopPropagation());
     dialog.addEventListener('click', event => {
@@ -168,7 +197,8 @@ export function createUI(handlers = {}) {
   const steerAt = event => {
     const bounds = steeringPad.getBoundingClientRect();
     const center = bounds.left + bounds.width / 2;
-    setSteering((center - event.clientX) / (bounds.width * .32));
+    if (currentMode === 'walk') setMove((event.clientX - center) / (bounds.width * .32), ((bounds.top || 0) + (bounds.height || bounds.width) / 2 - event.clientY) / (bounds.width * .32));
+    else setSteering((center - event.clientX) / (bounds.width * .32));
   };
   steeringPad.addEventListener('contextmenu', event => event.preventDefault());
   steeringPad.addEventListener('pointerdown', event => {
@@ -188,25 +218,32 @@ export function createUI(handlers = {}) {
       if (event.pointerId !== steeringPointer) return;
       steeringPointer = null;
       setSteering(0);
+      setMove(0, 0);
     });
   }
   steeringPad.addEventListener('keydown', event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.code)) return;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.code)) return;
     event.preventDefault();
     event.stopPropagation();
-    setSteering(event.code === 'ArrowLeft' ? 1 : event.code === 'ArrowRight' ? -1 : 0);
+    if (currentMode === 'walk') setMove(event.code === 'ArrowLeft' ? -1 : event.code === 'ArrowRight' ? 1 : 0, event.code === 'ArrowUp' ? 1 : event.code === 'ArrowDown' ? -1 : 0);
+    else setSteering(event.code === 'ArrowLeft' ? 1 : event.code === 'ArrowRight' ? -1 : 0);
   });
   steeringPad.addEventListener('keyup', event => {
-    if (!['ArrowLeft', 'ArrowRight'].includes(event.code)) return;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.code)) return;
     event.preventDefault();
     event.stopPropagation();
     setSteering(0);
+    setMove(0, 0);
   });
-  steeringPad.addEventListener('blur', () => { steeringPointer = null; setSteering(0); });
+  steeringPad.addEventListener('blur', () => { steeringPointer = null; setSteering(0); setMove(0, 0); });
   window.addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
+  portraitMedia?.addEventListener?.('change', syncOrientation);
+  syncOrientation();
+
   return {
+    get orientationBlocked() { return orientationBlocked; },
     setLoading(progress, message) {
       if (ready) return;
       const fraction = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress > 1 ? progress / 100 : progress)) : 0;
@@ -238,6 +275,31 @@ export function createUI(handlers = {}) {
       showIntro();
     },
     update(state = {}) {
+      const mode = state.mode || currentMode;
+      if (mode !== currentMode) { releaseAll(); currentMode = mode; }
+      document.body.classList.toggle('is-driving', mode === 'drive');
+      const walking = mode !== 'drive';
+      text('movement-caption', walking ? '拖动摇杆 · 自由移动' : '左右拖动 · 转向');
+      text('movement-hint', walking ? '移动' : '驾驶');
+      text('secondary-key', walking ? 'SHIFT' : 'SPACE');
+      text('secondary-hint', walking ? '奔跑' : '手刹');
+      text('vehicle-label', walking ? 'ON FOOT · 步行' : state.vehicleLabel || 'COASTAL GT');
+      steeringPad.setAttribute('aria-label', walking ? '移动摇杆，拖动选择方向' : '方向盘，左右拖动转向');
+      byId('interact-button').disabled = !state.canInteract;
+      text('interaction-label', state.interactionLabel || (walking ? '靠近车辆或任务地点' : '停车后下车'));
+      if (state.mission) {
+        const mission = state.mission;
+        text('mission-chapter', mission.chapter || '街头委托');
+        text('mission-title', mission.title || '自由探索');
+        text('mission-objective', mission.objective || mission.description || '城市没有终点，随心探索。');
+        const total = Math.max(0, Number(mission.total) || 0);
+        const progress = Math.max(0, Math.min(total, Number(mission.progress) || 0));
+        text('mission-progress', total === 0 ? '∞ 自由探索' : progress >= total ? '已完成' : `${String(progress + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`);
+        byId('mission-progress-fill').style.width = `${total > 0 ? progress / total * 100 : 0}%`;
+        text('mission-cash', `$${Math.max(0, Number(mission.cash) || 0).toLocaleString('en-US')}`);
+        text('mission-reward', `$${Math.max(0, Number(mission.reward) || 0).toLocaleString('en-US')}`);
+        byId('mission-reward-wrap').hidden = total === 0;
+      }
       const speed = Math.max(0, Math.round(Math.abs(Number(state.speed) || 0)));
       text('speed', speed);
       text('gear', state.gear || 'N');
@@ -246,10 +308,10 @@ export function createUI(handlers = {}) {
         last.speed = speed;
       }
       const checkpoints = Math.max(0, Math.floor(Number(state.checkpoint) || 0));
-      text('checkpoint-count', `${checkpoints.toLocaleString('zh-CN')} 个路口`);
+      text('checkpoint-count', `${checkpoints.toLocaleString('zh-CN')} 份委托`);
       text('distance-value', distanceLabel(state.distance));
       const destination = Number(state.destinationDistance);
-      text('destination-distance', Number.isFinite(destination) && destination >= 0
+      text('destination-distance', state.mission?.total === 0 ? '自由探索' : Number.isFinite(destination) && destination >= 0
         ? destination >= 1000 ? distanceLabel(destination, 1) : `${Math.round(destination)} m`
         : '-- m');
       text('route-description', state.cruising ? '沿着路口巡游，随时接管方向' : '随心转弯，发现下一片街区');

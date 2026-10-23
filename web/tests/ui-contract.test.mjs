@@ -46,11 +46,11 @@ test('visible controls have an accessible name and touch actions are unambiguous
   }
   const controls = [...html.matchAll(/data-control="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(controls).size, controls.length, 'Duplicate touch controls');
-  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'reverse', 'handbrake'].includes(action), `Unknown touch action ${action}`);
+  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'reverse', 'handbrake', 'sprint'].includes(action), `Unknown touch action ${action}`);
 });
 
 
-test('portrait controls support simultaneous steering and pedals and release safely', async () => {
+test('landscape controls switch safely between walking, driving, and contextual missions', async () => {
   class Element {
     constructor(id = '', control) {
       this.id = id; this.dataset = control ? { control } : {};
@@ -65,12 +65,14 @@ test('portrait controls support simultaneous steering and pedals and release saf
     setAttribute(name, value) { this.attrs.set(name, value); }
     removeAttribute(name) { this.attrs.delete(name); }
     setPointerCapture() {}
-    getBoundingClientRect() { return { left: 0, width: 120 }; }
+    getBoundingClientRect() { return { left: 0, top: 0, width: 120, height: 120 }; }
     focus() {}
   }
   const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(match => [match[1], new Element(match[1])]));
-  const pedals = ['throttle', 'brake', 'reverse', 'handbrake'].map(control => new Element('', control));
+  const pedals = ['throttle', 'brake', 'reverse', 'handbrake', 'sprint'].map(control => new Element('', control));
   const fakeWindow = new Element();
+  const orientation = { matches: false, addEventListener(type, callback) { this.change = callback; } };
+  fakeWindow.matchMedia = () => orientation;
   const fakeDocument = new Element();
   fakeDocument.getElementById = id => elements.get(id);
   fakeDocument.querySelector = () => null;
@@ -80,9 +82,10 @@ test('portrait controls support simultaneous steering and pedals and release saf
   globalThis.document = fakeDocument; globalThis.window = fakeWindow;
   try {
     const { createUI } = await import('../dist/ui.js');
-    const touch = {}, steering = [];
-    let newCities = 0;
-    const ui = createUI({ touch(control, value) { touch[control] = value; }, steer(value) { steering.push(value); }, newCity() { newCities++; } });
+    const touch = {}, steering = [], movements = [], starts = [];
+    let newCities = 0, interactions = 0;
+    const ui = createUI({ touch(control, value) { touch[control] = value; }, steer(value) { steering.push(value); }, newCity() { newCities++; }, move(x,z) { movements.push([x,z]); }, start(mode) { starts.push(mode); }, interact() { interactions++; } });
+    ui.update({ mode: 'drive' });
     const throttle = pedals[0], reverse = pedals[2], pad = elements.get('steering-pad');
     throttle.emit('pointerdown', { pointerId: 1, button: 0 });
     pad.emit('pointerdown', { pointerId: 2, button: 0, clientX: 12 });
@@ -110,7 +113,7 @@ test('portrait controls support simultaneous steering and pedals and release saf
     assert.equal(elements.get('track-label').textContent, 'Sunset Frequencies');
     ui.update({ distance: 12345, checkpoint: 1234, total: 0, destinationDistance: 128, seed: 734, district: 'DOWNTOWN · 天际线' });
     assert.equal(elements.get('distance-value').textContent, '12.35 km');
-    assert.equal(elements.get('checkpoint-count').textContent, '1,234 个路口', 'infinite exploration never clamps to a finite checkpoint quota');
+    assert.equal(elements.get('checkpoint-count').textContent, '1,234 份委托', 'completed mission count has no finite cap');
     assert.equal(elements.get('destination-distance').textContent, '128 m');
     assert.equal(elements.get('world-seed').textContent, '000734');
     assert.equal(elements.get('city-label').textContent, '000734');
@@ -125,6 +128,43 @@ test('portrait controls support simultaneous steering and pedals and release saf
     elements.get('new-city-button').emit('click');
     assert.equal(newCities, 1);
     assert.equal(touch.throttle, false, 'new city clears held input before resetting the world');
+    elements.get('start-drive').emit('click');
+    elements.get('start-cruise').emit('click');
+    assert.deepEqual(starts, ['walk', 'free'], 'both starting choices preserve an on-foot entry');
+    throttle.emit('pointerdown', { pointerId: 9, button: 0 });
+    ui.update({ mode: 'walk', canInteract: false, mission: { title: '初到海岸', objective: '步行与联系人见面', progress: 1, total: 5, cash: 300 } });
+    assert.equal(touch.throttle, false, 'mode changes release pedals before walking');
+    assert.equal(fakeDocument.body.classList.contains('is-driving'), false);
+    elements.get('interact-button').emit('click');
+    assert.equal(interactions, 0, 'unavailable context action is not dispatched');
+    pad.emit('pointerdown', { pointerId: 10, button: 0, clientX: 108, clientY: 12 });
+    const [mx,mz] = movements.at(-1);
+    assert(mx > 0 && mz > 0, 'forward-right joystick input is camera-relative');
+    assert(Math.abs(Math.hypot(mx,mz)-1) < 1e-9, 'diagonal input stays within unit circle');
+    pedals[4].emit('pointerdown', { pointerId: 11, button: 0 });
+    assert.equal(touch.sprint, true, 'running works while the other thumb moves');
+    pad.emit('lostpointercapture', { pointerId: 10 });
+    assert.deepEqual(movements.at(-1), [0,0], 'lost joystick input stops walking');
+    assert.equal(touch.sprint, true, 'joystick release does not release run button');
+    fakeWindow.emit('blur');
+    assert.equal(touch.sprint, false);
+    ui.update({ mode: 'walk', canInteract: true, interactionLabel: '上车 · COASTAL GT', mission: { title: '第一份委托', objective: '挑选任意车辆', progress: 2, total: 5, cash: 600 } });
+    assert.equal(elements.get('mission-title').textContent, '第一份委托');
+    assert.equal(elements.get('mission-objective').textContent, '挑选任意车辆');
+    assert.equal(elements.get('mission-cash').textContent, '$600');
+    assert.equal(elements.get('mission-progress-fill').style.width, '40%');
+    elements.get('interact-button').emit('click');
+    assert.equal(interactions, 1, 'nearby context action reaches gameplay');
+    ui.update({ mode: 'walk', mission: { title: '自由探索', total: 0, progress: 0 } });
+    assert.equal(elements.get('mission-progress').textContent, '∞ 自由探索');
+    assert.equal(elements.get('destination-distance').textContent, '自由探索');
+    pedals[4].emit('pointerdown', { pointerId: 12, button: 0 });
+    orientation.matches = true; orientation.change();
+    assert.equal(ui.orientationBlocked, true, 'portrait prompt can pause gameplay');
+    assert.equal(touch.sprint, false, 'rotating into the prompt clears held inputs');
+    elements.get('continue-portrait').emit('click');
+    assert.equal(ui.orientationBlocked, false, 'explicit portrait continuation resumes gameplay');
+    assert.equal(fakeDocument.body.classList.contains('allow-portrait'), true, 'portrait fallback is explicit and available');
   } finally {
     globalThis.document = previousDocument; globalThis.window = previousWindow;
   }

@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#252334">
-  <meta name="description" content="驶入持续延伸的日落城市。驾驶原创跑车，穿过高楼、旧街与花园街区，探索每一个新路口。">
+  <meta name="description" content="从街头开始探索日落海岸。步行、接取任务、驾驶街边任意车辆，在无限延伸的原创城市中自由行动。">
   <title>Sunset Coast — 日落海岸</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./style.css?v=3">
+  <link rel="stylesheet" href="./style.css?v=4">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body class="is-intro">
@@ -25,41 +25,41 @@
     <symbol id="i-center" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   </svg>
-  <canvas id="world" tabindex="0" aria-label="Sunset Coast 三维驾驶场景"></canvas>
+  <canvas id="world" tabindex="0" aria-label="Sunset Coast 三维开放城市"></canvas>
   <div class="vignette" aria-hidden="true"></div>
 
   <section id="intro" class="intro" aria-labelledby="intro-title">
     <div class="intro__poster" aria-hidden="true"></div>
     <div class="intro__shade" aria-hidden="true"></div>
     <header class="intro__header">
-      <a class="brand" href="#" aria-label="Sunset Coast 首页"><span class="brand__sun" aria-hidden="true"></span><span>SUNSET COAST<small>日落海岸 · 自由驾驶</small></span></a>
+      <a class="brand" href="#" aria-label="Sunset Coast 首页"><span class="brand__sun" aria-hidden="true"></span><span>SUNSET COAST<small>日落海岸 · 自由行动</small></span></a>
       <a class="source-link" href="https://github.com/LinYangBIT/gta6" target="_blank" rel="noopener noreferrer">探索源代码 <span aria-hidden="true">↗</span></a>
     </header>
     <div class="intro__content">
-      <p class="eyebrow"><span class="live-dot"></span> ENDLESS CITY, 18:42 <span class="eyebrow__line"></span> DRIVE · EXPLORE · LISTEN</p>
+      <p class="eyebrow"><span class="live-dot"></span> WELCOME TO THE COAST <span class="eyebrow__line"></span> WALK · DRIVE · LIVE</p>
       <h1 id="intro-title"><span>SUNSET</span><span class="intro__coast">COAST<span class="title-period">.</span></span></h1>
-      <p class="intro__description">城市没有终点。<br><span>穿过旧街、高楼与花园。下个路口，继续发现。</span></p>
+      <p class="intro__description">故事，从街头开始。<br><span>步行接取委托，挑一辆车，驶向这座城市的下一段故事。</span></p>
       <div class="intro__actions">
-        <button id="start-drive" class="button button--primary" disabled>开始驾驶 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
-        <button id="start-cruise" class="button button--outline" disabled>自动巡游</button>
+        <button id="start-drive" class="button button--primary" disabled>进入城市 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
+        <button id="start-cruise" class="button button--outline" disabled>自由探索</button>
         <button id="watch-video" class="text-button"><svg aria-hidden="true"><use href="#i-play"/></svg>Blender 短片</button>
       </div>
       <div class="loading" id="loading" role="status" aria-live="polite">
         <div class="loading__meta"><span id="loading-message">正在准备海岸…</span><span id="loading-percent">0%</span></div>
         <div class="loading__track"><span id="loading-fill"></span></div>
       </div>
-      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 城市已就绪 · 手机竖屏 / 自由镜头 / 海岸电台</p>
+      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 城市已就绪 · 横屏体验 / 步行与驾驶 / 街头任务</p>
       <div class="city-choice"><span>城市编号 <strong id="world-seed">000610</strong></span><button id="new-city-button" class="text-button" disabled>换一座城 <span aria-hidden="true">↻</span></button></div>
       <div id="load-error" class="load-error" role="alert" hidden>
         <strong>暂时无法进入三维场景</strong><p id="error-message"></p>
         <div><button id="retry-load" class="text-button">重新加载 ↻</button><button id="error-video" class="text-button">先看巡游短片 ↗</button></div>
       </div>
     </div>
-    <footer class="intro__footer"><span>03 / ENDLESS CITY</span><span>一路延伸的原创城市</span><button id="intro-help" class="text-button">操作指南 <span aria-hidden="true">↗</span></button></footer>
-    <div class="intro__vertical" aria-hidden="true">EVERY TURN IS A NEW BEGINNING.</div>
+    <footer class="intro__footer"><span>04 / STREETS COME ALIVE</span><span>GTA 风格原创浏览器原型</span><button id="intro-help" class="text-button">操作指南 <span aria-hidden="true">↗</span></button></footer>
+    <div class="intro__vertical" aria-hidden="true">A NEW CITY. YOUR OWN STORY.</div>
   </section>
 
-  <main id="hud" class="hud" aria-label="驾驶控制" hidden>
+  <main id="hud" class="hud" aria-label="城市探索与任务控制" hidden>
     <header class="hud__header">
       <div class="hud__identity"><span class="brand__sun" aria-hidden="true"></span><div><strong>SUNSET COAST</strong><span id="district">棕榈大道</span></div></div>
       <div class="hud__time"><span class="live-dot"></span>18:42 <span>GOLDEN HOUR</span></div>
@@ -70,24 +70,29 @@
         <button id="menu-button" class="icon-button" aria-label="返回菜单，快捷键 Esc" title="返回菜单 · Esc"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
       </nav>
     </header>
-    <div class="route-panel" aria-label="城市探索进度">
-      <div class="route-panel__top"><span class="route-mark" aria-hidden="true">◇</span><span>城市探索</span><span id="checkpoint-count">0 个路口</span></div>
-      <div class="exploration-meta"><span>已行驶 <strong id="distance-value">0.00 km</strong></span><span class="endless-badge">∞ 持续延伸</span></div>
-      <p id="route-description">沿路自由探索，穿过光圈继续发现</p>
-      <div class="route-panel__bottom"><span>下一光圈 <strong id="destination-distance">-- m</strong></span><span>城市 <strong id="city-label">000610</strong></span></div>
-    </div>
+    <section class="route-panel" aria-label="当前任务">
+      <div class="route-panel__top"><span class="route-mark" aria-hidden="true">◇</span><span id="mission-chapter">第一份委托</span><span id="mission-progress">01 / 04</span></div>
+      <h2 id="mission-title">初到海岸</h2>
+      <p id="mission-objective">走到街角，与联系人见面</p>
+      <div class="route-progress" aria-hidden="true"><span id="mission-progress-fill"></span></div>
+      <div class="route-panel__bottom"><span>目标 <strong id="destination-distance">20 m</strong></span><span id="mission-reward-wrap">报酬 <strong id="mission-reward">$300</strong></span><span id="mission-cash">$0</span></div>
+      <span id="route-description" class="sr-only"></span>
+    </section>
+    <div class="world-stats" aria-label="城市探索统计"><span id="distance-value">0.00 km</span><span id="checkpoint-count">0 份委托</span><span>城市 <b id="city-label">000610</b></span></div>
     <div class="radio-card" aria-label="海岸电台"><button id="music-button" class="radio-card__play" aria-label="打开背景音乐" aria-pressed="false" title="电台音乐开关"><svg aria-hidden="true"><use href="#i-music"/></svg><span class="radio-card__equalizer" aria-hidden="true"><i></i><i></i><i></i></span></button><div class="radio-card__track"><span>COAST FM <b id="radio-state">OFF</b></span><strong id="track-label">海岸电台</strong></div><button id="track-button" class="icon-button" aria-label="切换下一首音乐" title="下一首"><svg aria-hidden="true"><use href="#i-next"/></svg></button></div>
-    <div class="camera-dock" aria-label="视角控制"><button id="camera-button" class="camera-chip" aria-label="切换镜头，快捷键 C" title="切换镜头 · C"><svg aria-hidden="true"><use href="#i-camera"/></svg><span id="camera-label">追逐镜头</span><span aria-hidden="true">⌄</span></button><button id="recenter-button" class="icon-button" aria-label="镜头回到车后" title="镜头回正"><svg aria-hidden="true"><use href="#i-center"/></svg></button><span class="camera-dock__hint">拖动画面 · 自由环视</span></div>
+    <div class="camera-dock" aria-label="视角控制"><button id="camera-button" class="camera-chip" aria-label="切换镜头，快捷键 C" title="切换镜头 · C"><svg aria-hidden="true"><use href="#i-camera"/></svg><span id="camera-label">追逐镜头</span><span aria-hidden="true">⌄</span></button><button id="recenter-button" class="icon-button" aria-label="镜头回到身后" title="镜头回正"><svg aria-hidden="true"><use href="#i-center"/></svg></button><span class="camera-dock__hint">拖动画面 · 自由环视</span></div>
     <div id="cruise-badge" class="cruise-badge" hidden><span class="live-dot"></span> 自动巡游中 <small>操控方向即可接管</small></div>
     <div class="minimap-wrap"><canvas id="minimap" width="256" height="256" aria-label="周边城市道路小地图"></canvas><span class="minimap-north">N ↑</span><span class="minimap-label">CITY STREETS</span></div>
-    <div class="drive-hints" aria-hidden="true"><span><kbd>W A S D</kbd> 驾驶</span><i></i><span><kbd>SPACE</kbd> 手刹</span><i></i><span><kbd>C</kbd> 镜头 · 拖动环视</span></div>
-    <div class="speedometer" aria-label="车速"><div class="speedometer__top"><span id="gear">N</span><button id="reset-button" class="reset-button" title="回到起点 · R" aria-label="回到起点，快捷键 R"><svg aria-hidden="true"><use href="#i-reset"/></svg></button></div><div class="speedometer__value"><span id="speed">0</span><small>km/h</small></div><div class="speedometer__line"><span id="speed-fill"></span></div><p>COASTAL GT <span>●</span></p></div>
-    <div class="touch-controls" aria-label="触屏驾驶控件">
+    <div class="drive-hints" aria-hidden="true"><span><kbd>W A S D</kbd> <span id="movement-hint">移动</span></span><i></i><span><kbd id="secondary-key">SHIFT</kbd> <span id="secondary-hint">奔跑</span></span><i></i><span><kbd>C</kbd> 镜头 · 拖动环视</span></div>
+    <div class="interaction"><button id="interact-button" class="interact-button" disabled><kbd>E</kbd><span id="interaction-label">靠近车辆或任务地点</span></button><span class="interaction__note">任何街边车辆都可驾驶</span></div>
+    <div class="speedometer" aria-label="车速"><div class="speedometer__top"><span id="gear">N</span><button id="reset-button" class="reset-button" title="回到起点 · R" aria-label="回到起点，快捷键 R"><svg aria-hidden="true"><use href="#i-reset"/></svg></button></div><div class="speedometer__value"><span id="speed">0</span><small>km/h</small></div><div class="speedometer__line"><span id="speed-fill"></span></div><p><span id="vehicle-label">ON FOOT</span><span>●</span></p></div>
+    <div class="touch-controls" aria-label="触屏移动与驾驶控件">
       <div class="touch-controls__steer">
-        <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="方向盘，左右拖动转向" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="直行" aria-orientation="horizontal">
+        <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="移动摇杆，拖动选择方向" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="站立" aria-orientation="horizontal">
           <span class="steering-pad__rail" aria-hidden="true"></span><span class="steering-pad__left" aria-hidden="true">‹</span><span class="steering-pad__right" aria-hidden="true">›</span><span id="steering-knob" class="steering-pad__knob" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14"/><circle cx="20" cy="20" r="4"/><path d="M6 17h10m8 0h10M20 24v10"/></svg></span>
-        </div><span class="touch-controls__caption">左右拖动转向</span>
+        </div><span id="movement-caption" class="touch-controls__caption">拖动摇杆 · 自由移动</span>
       </div>
+      <div class="touch-controls__walk"><button data-control="sprint" class="touch-sprint" aria-label="移动时按住奔跑"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="4" r="2"/><path d="m11 8 4 3 4 1M11 8l-4 3H3m8-3-2 6 5 3-1 5m-4-8-4 6H2"/></svg><strong>奔跑</strong><small>移动时按住</small></button></div>
       <div class="touch-controls__pedals">
         <div class="touch-controls__utility"><button data-control="handbrake" class="touch-handbrake" aria-label="按住手刹">手刹</button><button data-control="brake" class="touch-brake" aria-label="按住刹车">刹车<span aria-hidden="true">Ⅱ</span></button><button data-control="reverse" class="touch-reverse" aria-label="按住倒车">倒车 <span aria-hidden="true">R</span></button></div>
         <button data-control="throttle" class="touch-throttle" aria-label="按住油门前进"><span aria-hidden="true">↑</span><strong>油门</strong><small>按住前进</small><i aria-hidden="true"></i></button>
@@ -95,15 +100,17 @@
     </div>
   </main>
 
+  <aside id="rotate-notice" class="rotate-notice" aria-label="横屏体验提示"><div class="rotate-notice__phone" aria-hidden="true">↻</div><p class="eyebrow">A WIDER WORLD</p><h2>把手机横过来</h2><p>让城市铺满视野，双手操控更顺手。</p><button id="rotate-fullscreen" class="button button--primary">全屏体验 <svg aria-hidden="true"><use href="#i-expand"/></svg></button><button id="continue-portrait" class="text-button">继续竖屏游玩</button></aside>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="help-dialog" class="dialog help-dialog" aria-labelledby="help-title">
     <button class="dialog__close icon-button" data-close="help-dialog" aria-label="关闭操作指南"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
-    <p class="eyebrow">MAKE YOUR OWN WAY</p><h2 id="help-title">每条路，都通向新街区。</h2><p class="dialog__intro">道路在四个方向持续延伸。自由转弯探索高楼、旧街、住宅与花园，也可沿光圈自动巡游。</p>
-    <dl class="key-guide"><div><dt><kbd>W</kbd> / <kbd>↑</kbd></dt><dd>加速前进</dd></div><div><dt><kbd>S</kbd> / <kbd>↓</kbd></dt><dd>减速与倒车</dd></div><div><dt><kbd>A D</kbd> / <kbd>← →</kbd></dt><dd>左右转向</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>手刹</dd></div><div><dt><kbd>C</kbd></dt><dd>切换镜头</dd></div><div><dt><kbd>V</kbd></dt><dd>镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>电台开关 / 下一首</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
-    <p class="help-note">手机竖屏：左手拖动方向盘，右手按住油门；松开减速，刹车停车，倒车键后退。拖动场景即可环视，双指缩放远近；镜头按钮切换视角，旁边的回正键恢复跟车。电台可独立开关和切歌。回到菜单点击「换一座城」即可开启一座新城市；回到起点只重置当前行程。</p>
+    <p class="eyebrow">MAKE YOUR OWN WAY</p><h2 id="help-title">先迈出脚步，再选择方向。</h2><p class="dialog__intro">你从街头步行开始。跟随金色任务标记与联系人见面；靠近任意街边车辆，按 E 上车，停车后再次按 E 下车。城市会随着探索持续生成。</p>
+    <dl class="key-guide"><div><dt><kbd>W A S D</kbd> / <kbd>方向键</kbd></dt><dd>步行移动 / 驾驶</dd></div><div><dt><kbd>SHIFT</kbd></dt><dd>步行时奔跑</dd></div><div><dt><kbd>E</kbd></dt><dd>交谈、上车或下车</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>驾驶时手刹</dd></div><div><dt><kbd>C</kbd> / <kbd>V</kbd></dt><dd>切换镜头 / 镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到街头起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>电台开关 / 下一首</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
+    <p class="help-note">推荐横屏游玩。左手拖动摇杆移动，右手拖动画面环视，按住「奔跑」加速；靠近车辆后点「上车」。驾驶时摇杆变为方向盘，右侧显示油门、刹车和倒车。双指缩放镜头。完成委托可获得报酬，之后继续接受新的送达任务。</p>
+    <p class="reference-note">画面方向参考 <a href="https://www.rockstargames.com/VI/media/screenshots" target="_blank" rel="noopener noreferrer">Rockstar 的 GTA VI 官方截图 ↗</a>。这是使用原创模型与程序城市制作的浏览器原型。</p>
     <button class="button button--primary" data-close="help-dialog">知道了 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </dialog>
   <dialog id="video-dialog" class="dialog video-dialog" aria-labelledby="video-title"><button class="dialog__close icon-button" data-close="video-dialog" aria-label="关闭短片"><svg aria-hidden="true"><use href="#i-close"/></svg></button><p id="video-title" class="eyebrow">ORIGINAL COAST / BLENDER SHORT</p><video id="cruise-video" controls playsinline preload="none"><source src="./assets/sunset_cruise.mp4" type="video/mp4">你的浏览器无法播放此视频，可<a href="./assets/sunset_cruise.mp4">下载短片</a>。</video></dialog>
-  <script type="module" src="./main.js?v=3"></script>
+  <script type="module" src="./main.js?v=4"></script>
 </body>
 </html>

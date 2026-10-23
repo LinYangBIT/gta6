@@ -13,7 +13,7 @@ test('bootstrap builds all immediately adjacent streets and pooled detailed neig
   const stats=settle(city);
   assert.equal(stats.loaded,25);assert.equal(stats.pending,0);
   assert.ok(stats.buildings>90);assert.ok(stats.instances>5000);
-  assert.ok(stats.drawCalls<=14);assert.equal(city.group.children.length,stats.drawCalls);
+  assert.ok(stats.drawCalls<=15);assert.equal(city.group.children.length,stats.drawCalls);
   for(const mesh of city.group.children){assert.ok(mesh.isInstancedMesh);assert.ok(mesh.count>0);assert.ok(Number.isFinite(mesh.boundingSphere.radius));}
   city.dispose();assert.equal(scene.children.length,0);
 });
@@ -26,7 +26,7 @@ test('streaming many distant tiles retains a fixed neighborhood and regeneration
     const x=n*CHUNK_SIZE*3,z=-n*CHUNK_SIZE*2;
     settle(city,x+3,z+30,x,z);maximum=Math.max(maximum,city.chunks.size);
     assert.ok(city.chunks.size<=25);assert.equal(city.pending.length,0);
-    assert.ok(city.pools.size<=14);assert.ok(city.colors.size<100);
+    assert.ok(city.pools.size<=15);assert.ok(city.colors.size<100);
   }
   assert.equal(maximum,25);
   settle(city);assert.equal(JSON.stringify(city.chunks.get('0,0').records),first);
@@ -53,7 +53,7 @@ test('changing city seed replaces deterministic geometry while preserving bounde
   const first=city.chunks.get('0,0').data.detailSeed;
   city.setSeed(8234);settle(city);
   assert.notEqual(city.chunks.get('0,0').data.detailSeed,first);assert.equal(city.chunks.size,25);
-  assert.ok(city.group.children.length<=14);assert.equal(city.stats.pending,0);
+  assert.ok(city.group.children.length<=15);assert.equal(city.stats.pending,0);
   city.dispose();city.dispose();assert.equal(city.group.parent,null);
 });
 

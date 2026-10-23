@@ -1,7 +1,8 @@
 import * as THREE from './vendor/three.module.js';
 import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js';
+import { createStreetSignMaterial } from './street-signs.js';
 
-const WHITE = '#e9decc';
+const WHITE = '#eee7d8';
 const DARK = '#20303b';
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 function random(seed) {
@@ -36,13 +37,37 @@ function facadeMaterial(glass = false) {
   return material;
 }
 
+/** Pavement grain is evaluated in metres instead of stretched box UVs. */
+function streetMaterial(paving=false) {
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:paving?.91:.97});
+  material.onBeforeCompile=shader=>{
+    shader.vertexShader=`varying vec3 vStreetPosition;\n${shader.vertexShader}`;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStreetPosition=(instanceMatrix*vec4(position,1.0)).xyz;');
+    shader.fragmentShader=`varying vec3 vStreetPosition;float streetNoise(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }\n${shader.fragmentShader}`;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      vec2 streetP=vStreetPosition.xz;
+      float grain=streetNoise(floor(streetP*34.0));
+      diffuseColor.rgb*=.91+grain*.15;
+      ${paving ? `vec2 tile=fract(streetP/1.8);float seam=1.0-step(.018,min(min(tile.x,tile.y),min(1.0-tile.x,1.0-tile.y)));diffuseColor.rgb*=1.0-seam*.21;diffuseColor.rgb*=.95+streetNoise(floor(streetP/1.8))*.08;` : `float patch=streetNoise(floor(streetP*.13));diffuseColor.rgb*=.9+patch*.17;vec2 lane=abs(mod(streetP+64.0,128.0)-64.0);float tracks=(1.0-smoothstep(.45,.90,abs(lane.x-3.7)))+(1.0-smoothstep(.45,.90,abs(lane.y-3.7)));diffuseColor.rgb*=1.0-tracks*.10;`}
+    `);
+  };
+  material.customProgramCacheKey=()=>paving?'coast-concrete-1':'coast-asphalt-1';
+  return material;
+}
+
 function leafGeometry() {
-  const geo = new THREE.BufferGeometry();
-  // A curved palm frond: the central ridge catches sunset light.
-  const vertices = [-.12,0,0, .12,0,0, 0,.16,.35, -.27,.05,.55, .27,.05,.55, 0,-.10,1];
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geo.setIndex([0,1,2,0,2,3,1,4,2,3,2,5,2,4,5]); geo.computeVertexNormals();
-  return geo;
+  const geo=new THREE.BufferGeometry(),vertices=[],indices=[];
+  // Narrow individual leaflets along a curved spine give recognizable feathery
+  // silhouettes instead of a solid star shape. One geometry is shared by all trees.
+  const point=(x,y,z)=>{vertices.push(x,y,z);return vertices.length/3-1;};
+  for(let n=0;n<10;n++) {
+    const t=n/10,next=(n+1)/10,curve=u=>Math.sin(u*Math.PI)*.16-u*u*.20;
+    const width=.24*Math.sin((t*.86+.1)*Math.PI)*(1-t*.55);
+    const a=point(0,curve(t),t),b=point(0,curve(next),next);
+    const l=point(-width,curve(t)-.025,t+.11),r=point(width,curve(t)-.025,t+.11);
+    indices.push(a,b,l,a,r,b);
+  }
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
 }
 
 /** All architecture is stored as lightweight transforms, then globally instanced. */
@@ -52,11 +77,16 @@ function describeChunk(data, lod = 0) {
   const box = (x,y,z,w,h,d,color,type='solid',ry=0,seed=0) => add(type,x,y,z,w,h,d,color,ry,seed);
   const cylinder = (x,y,z,r,h,color) => add('cylinder',x,y,z,r,h,r,color);
   const X=data.x,Z=data.z,S=CHUNK_SIZE;
-  box(X+S/2,-.10,Z+S/2,S,.18,S,'#313740','road');
+  box(X+S/2,-.10,Z+S/2,S,.18,S,'#363d40','road');
   // A raised pedestrian island leaves a full-width road at every tile edge.
-  box(X+S/2,.06,Z+S/2,S-21,.22,S-21,'#b7aaa0','paving');
-  box(X+S/2,.18,Z+S/2,S-26,.06,S-26,'#b2a39a','paving');
-  const stripe = '#f3ce7a';
+  box(X+S/2,.06,Z+S/2,S-21,.22,S-21,'#d0beb1','paving');
+  box(X+S/2,.18,Z+S/2,S-26,.06,S-26,'#c8b6a8','paving');
+  // Pale concrete curb and coral sidewalk edging are distinct from the asphalt.
+  for(const edge of [10.55,S-10.55]) {
+    box(X+edge,.18,Z+S/2,.22,.16,S-21,'#e0d7c5','paving');
+    box(X+S/2,.18,Z+edge,S-21,.16,.22,'#e0d7c5','paving');
+  }
+  const stripe = '#e5c676';
   for (let t=18;t<S-13;t+=15) {
     box(X,.014,Z+t,.12,.018,7,stripe,'paint');
     box(X+t,.014,Z,7,.018,.12,stripe,'paint');
@@ -69,7 +99,7 @@ function describeChunk(data, lod = 0) {
     box(X-13,.018,Z+k*1.35,3.3,.018,.72,WHITE,'paint');
   }
   if(lod<2) {
-    for(const t of [31,94]) {
+    for(const t of [43,94]) {
       lamp(X+11.7,Z+t,Math.PI/2);lamp(X+t,Z+11.7,0);
       if(lod===0){lamp(X+S-11.7,Z+t,-Math.PI/2);lamp(X+t,Z+S-11.7,Math.PI);}
     }
@@ -81,6 +111,28 @@ function describeChunk(data, lod = 0) {
       box(X+dx,3.98,Z+dz-.17,.16,.16,.03,'#7fd3ad','glow');
     }
   }
+  // Every block has a real palm avenue, including the first walking street.
+  const treeSlots=lod===2?[34,92]:[25,51,78,104];
+  for(let i=0;i<treeSlots.length;i++) {
+    const t=treeSlots[i],treeSeed=data.detailSeed+i*911;
+    const height=7.8+(treeSeed%37)/12;
+    for(const edge of [15.8,S-15.8]) {
+      palm(X+edge,Z+t,height,treeSeed+edge);
+      palm(X+t,Z+edge,height+.7,treeSeed+edge+123);
+      if(lod===0) {
+        box(X+edge,.25,Z+t,1.35,.08,1.35,'#665b45','green');
+        box(X+t,.25,Z+edge,1.35,.08,1.35,'#665b45','green');
+      }
+    }
+  }
+  if(lod===0) {
+    // Drain grates and square utility covers add near-ground scale without meshes per slat.
+    for(const t of [39,86]) {
+      box(X+9.1,.027,Z+t,.7,.022,1.35,'#50534e','metal');
+      box(X+t,.027,Z+9.1,1.35,.022,.7,'#50534e','metal');
+      for(let k=-2;k<=2;k++)box(X+9.1,.04,Z+t+k*.22,.6,.012,.055,'#232c2c','metal');
+    }
+  }
   for(const building of data.buildings) buildingParts(building);
   for(const feature of data.features || []) featureParts(feature);
 
@@ -90,10 +142,11 @@ function describeChunk(data, lod = 0) {
     box(x+Math.sin(angle)*1.65,7.02,z+Math.cos(angle)*1.65,.5,.10,.9,'#ffdaa5','glow',angle);
   }
   function palm(x,z,height,seed) {
-    const rng=random(seed);cylinder(x,height/2+.2,z,.16,height,'#8a6753');
-    const leaves=lod===0?7:5;
-    for(let n=0;n<leaves;n++) add('leaf',x,height+.2,z,3.8,.9,3.9,n%2?'#39765a':'#548b60',n/leaves*Math.PI*2+rng()*.12);
-    if(lod===0)for(let n=1;n<5;n++)cylinder(x,height*n/5,z,.18,.08,'#a48364');
+    const rng=random(seed);cylinder(x,height/2+.2,z,.14,height,'#8e8063');
+    const leaves=lod===0?9:6;
+    for(let n=0;n<leaves;n++)add('leaf',x,height+.2,z,4.8,2.6+(n%3)*.6,4.8,n%3?'#3d6340':'#6a7d45',n/leaves*Math.PI*2+rng()*.12);
+    cylinder(x,height-.1,z,.29,.75,'#596143');
+    if(lod===0)for(let n=1;n<8;n++)cylinder(x,height*n/8,z,.155,.065,'#a79774');
   }
   function buildingParts(b) {
     const {x,z,width:w,depth:d,height:h}=b;
@@ -160,17 +213,27 @@ function describeChunk(data, lod = 0) {
         const stripes=Math.min(15,Math.floor(w));
         for(let n=0;n<stripes;n+=2)box(x+(n/stripes-.5)*w*.9,3.205,front-.7,w*.9/stripes,.018,1.5,WHITE);
         box(x,4.1,front-.16,Math.min(w*.7,12),.9,.23,'#22323e');
-        const letters=5+Math.floor(rng()*5), signW=Math.min(w*.65,11);
-        for(let n=0;n<letters;n++) {
-          const lx=x+(n/(letters-1)-.5)*signW;
-          box(lx,4.1,front-.295,.12,.48,.035,accent,'glow');
-          box(lx+.14,4.29,front-.30,.35,.065,.035,accent,'glow');
-          if(n%2)box(lx+.14,3.91,front-.30,.35,.065,.035,accent,'glow');
-        }
+        const signIndex=b.detailSeed%8;
+        add('sign',x,4.1,front-.302,Math.min(w*.7,12),1.22,1,'#ffffff',Math.PI,signIndex);
         // Door steps, recessed entries and small planted thresholds.
         box(x,.30,front-.80,2.6,.18,1.3,'#d2bdaa');
         box(x,1.45,front-.18,1.7,2.5,.10,'#112b35','glazing');
         box(x+.48,1.3,front-.255,.05,.35,.05,'#d6c0a0','metal');
+      }
+      // West and east-facing storefronts make north/south avenues inhabited too.
+      for(const side of [-1,1]) {
+        const edge=x+side*w/2,face=edge+side*.09;
+        box(face,1.55,z,.12,2.55,d*.83,'#23413f','glazing');
+        const bays=Math.max(2,Math.floor(d/5));
+        for(let i=0;i<=bays;i++)box(edge+side*.17,1.55,z+(i/bays-.5)*d*.84,.20,2.8,.11,WHITE,'metal');
+        box(edge+side*.8,3.15,z,1.7,.18,d*.91,accent);
+        box(edge+side*1.62,2.95,z,.07,.38,d*.91,accent);
+        if(lod===0) {
+          add('sign',edge+side*.26,4.3,z,Math.min(d*.69,11),1.2,1,'#ffffff',side*Math.PI/2,b.detailSeed%8);
+          box(edge+side*.22,1.37,z,.08,2.5,1.8,'#152e31','glazing');
+          box(edge+side*.29,1.3,z+.55,.08,.4,.055,'#ddcaa4','metal');
+          for(let n=0;n<Math.min(13,Math.floor(d));n+=2)box(edge+side*.8,3.25,z+(n/Math.min(13,Math.floor(d))-.5)*d*.88,1.6,.018,d*.88/Math.min(13,Math.floor(d)),WHITE);
+        }
       }
       // Rooftop mechanicals are visible from the free camera.
       for(let n=0;n<(h>30?3:2);n++) {
@@ -246,9 +309,9 @@ export class InfiniteCity {
     this.chunks=new Map();this.pools=new Map();this.colors=new Map();this.pending=[];
     this.centerKey=null;this.originX=0;this.originZ=0;this.disposed=false;
     this.stats={loaded:0,buildings:0,instances:0,pending:0,drawCalls:0,district:''};
-    this.geometry={box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),leaf:leafGeometry(),crown:new THREE.IcosahedronGeometry(1,1)};
+    this.geometry={sign:new THREE.PlaneGeometry(1,1),box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),leaf:leafGeometry(),crown:new THREE.IcosahedronGeometry(1,1)};
     const standard=(roughness=.7,metalness=0)=>new THREE.MeshStandardMaterial({color:0xffffff,roughness,metalness});
-    this.materials={road:standard(.98),paving:standard(.88),solid:standard(.68),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.38,.5),glazing:standard(.22,.55),paint:standard(.9),green:standard(.91),cylinder:standard(.67),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff}),water:standard(.22,.4)};
+    this.materials={sign:createStreetSignMaterial(),road:streetMaterial(),paving:streetMaterial(true),solid:standard(.68),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.38,.5),glazing:standard(.22,.55),paint:standard(.9),green:standard(.91),cylinder:standard(.67),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff}),water:standard(.22,.4)};
     this.materials.leaf.side=THREE.DoubleSide;
     for(const material of Object.values(this.materials))material.envMapIntensity=.58;
     this._matrix=new THREE.Matrix4();
@@ -301,12 +364,13 @@ export class InfiniteCity {
       if(!pool||pool.instanceMatrix.count<records.length) {
         if(pool){this.group.remove(pool);pool.geometry.dispose();pool.dispose();}
         let capacity=256;while(capacity<records.length)capacity*=2;
-        const shape=['cylinder','leaf','crown'].includes(type)?type:'box';
+        const shape=['cylinder','leaf','crown','sign'].includes(type)?type:'box';
         const geometry=this.geometry[shape].clone();
         if(type==='facade'||type==='glass')geometry.setAttribute('facadeSeed',new THREE.InstancedBufferAttribute(new Float32Array(capacity),1));
+        if(type==='sign')geometry.setAttribute('signIndex',new THREE.InstancedBufferAttribute(new Float32Array(capacity),1));
         pool=new THREE.InstancedMesh(geometry,this.materials[type],capacity);
         pool.name=`City / ${type}`;pool.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        pool.castShadow=!['road','paving','paint','glow','water','leaf'].includes(type);
+        pool.castShadow=!['road','paving','paint','glow','water','sign'].includes(type);
         pool.receiveShadow=!['glow','water'].includes(type);pool.frustumCulled=true;
         this.group.add(pool);this.pools.set(type,pool);
       }
@@ -318,9 +382,11 @@ export class InfiniteCity {
         let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);this.colors.set(r.color,color);}
         pool.setColorAt(i,color);
         if(pool.geometry.attributes.facadeSeed)pool.geometry.attributes.facadeSeed.setX(i,r.seed);
+        if(pool.geometry.attributes.signIndex)pool.geometry.attributes.signIndex.setX(i,r.seed);
       }
       pool.instanceMatrix.needsUpdate=true;if(pool.instanceColor)pool.instanceColor.needsUpdate=true;
       if(pool.geometry.attributes.facadeSeed)pool.geometry.attributes.facadeSeed.needsUpdate=true;
+      if(pool.geometry.attributes.signIndex)pool.geometry.attributes.signIndex.needsUpdate=true;
       pool.computeBoundingSphere();
     }
     for(const [type,pool] of this.pools)if(!groups.has(type))pool.count=0;
@@ -330,7 +396,7 @@ export class InfiniteCity {
     if(this.disposed)return;this.disposed=true;
     for(const pool of this.pools.values()){pool.geometry.dispose();pool.dispose();}
     for(const geo of Object.values(this.geometry))geo.dispose();
-    for(const material of Object.values(this.materials))material.dispose();
+    for(const material of Object.values(this.materials)){material.map?.dispose();material.dispose();}
     this.group.removeFromParent();this.pools.clear();this.chunks.clear();this.pending=[];this.colors.clear();
   }
 }

@@ -9,19 +9,33 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = resolve(option('--source', resolve(root, 'web/dist')));
 const output = resolve(option('--output', '/tmp/endless-city.json'));
 const seed = Number(option('--seed', '610'));
+const street = args.includes('--street');
 const THREE = await import(pathToFileURL(resolve(source, 'vendor/three.module.js')));
 const { InfiniteCity } = await import(pathToFileURL(resolve(source, 'infinite-city.js')));
 const scene = new THREE.Scene();
 const city = new InfiniteCity(scene, { mobile: true, seed });
 let stats = city.update(3, 30, 0, 0);
 while (stats.pending > 0) stats = city.update(3, 30, 0, 0);
+let actors=null,hero=null;
+if(street){
+  const { Gameplay }=await import(pathToFileURL(resolve(source,'gameplay.js')));
+  const { ActorVisuals }=await import(pathToFileURL(resolve(source,'actors.js')));
+  const gameplay=new Gameplay({seed});
+  hero=[...gameplay.vehicles.values()].find(car=>car.id==='0,0/car/0');
+  // Blender imports the very same hero GLB used by the browser; pooled cars stay
+  // in this geometry snapshot, with their per-instance and per-vertex colors.
+  if(hero)gameplay.vehicles.delete(hero.id);
+  actors=new ActorVisuals(scene,{mobile:false});
+  actors.update(gameplay,{x:0,z:0},1.8,{contact:{x:13,z:13}});
+}
 scene.updateMatrixWorld(true);
 const local = new THREE.Matrix4();
 const world = new THREE.Matrix4();
 const color = new THREE.Color();
 const batches = [];
 scene.traverse(object => {
-  if (!object.isMesh || !object.visible || (object.isInstancedMesh && object.count === 0)) return;
+  if (!object.isMesh || (object.isInstancedMesh && object.count === 0)) return;
+  for(let node=object;node;node=node.parent)if(!node.visible)return;
   const geometry = object.geometry;
   const position = geometry.getAttribute('position');
   if (!position) return;
@@ -38,17 +52,18 @@ scene.traverse(object => {
       item.facadeSeed = geometry.attributes.facadeSeed.getX(i);
       item.dimensions = [Math.hypot(...local.elements.slice(0,3)),Math.hypot(...local.elements.slice(4,7)),Math.hypot(...local.elements.slice(8,11))];
     }
+    if (geometry.attributes.signIndex) item.signIndex=geometry.attributes.signIndex.getX(i);
     if (object.instanceColor) { object.getColorAt(i, color); item.color = color.toArray(); }
     instances.push(item);
   }
   batches.push({
     name: object.name || material.name || 'City material',
-    geometry: { positions: Array.from(position.array), normals: geometry.attributes.normal ? Array.from(geometry.attributes.normal.array) : null, uv: geometry.attributes.uv ? Array.from(geometry.attributes.uv.array) : null, indices: geometry.index ? Array.from(geometry.index.array) : null },
-    material: { facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
+    geometry: { positions: Array.from(position.array), colors: geometry.attributes.color?Array.from(geometry.attributes.color.array):null, normals: geometry.attributes.normal ? Array.from(geometry.attributes.normal.array) : null, uv: geometry.attributes.uv ? Array.from(geometry.attributes.uv.array) : null, indices: geometry.index ? Array.from(geometry.index.array) : null },
+    material: { signAtlas: object.name==='City / sign'?{width:material.map.image.width,height:material.map.image.height,data:Buffer.from(material.map.image.data).toString('base64')}:null, road:object.name==='City / road', paving:object.name==='City / paving', vertexColors:!!material.vertexColors, facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
       emissive: material.emissive?.toArray() || [0, 0, 0], emissiveIntensity: material.emissiveIntensity ?? 0 },
     instances,
   });
 });
-await writeFile(output, JSON.stringify({ seed, stats, camera: [250, 230, 270], target: [35, 12, 30], batches }));
+await writeFile(output, JSON.stringify({ seed, stats, street, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera: street?[9,3.4,41]:[250,230,270], target: street?[9,2.3,0]:[35,12,30], lens:street?28:36, aspect:street?16/9:3/2, batches }));
 console.log(JSON.stringify({ output, batches: batches.length, instances: batches.reduce((total, batch) => total + batch.instances.length, 0), stats }));
-city.dispose();
+actors?.dispose();city.dispose();

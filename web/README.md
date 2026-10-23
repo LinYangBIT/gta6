@@ -1,56 +1,46 @@
-# Sunset Coast — 在线海岸驾驶
+# Sunset Coast — 街头生活
 
-[公开体验链接](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)。
+[公开体验](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site) · [Blender 与 GitHub 工程](https://github.com/LinYangBIT/gta6)
 
-由 [原创 Blender 跑车](https://github.com/LinYangBIT/gta6) 和浏览器实时生成的城市组成的驾驶体验。道路沿 X/Z 双轴持续延伸，建筑按城市编号与坐标确定性生成。无需后端或第三方 CDN。原始固定海岸 Blender 场景仍保留在主仓库。
+横屏优先的原创开放城市原型。从人物步行开始，可领取委托、驾驶场景中的任意车辆、下车交付包裹，或自由探索持续生成的街区。城市、角色和车辆在浏览器中本地运行；无需后端或第三方 CDN。
 
-## 本地运行
+## 操作
+
+- 步行：WASD / 方向键移动，Shift 奔跑，E 与联络人交谈或上下车。
+- 驾驶：W 加速，S 减速与倒车，A / D 转向，空格手刹；停稳后 E 下车。
+- 镜头：拖动画面自由环视，C 切换跟随、侧面、第一人称和俯瞰，V 回正；滚轮 / 双指缩放。
+- 电台：M 开关，N 切歌；引擎声可独立开关。Esc 打开菜单，R 回到起点并重新开始委托。
+- 手机横屏：左侧摇杆移动或转向，右侧奔跑 / 油门等动作键，中间右侧交互按钮上下车和领取任务。右侧空白画面可拖动环视。竖屏提供旋转提示，也可选择继续。
+
+开始任务后的流程是步行到联络人领取摄影器材，任选一辆车前往黄色停车标记，停稳后下车交付，获得 $300。之后可继续接取按城市种子生成的委托；换车不丢失包裹。自由探索模式暂时隐藏任务指引。进度和车辆位置为当前会话状态；菜单可继续，重新加载或重置会重新开始。
+
+## 城市与视觉
+
+保留无限区块路网与五类街区，增加棕榈大道、奶油白 Art Deco 建筑、珊瑚色雨棚、可读原创店招、路面纹理、冷暖光影和人行道细节。车辆包含跑车、轿车、SUV；所有显示的汽车均可驾驶。角色有步行 / 奔跑动作，任务联络人和街边行人。
+
+本轮先在网络找到并查看 [Rockstar 官方 GTA VI 截图](https://www.rockstargames.com/VI/media/screenshots) 中的 Vice City 02、03、06，以及 [Trailer 2 酒店街景画面](https://www.gtaboom.com/rockstar-confirms-using-in-game-ps5-footage-for-gta-6-trailer-2-e749)，参考街道尺度、热带植被、粉彩建筑和日光色彩。参考图不作为网页纹理或随项目分发；模型、店名、音轨均为原创。本项目是轻量浏览器原型，画面精度与完整 GTA VI 不同。
+
+城市以128米区块加载；手机最多25块、桌面49块，碰撞缓存48块。建筑按距离减少细节，使用实例批量绘制；浮动原点保持远距离精度。汽车保留附近3×3街区，最多记忆64辆改动过的车辆，超出历史上限的久远车辆可重新生成。没有固定地图边界，也不会一次创建无限物体。
+
+## 本地运行与检查
 
 ```bash
 python -m http.server 8080 --directory dist
+# 打开 http://localhost:8080
+node --test tests/*.test.mjs
 ```
 
-打开 `http://localhost:8080`。模型需要通过 HTTP 加载，不能直接双击 HTML。
+检查覆盖实际 GLB 加载、走路与驾驶碰撞、所有车型上车、停车安全下车、车辆回收和位置保留、任务顺序与奖励、完整首单流程、地图生成与内存上限、镜头手势、多点触控、电台调度和 JS 语法。当前执行环境没有浏览器自动化工具；没有进行手机实机或浏览器画面验收。Blender 离线预览用于检查几何和构图，光照与网页实时渲染会有差异。
 
-- W / ↑：加速；S / ↓：刹车与倒车。
-- A D / ← →：转向；空格：手刹。
-- C：切换追车、环绕看车、车头、俯瞰四种镜头；V：镜头回正；R：回到起点。
-- 拖动画面可以自由环绕，双指捏合或滚轮缩放，也可双击回正。
-- M：暂停/播放电台；N：下一首；引擎声可独立开关；Esc：返回菜单。
-- 手机竖屏：左手拖动方向盘，右手踩油门；独立刹车、倒车与手刹。支持多指同时操作。
-- 点击开始后播放原创合成器电台，两首曲目可切换；菜单、弹窗和后台自动静音。
-- 自动巡游沿不断延伸的街道转弯探索，手动输入即可接管。
-- 光圈持续指向下一个路口；面板显示总里程、到访路标和下一目标距离。
-- 菜单中的「换一座城」创建新的城市编号，当前编号保存在本机。返回之前的街区会得到相同建筑。
+## 源码与许可
 
-街区包含棕榈艺廊、玻璃天际线、霓虹旧城、花园住宅区、运河湾。不同布局配有公园、水池、商铺、阳台、分层楼顶和街道设施；建筑碰撞与地图使用同一份布局。
+- `dist/gameplay.js`：人物步行、车辆生成、上下车与碰撞。
+- `dist/missions.js`：委托流程、现金奖励和后续任务。
+- `dist/actors.js` / `human-model.js`：角色动画与多车型渲染。
+- `dist/world-layout.js` / `infinite-city.js`：确定性布局与流式城市。
+- `dist/street-signs.js`：本地生成原创店招图集。
+- Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
+- Three.js 0.173.0 使用 MIT，许可在 `dist/vendor/LICENSE.three.txt`。原创代码和资产沿用主仓库 MIT 许可。
+- Web Audio 实时合成原创双曲目电台，不含第三方音轨。
 
-城市以 128 米区块连续加载。手机最多保留 25 个区块，桌面最多 49 个；碰撞缓存最多 48 个，不随行驶距离增长。建筑按远近减少细节，并以共享几何批量绘制。浮动原点避免远距离后 GPU 精度下降。这里的“无限”指无固定地图边界、随行驶生成，不会在内存中一次创建无限建筑。
-
-这是独立驾驶原型，不是完整 GTA 游戏。
-
-## 检查
-
-```bash
-node tests/driving.test.mjs
-node tests/assets.test.mjs
-node tests/ui-contract.test.mjs
-node tests/camera.test.mjs
-node tests/radio.test.mjs
-node tests/world-layout.test.mjs
-node tests/infinite-city.test.mjs
-node tests/origin.test.mjs
-```
-
-检查左右转向、倒车与刹停、长距离巡游、实际 GLB 加载与几何、区块接缝、种子重现、回收上限、浮动原点、页面控件、镜头手势及电台调度。发布前还检查 JS 语法。当前执行环境未提供浏览器自动化工具，未进行浏览器实机测试。
-
-## 资源与许可
-
-- 场景、车辆、材质和界面为本项目原创，沿用主仓库 MIT 许可证。
-- 无限城市规则：`dist/world-layout.js`；按需渲染：`dist/infinite-city.js`；车辆运动：`dist/driving.js`。
-- 导出器：主仓库 `scripts/export_web.py`，原始工程 `scenes/sunset_coast.blend`。
-- `dist/assets/scene-data.json` 包含资源大小、坐标与几何统计。
-- Three.js 0.173.0 使用 MIT，许可在 `dist/vendor/LICENSE.three.txt`。
-- 音频由 Web Audio 实时合成；没有外部音轨和追踪脚本。
-
-托管配置在 `.openai/hosting.json`。部署归档仅包含此配置和 `dist/`，不含测试与开发文件。
+托管配置在 `.openai/hosting.json`。部署只包含配置和 `dist/`。

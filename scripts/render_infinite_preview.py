@@ -4,11 +4,18 @@ node scripts/export_infinite_preview.mjs --output /tmp/endless-city.json
 blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
   --input /tmp/endless-city.json --output previews/endless_city.png
 
+# Street-life snapshot, using actual browser geometry and original car GLB:
+# node scripts/export_infinite_preview.mjs --street --output /tmp/street-life.json
+# blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
+#   --input /tmp/street-life.json --output previews/street_life.png \
+#   --blend scenes/street_life.blend --resolution 1200
+
 The live city is infinite; this preview contains only its bounded nearby cells.
 Facade window masks are baked offline from the browser shader; GPU precision,
 lighting and postprocessing can differ. This is not a browser screenshot.
 """
 import argparse
+import base64
 import json
 import math
 import sys
@@ -30,14 +37,24 @@ bpy.ops.object.delete(use_global=False)
 
 # Convert Three.js Y-up world positions into Blender Z-up coordinates.
 convert = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
-groups = defaultdict(lambda: {'vertices': [], 'faces': [], 'uv': []})
+groups = defaultdict(lambda: {'vertices': [], 'faces': [], 'uv': [], 'colors': [], 'normals': []})
 materials = {}
+sign_atlas = None
+for batch in data['batches']:
+    atlas = batch['material'].get('signAtlas')
+    if atlas:
+        import numpy as np
+        sign_atlas = bpy.data.images.new('Original storefront sign atlas', width=atlas['width'], height=atlas['height'])
+        sign_atlas.colorspace_settings.name = 'sRGB'
+        sign_atlas.pixels.foreach_set(np.frombuffer(base64.b64decode(atlas['data']),dtype=np.uint8).astype(np.float32)/255)
+        sign_atlas.pack()
+        break
 
 
 def facade_images(key, name):
     """Bake the browser shader's UV window mask for this offline preview only."""
     import numpy as np
-    rgb, _, _, _, _, facade = key
+    rgb, _, _, _, _, facade = key[:6]
     style, width, height, seed = facade
     resolution = 256 if height < 80 else 512
     uv = (np.arange(resolution, dtype=np.float32) + .5) / resolution
@@ -86,6 +103,31 @@ def get_material(key, name):
             node.image = image
             mat.node_tree.links.new(node.outputs['Color'],bsdf.inputs[socket])
         bsdf.inputs['Emission Strength'].default_value = 1
+    if key[7]:
+        attribute=mat.node_tree.nodes.new('ShaderNodeVertexColor')
+        attribute.layer_name='Browser vertex color'
+        mat.node_tree.links.new(attribute.outputs['Color'],bsdf.inputs['Base Color'])
+    if key[8] and sign_atlas:
+        node=mat.node_tree.nodes.new('ShaderNodeTexImage');node.image=sign_atlas
+        mat.node_tree.links.new(node.outputs['Color'],bsdf.inputs['Base Color'])
+    if key[6]:
+        noise=mat.node_tree.nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=34
+        coordinate=mat.node_tree.nodes.new('ShaderNodeNewGeometry')
+        mat.node_tree.links.new(coordinate.outputs['Position'],noise.inputs['Vector'])
+        ramp=mat.node_tree.nodes.new('ShaderNodeValToRGB')
+        ramp.color_ramp.elements[0].color=(*[channel*.88 for channel in key[0]],1)
+        ramp.color_ramp.elements[1].color=(*[channel*1.08 for channel in key[0]],1)
+        mat.node_tree.links.new(noise.outputs['Fac'],ramp.inputs[0])
+        mat.node_tree.links.new(ramp.outputs[0],bsdf.inputs['Base Color'])
+        if key[6]=='paving':
+            tiles=mat.node_tree.nodes.new('ShaderNodeTexBrick');tiles.offset=0
+            tiles.inputs['Scale'].default_value=1/1.8;tiles.inputs['Brick Width'].default_value=1;tiles.inputs['Row Height'].default_value=1
+            tiles.inputs['Mortar Size'].default_value=.009
+            tiles.inputs['Color1'].default_value=(*[channel*.96 for channel in key[0]],1)
+            tiles.inputs['Color2'].default_value=(*[channel*1.04 for channel in key[0]],1)
+            tiles.inputs['Mortar'].default_value=(*[channel*.70 for channel in key[0]],1)
+            mat.node_tree.links.new(coordinate.outputs['Position'],tiles.inputs['Vector'])
+            mat.node_tree.links.new(tiles.outputs['Color'],bsdf.inputs['Base Color'])
     materials[key] = mat
     return mat
 
@@ -104,55 +146,104 @@ for batch in data['batches']:
         values = instance['matrix']
         matrix = convert @ Matrix(tuple(tuple(values[col*4+row] for col in range(4)) for row in range(4)))
         transformed = [tuple(matrix @ position) for position in positions]
+        normal_matrix=matrix.to_3x3().inverted().transposed()
         for face in faces:
             facade = None
             if base.get('facade') and normals and abs(normals[face[0]*3+1]) < .5:
                 dimensions = instance['dimensions']
                 width = dimensions[2] if abs(normals[face[0]*3]) > .5 else dimensions[0]
                 facade = (base['facade'],round(width,3),round(dimensions[1],3),round(instance['facadeSeed'],4))
-            key = (*basic,facade)
+            key = (*basic,facade,'road' if base.get('road') else 'paving' if base.get('paving') else None, bool(base.get('vertexColors')), bool(base.get('signAtlas')), not batch['name'].startswith('City /'))
             get_material(key,batch['name'])
             target = groups[key]
             offset = len(target['vertices'])
             target['vertices'].extend(transformed[index] for index in face)
             target['faces'].append((offset,offset+1,offset+2))
-            target['uv'].extend(tuple(uv[index*2:index*2+2]) if uv else (0,0) for index in face)
+            for index in face:
+                texcoord=tuple(uv[index*2:index*2+2]) if uv else (0,0)
+                if base.get('signAtlas'):
+                    slot=instance['signIndex'];texcoord=((texcoord[0]+slot%4)/4,(texcoord[1]+math.floor(slot/4))/2)
+                target['uv'].append(texcoord)
+                target['normals'].append(tuple((normal_matrix @ Vector(normals[index*3:index*3+3])).normalized()) if normals else (0,0,1))
+                colors=geometry.get('colors')
+                target['colors'].append(tuple(colors[index*3+j]*rgb[j] for j in range(3))+(1,) if colors else (*rgb,1))
 
 for index,(key,geometry) in enumerate(groups.items()):
     mesh = bpy.data.meshes.new(f'City surfaces {index:03d}')
     mesh.from_pydata(geometry['vertices'],[],geometry['faces'])
     mesh.materials.append(materials[key])
-    if key[5]:
+    if key[5] or key[8]:
         layer = mesh.uv_layers.new(name='Browser facade UV')
         for loop in mesh.loops:
             layer.data[loop.index].uv = geometry['uv'][loop.vertex_index]
+    if key[7]:
+        layer=mesh.color_attributes.new(name='Browser vertex color',type='FLOAT_COLOR',domain='CORNER')
+        for loop in mesh.loops:layer.data[loop.index].color=geometry['colors'][loop.vertex_index]
+    if key[9]:
+        for polygon in mesh.polygons:polygon.use_smooth=True
+        mesh.normals_split_custom_set_from_vertices(geometry['normals'])
     obj = bpy.data.objects.new(mesh.name,mesh)
     bpy.context.collection.objects.link(obj)
 
+hero=data.get('hero')
+if hero:
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.import_scene.gltf(filepath=hero['glb'])
+    imported=list(bpy.context.selected_objects)
+    carrier=bpy.data.objects.new('Blender coupe / exact browser asset',None)
+    bpy.context.collection.objects.link(carrier)
+    carrier.location=(hero['x'],-hero['z'],.015)
+    carrier.rotation_euler.z=hero['yaw']
+    for obj in imported:
+        if obj.parent is None:obj.parent=carrier
+
 scene = bpy.context.scene
 scene['world_seed'] = data['seed']
-scene['source'] = 'Actual infinite-city.js instance batches; browser-local procedural city'
+scene['source'] = 'Actual infinite-city.js and actors.js geometry; original car.glb; offline Blender lighting' if data.get('street') else 'Actual infinite-city.js instance batches; browser-local procedural city'
 scene.render.engine = 'CYCLES'
-scene.cycles.samples = 16
+scene.cycles.samples = 24 if data.get('street') else 16
 import _cycles
 scene.cycles.use_denoising = bool(getattr(_cycles, 'with_openimagedenoise', False))
 scene.render.resolution_x = args.resolution
-scene.render.resolution_y = int(args.resolution * 2 / 3)
+scene.render.resolution_y = int(args.resolution / data.get('aspect',1.5))
 scene.render.resolution_percentage = 100
 scene.view_settings.view_transform = 'AgX'
 scene.world.use_nodes = True
 world_nodes = scene.world.node_tree.nodes
-world_nodes.get('Background').inputs['Color'].default_value = (.35, .46, .68, 1)
+world_nodes.get('Background').inputs['Color'].default_value = (.45, .65, .82, 1) if data.get('street') else (.35,.46,.68,1)
 world_nodes.get('Background').inputs['Strength'].default_value = .6
+if data.get('street'):
+    sky=world_nodes.new('ShaderNodeTexSky');sky.sky_type='NISHITA';sky.sun_disc=False
+    sky.sun_elevation=math.radians(28);sky.sun_rotation=math.radians(135)
+    scene.world.node_tree.links.new(sky.outputs['Color'],world_nodes.get('Background').inputs['Color'])
+    world_nodes.get('Background').inputs['Strength'].default_value=.18
+    # Keep the same clear cyan-to-warm-horizon art direction as the browser sky;
+    # Nishita still supplies ambient illumination to physical surfaces.
+    import numpy as np
+    rgba=np.ones((256,512,4),dtype=np.float32)
+    bottom=np.array([.77,.68,.55]);top=np.array([.10,.40,.68])
+    for row in range(256):
+        elevation=max(0,math.sin((row/255-.5)*math.pi));t=min(1,elevation/.22);t=t*t*(3-2*t)
+        rgba[row,:,:3]=bottom*(1-t)+top*t
+    backdrop=bpy.data.images.new('Browser sky gradient / preview',width=512,height=256)
+    backdrop.colorspace_settings.name='Non-Color';backdrop.pixels.foreach_set(rgba.ravel());backdrop.pack()
+    environment=world_nodes.new('ShaderNodeTexEnvironment');environment.image=backdrop
+    camera_background=world_nodes.new('ShaderNodeBackground');camera_background.inputs['Strength'].default_value=.9
+    scene.world.node_tree.links.new(environment.outputs['Color'],camera_background.inputs['Color'])
+    path=world_nodes.new('ShaderNodeLightPath');mix=world_nodes.new('ShaderNodeMixShader')
+    scene.world.node_tree.links.new(path.outputs['Is Camera Ray'],mix.inputs[0])
+    scene.world.node_tree.links.new(world_nodes.get('Background').outputs['Background'],mix.inputs[1])
+    scene.world.node_tree.links.new(camera_background.outputs['Background'],mix.inputs[2])
+    scene.world.node_tree.links.new(mix.outputs[0],world_nodes.get('World Output').inputs['Surface'])
 sun_data = bpy.data.lights.new('Sunset key', 'SUN')
-sun_data.energy = 2.7
-sun_data.color = (1.0, .77, .53)
-sun_data.angle = math.radians(7)
+sun_data.energy = 3.0 if data.get('street') else 2.7
+sun_data.color = (1.0,.88,.73) if data.get('street') else (1.0,.77,.53)
+sun_data.angle = math.radians(2 if data.get('street') else 7)
 sun = bpy.data.objects.new('Sunset key', sun_data)
 bpy.context.collection.objects.link(sun)
 sun.rotation_euler = (math.radians(28), math.radians(-25), math.radians(-42))
 
-camera_data = bpy.data.cameras.new('City overview')
+camera_data = bpy.data.cameras.new('Street life / landscape camera' if data.get('street') else 'City overview')
 camera = bpy.data.objects.new('City overview', camera_data)
 bpy.context.collection.objects.link(camera)
 camera.location = Vector(data.get('camera', [250, 210, 270]))
@@ -160,7 +251,7 @@ camera.location = (camera.location.x, -camera.location.z, camera.location.y)
 target_three = data.get('target', [35, 12, 30])
 target = Vector((target_three[0], -target_three[2], target_three[1]))
 camera.rotation_euler = (target - camera.location).to_track_quat('-Z', 'Y').to_euler()
-camera_data.lens = 36
+camera_data.lens = data.get('lens',36)
 camera_data.clip_end = 3000
 scene.camera = camera
 args.output.parent.mkdir(parents=True, exist_ok=True)

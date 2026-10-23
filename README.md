@@ -1,14 +1,24 @@
 # Sunset Coast · GTA6 风格 Blender 场景
 
-原创海滨城市与跑车镜头演示：Art Deco 建筑、粉紫夕阳、棕榈大道、霓虹灯、沙滩和海水。包含可编辑的 Blender 工程、程序化建模脚本，以及 10 秒车辆与摄影机动画。
+原创海滨城市与跑车镜头演示：Art Deco 建筑、热带街景与夕阳、棕榈大道、霓虹灯、沙滩和海水。包含可编辑的 Blender 工程、程序化建模脚本，以及 10 秒车辆与摄影机动画。
 
 这是受 GTA6 海滨都市氛围启发的场景原型，不是完整游戏，也不包含 Rockstar 的模型、纹理或游戏代码。
 
-## 在线驾驶体验
+## 在线城市体验
 
 [打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（公开访问）。
 
-网页版保留 Blender 原创跑车，并升级为按需生成的无限城市：双向路网、五类街区、可重现的建筑布局、远景细节分级与区块回收。支持竖屏双手驾驶、倒车、自动巡游、四种可拖动镜头、双指缩放和原创双曲目电台。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`V` 镜头回正，`R` 复位，`M` 音乐，`N` 下一首。网页版源码和本地运行说明在 [`web/`](web/README.md)。
+网页版已升级为横屏开放城市：**人物步行开局、任意车辆上下车、连续委托和现金奖励**。WASD 移动 / 驾驶，Shift 奔跑，E 交谈 / 上下车，C 切镜头，拖动自由环视。手机横屏左侧摇杆、右侧动作键。保留按需生成的无限街区和原创双曲目电台。网页版源码及完整说明在 [`web/`](web/README.md)。
+
+本轮先查看 [Rockstar 官方 GTA VI 截图](https://www.rockstargames.com/VI/media/screenshots) 与 [Trailer 2 酒店街景](https://www.gtaboom.com/rockstar-confirms-using-in-game-ps5-footage-for-gta-6-trailer-2-e749)，以奶油白 Art Deco、珊瑚色雨棚、密集棕榈树、深色路面和冷暖日光为美术方向。参考图片不随仓库分发，网页使用原创几何、材质和店招。
+最新人物街景的可编辑快照是 [`scenes/street_life.blend`](scenes/street_life.blend)，包含同一套网页城市、人物、联络人和车辆。预览采用离线 Blender 光照，实际网页为实时渲染。
+
+![人物街景预览](previews/street_life.png)
+
+```bash
+node scripts/export_infinite_preview.mjs --street --seed 610 --output /tmp/street-life.json
+blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/street-life.json --output previews/street_life.png --blend scenes/street_life.blend --resolution 1200
+```
 
 V2 模型增加轮拱、车身接缝、轮胎和制动细节，以及沿线建筑立面。补充建模脚本 `scripts/detail_scene.py` 可在基础工程上运行。
 
@@ -81,6 +91,8 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 
 | 路径 | 内容 |
 | --- | --- |
+| `scenes/street_life.blend` | 人物、可驾驶车辆与街头场景的可编辑快照 |
+| `previews/street_life.png` | 横版人物街景预览 |
 | `scenes/endless_city_preview.blend` | 无限城市的有限邻域快照，可编辑 |
 | `previews/endless_city.png` | 程序化城市离线预览 |
 | `scenes/sunset_coast.blend` | 可编辑场景、材质、三台摄影机和关键帧 |
