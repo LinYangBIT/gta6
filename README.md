@@ -8,9 +8,20 @@
 
 [打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（公开访问）。
 
-网页版复用 Blender 导出的城市与跑车，支持竖屏双手驾驶、独立倒车、自动巡游、四种可拖动镜头、双指缩放、原创双曲目电台和六个路线光圈。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`V` 镜头回正，`R` 复位，`M` 音乐，`N` 下一首。网页版源码和本地运行说明在 [`web/`](web/README.md)。
+网页版保留 Blender 原创跑车，并升级为按需生成的无限城市：双向路网、五类街区、可重现的建筑布局、远景细节分级与区块回收。支持竖屏双手驾驶、倒车、自动巡游、四种可拖动镜头、双指缩放和原创双曲目电台。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`V` 镜头回正，`R` 复位，`M` 音乐，`N` 下一首。网页版源码和本地运行说明在 [`web/`](web/README.md)。
 
 V2 模型增加轮拱、车身接缝、轮胎和制动细节，以及沿线建筑立面。补充建模脚本 `scripts/detail_scene.py` 可在基础工程上运行。
+
+网页无限城市通过 `web/dist/world-layout.js` 与 `infinite-city.js` 在运行时生成，原始 `sunset_coast.blend` 保留固定海岸场景；不会把无限地图存成一个无限大的 Blender 文件。
+
+可编辑的邻近街区快照保存在 `scenes/endless_city_preview.blend`；预览图由同一批网页实例几何生成，窗户在离线渲染时烘焙近似材质。重新生成快照：
+
+```bash
+node scripts/export_infinite_preview.mjs --seed 610 --output /tmp/endless-city.json
+blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/endless-city.json --output previews/endless_city.png --blend scenes/endless_city_preview.blend
+```
+
+![无限城市街区预览](previews/endless_city.png)
 
 重新导出网页模型：
 
@@ -70,6 +81,8 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 
 | 路径 | 内容 |
 | --- | --- |
+| `scenes/endless_city_preview.blend` | 无限城市的有限邻域快照，可编辑 |
+| `previews/endless_city.png` | 程序化城市离线预览 |
 | `scenes/sunset_coast.blend` | 可编辑场景、材质、三台摄影机和关键帧 |
 | `previews/sunset_coast.png` | 主摄影机渲染预览 |
 | `previews/hero_car.png`、`previews/coast_aerial.png` | 跑车特写与海岸航拍 |

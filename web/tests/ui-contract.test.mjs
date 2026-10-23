@@ -81,7 +81,8 @@ test('portrait controls support simultaneous steering and pedals and release saf
   try {
     const { createUI } = await import('../dist/ui.js');
     const touch = {}, steering = [];
-    const ui = createUI({ touch(control, value) { touch[control] = value; }, steer(value) { steering.push(value); } });
+    let newCities = 0;
+    const ui = createUI({ touch(control, value) { touch[control] = value; }, steer(value) { steering.push(value); }, newCity() { newCities++; } });
     const throttle = pedals[0], reverse = pedals[2], pad = elements.get('steering-pad');
     throttle.emit('pointerdown', { pointerId: 1, button: 0 });
     pad.emit('pointerdown', { pointerId: 2, button: 0, clientX: 12 });
@@ -107,6 +108,23 @@ test('portrait controls support simultaneous steering and pedals and release saf
     assert.equal(elements.get('music-button').attrs.get('aria-pressed'), 'true');
     assert.equal(elements.get('sound-button').attrs.get('aria-pressed'), 'false', 'engine and music have separate switches');
     assert.equal(elements.get('track-label').textContent, 'Sunset Frequencies');
+    ui.update({ distance: 12345, checkpoint: 1234, total: 0, destinationDistance: 128, seed: 734, district: 'DOWNTOWN · 天际线' });
+    assert.equal(elements.get('distance-value').textContent, '12.35 km');
+    assert.equal(elements.get('checkpoint-count').textContent, '1,234 个路口', 'infinite exploration never clamps to a finite checkpoint quota');
+    assert.equal(elements.get('destination-distance').textContent, '128 m');
+    assert.equal(elements.get('world-seed').textContent, '000734');
+    assert.equal(elements.get('city-label').textContent, '000734');
+    assert.equal(elements.get('district').textContent, 'DOWNTOWN · 天际线');
+    ui.update({ distance: 12345, destinationDistance: 2400, seed: 734 });
+    assert.equal(elements.get('destination-distance').textContent, '2.4 km');
+    elements.get('new-city-button').emit('click');
+    assert.equal(newCities, 0, 'city changes wait for scene readiness');
+    ui.setReady();
+    assert.equal(elements.get('new-city-button').disabled, false);
+    throttle.emit('pointerdown', { pointerId: 7, button: 0 });
+    elements.get('new-city-button').emit('click');
+    assert.equal(newCities, 1);
+    assert.equal(touch.throttle, false, 'new city clears held input before resetting the world');
   } finally {
     globalThis.document = previousDocument; globalThis.window = previousWindow;
   }

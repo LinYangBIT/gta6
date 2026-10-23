@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DrivingSimulation, CHECKPOINTS, BOUNDS, PARKED_CARS, wrapAngle } from '../dist/driving.js';
+import { DrivingSimulation, wrapAngle } from '../dist/driving.js';
+import { CHUNK_SIZE, generateChunk, isRoad, worldCacheSize, COLLISION_CACHE_LIMIT } from '../dist/world-layout.js';
 
 function run(simulation, seconds, input, step = 1 / 60) {
   const count = Math.round(seconds / step);
@@ -103,44 +104,100 @@ test('frame-rate changes are stable and tab-resume dt is bounded', () => {
   assert.equal(JSON.stringify(fast.state), snapshot);
 });
 
-test('road edge collisions keep the vehicle within world limits', () => {
-  const car = new DrivingSimulation();
-  car.state.x = BOUNDS.maxX - 0.1;
-  car.state.yaw = Math.PI / 2;
-  car._motionYaw = Math.PI / 2;
-  car.state.speed = 38;
-  car.update(0.1, { throttle: 1 });
-  assert.ok(car.state.x <= BOUNDS.maxX);
-  assert.ok(car.state.collision);
-  assert.ok(Math.abs(car.state.speed) < 8);
+test('roads remain drivable far beyond the old map in both coordinate axes', () => {
+  const north = new DrivingSimulation();
+  run(north, 80, { throttle: 1 });
+  assert.ok(north.state.z < -2000);
+  assert.ok(north.state.speed > 30);
+  assert.ok(Math.abs(north.state.x - 3) < .0001);
+  const east = new DrivingSimulation();
+  east.state.x = CHUNK_SIZE * 1700 + 30; east.state.z = 3;
+  east.state.yaw = east._motionYaw = Math.PI / 2;
+  run(east, 80, { throttle: 1 });
+  assert.ok(east.state.x > CHUNK_SIZE * 1700 + 2000);
+  assert.ok(east.state.speed > 30 && isRoad(east.state.x, east.state.z));
 });
 
-test('parked car collision is detected even at maximum speed', () => {
+test('the full car capsule collides with actual procedural building footprints', () => {
+  const building = generateChunk(0, 0).buildings[0];
+  const edge = building.z - building.depth / 2;
   const car = new DrivingSimulation();
-  const obstacle = PARKED_CARS[1];
-  car.state.x = obstacle.x;
-  car.state.z = obstacle.z + 4;
+  car.state.x = building.x;
+  car.state.z = edge - 2.8;
+  car.state.yaw = car._motionYaw = 0;
   car.state.speed = 42;
-  car.update(0.1, { throttle: 1 });
-  assert.ok(car.state.collision);
-  assert.ok(Math.hypot(car.state.x - obstacle.x, car.state.z - obstacle.z) >= obstacle.radius + 1.14);
-  assert.ok(car.state.speed < 5);
+  car.update(.1, { throttle: 1 });
+  assert.ok(car.state.collision, 'front of car must contact the generated facade');
+  assert.ok(car.state.z + 2.25 <= edge + .002, 'car nose should not pass through the wall');
+  assert.ok(car.state.speed < 1);
 });
 
-test('cruise completes ordered checkpoints and continuously loops without teleporting', () => {
+test('autonomous cruise traverses more than ten kilometres, turning without seams or teleports', () => {
   const car = new DrivingSimulation();
   car.setCruise(true);
-  let largestStep = 0;
-  let maxCheckpoint = 0;
-  for (let i = 0; i < 60 * 240; i++) {
-    const { x, z } = car.state;
+  let largestStep = 0, collisions = 0, offRoad = 0;
+  let minX = car.state.x, maxX = car.state.x;
+  const destinations = new Set();
+  for (let i = 0; i < 60 * 900; i++) {
+    const { x, z, destination } = car.state;
     car.update(1 / 60);
     largestStep = Math.max(largestStep, Math.hypot(car.state.x - x, car.state.z - z));
-    maxCheckpoint = Math.max(maxCheckpoint, car.state.checkpoint);
-    if (car.state.completedLaps >= 2) break;
+    collisions += Number(car.state.collision);
+    offRoad += Number(!isRoad(car.state.x, car.state.z));
+    minX = Math.min(minX, car.state.x); maxX = Math.max(maxX, car.state.x);
+    if (destination !== car.state.destination) {
+      const next = car.state.destination;
+      assert.equal(Math.abs(next.x - destination.x) + Math.abs(next.z - destination.z), CHUNK_SIZE);
+      destinations.add(`${next.x},${next.z}`);
+    }
   }
-  assert.equal(maxCheckpoint, CHECKPOINTS.length);
-  assert.ok(car.state.completedLaps >= 2, JSON.stringify(car.state));
-  assert.ok(car.state.bestTime > 20 && car.state.bestTime < 180);
-  assert.ok(largestStep < 0.5, `largest movement ${largestStep}`);
+  assert.ok(car.state.distance > 10000);
+  assert.ok(car.state.checkpoint > 75 && destinations.size > 75);
+  assert.ok(car.state.z < -5000 && maxX - minX > 500);
+  assert.equal(collisions, 0); assert.equal(offRoad, 0);
+  assert.ok(largestStep < .5, `largest movement ${largestStep}`);
+  assert.ok(worldCacheSize() <= COLLISION_CACHE_LIMIT, 'exploration must retain only a bounded collision cache');
+});
+
+test('cruise joins the local street after free exploration instead of returning to the spawn map', () => {
+  const car = new DrivingSimulation();
+  car.state.x = 1283; car.state.z = -2510;
+  car.state.yaw = car._motionYaw = Math.PI;
+  car.setCruise(true);
+  assert.equal(car.state.destination.x, 1280);
+  assert.equal(car.state.destination.z, -2560);
+  run(car, 70, {});
+  assert.ok(car.state.checkpoint > 4);
+  assert.ok(car.state.z < -2700);
+  assert.ok(isRoad(car.state.x, car.state.z));
+});
+
+test('city seeds reproduce navigation, and resetting a new seed resets the exploration', () => {
+  const first = new DrivingSimulation({ seed: 781 });
+  const repeated = new DrivingSimulation({ seed: 781 });
+  const other = new DrivingSimulation({ seed: 782 });
+  first.setCruise(true); repeated.setCruise(true); other.setCruise(true);
+  run(first, 100, {}); run(repeated, 100, {}); run(other, 100, {});
+  assert.deepEqual(first.state, repeated.state);
+  assert.notDeepEqual(first.state.destination, other.state.destination);
+  first.setSeed(782);
+  assert.equal(first.state.seed, 782);
+  assert.equal(first.state.checkpoint, 0);
+  assert.equal(first.state.distance, 0);
+  assert.equal(first.state.x, 3);
+});
+
+test('cruise finds a clear courtyard exit instead of repeatedly driving into the nearest building', () => {
+  const car = new DrivingSimulation({ seed: 610 });
+  Object.assign(car.state, { x: 80, z: 64, yaw: 1 });
+  car._motionYaw = 1;
+  car.setCruise(true);
+  let collisions = 0;
+  for (let i = 0; i < 120 * 60; i++) {
+    car.update(1 / 60);
+    collisions += Number(car.state.collision);
+  }
+  assert.equal(collisions, 0);
+  assert.ok(car.state.checkpoint >= 8);
+  assert.ok(car.state.distance > 1000 && isRoad(car.state.x, car.state.z));
 });

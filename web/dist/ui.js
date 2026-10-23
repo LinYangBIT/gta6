@@ -6,6 +6,7 @@ export function createUI(handlers = {}) {
   const world = byId('world');
   const drive = byId('start-drive');
   const cruise = byId('start-cruise');
+  const newCity = byId('new-city-button');
   const loading = byId('loading');
   const readyMessage = byId('ready-message');
   const error = byId('load-error');
@@ -68,11 +69,9 @@ export function createUI(handlers = {}) {
     for (const control of controls) handlers.touch?.(control, false);
     document.querySelectorAll('[data-control].is-pressed').forEach(button => button.classList.remove('is-pressed'));
   }
-  function timeLabel(value, fallback = '--:--') {
-    if (typeof value === 'string') return value;
-    if (!Number.isFinite(value) || value < 0) return fallback;
-    const total = Math.floor(value);
-    return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+  function distanceLabel(metres, decimals = 2) {
+    const distance = Math.max(0, Number(metres) || 0);
+    return `${(distance / 1000).toFixed(decimals)} km`;
   }
   function showIntro() {
     releaseAll();
@@ -94,6 +93,7 @@ export function createUI(handlers = {}) {
 
   onClick('start-drive', () => { if (ready) handlers.start?.('drive'); });
   onClick('start-cruise', () => { if (ready) handlers.start?.('cruise'); });
+  onClick('new-city-button', () => { if (ready) { releaseAll(); handlers.newCity?.(); } });
   onClick('camera-button', () => handlers.camera?.());
   onClick('recenter-button', () => handlers.recenter?.());
   onClick('music-button', () => handlers.music?.());
@@ -221,6 +221,7 @@ export function createUI(handlers = {}) {
       document.body.classList.add('is-ready');
       drive.disabled = false;
       cruise.disabled = false;
+      newCity.disabled = false;
       loading.hidden = true;
       error.hidden = true;
       readyMessage.hidden = false;
@@ -229,6 +230,7 @@ export function createUI(handlers = {}) {
       ready = false;
       drive.disabled = true;
       cruise.disabled = true;
+      newCity.disabled = true;
       loading.hidden = true;
       readyMessage.hidden = true;
       error.hidden = false;
@@ -243,17 +245,17 @@ export function createUI(handlers = {}) {
         byId('speed-fill').style.width = `${Math.min(speed / 140, 1) * 100}%`;
         last.speed = speed;
       }
-      const total = Math.max(1, Number(state.total) || 5);
-      const checkpoint = Math.min(total, Math.max(0, Number(state.checkpoint) || 0));
-      text('checkpoint-count', `${checkpoint} / ${total}`);
-      const progressKey = `${checkpoint}/${total}`;
-      if (last.route !== progressKey) {
-        byId('route-fill').style.width = `${checkpoint / total * 100}%`;
-        text('route-description', checkpoint >= total ? '海岸路线完成，继续享受海风' : '驶过光圈，探索海岸');
-        last.route = progressKey;
-      }
-      text('elapsed-time', timeLabel(state.time, '00:00'));
-      text('best-time', timeLabel(state.best));
+      const checkpoints = Math.max(0, Math.floor(Number(state.checkpoint) || 0));
+      text('checkpoint-count', `${checkpoints.toLocaleString('zh-CN')} 个路口`);
+      text('distance-value', distanceLabel(state.distance));
+      const destination = Number(state.destinationDistance);
+      text('destination-distance', Number.isFinite(destination) && destination >= 0
+        ? destination >= 1000 ? distanceLabel(destination, 1) : `${Math.round(destination)} m`
+        : '-- m');
+      text('route-description', state.cruising ? '沿着路口巡游，随时接管方向' : '随心转弯，发现下一片街区');
+      const seedLabel = String(Number.isFinite(state.seed) ? Math.trunc(state.seed) : 610).padStart(6, '0');
+      text('world-seed', seedLabel);
+      text('city-label', seedLabel);
       text('district', state.district || '棕榈大道');
       if (state.cameraLabel) text('camera-label', state.cameraLabel);
       const soundOn = Boolean(state.soundOn);
