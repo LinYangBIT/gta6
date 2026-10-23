@@ -1,7 +1,8 @@
 /**
  * Deterministic, renderer-independent coastal driving simulation.
  * Units: metres, seconds, radians. +Z is the car's forward direction at yaw 0.
- * `steer: +1` turns left; `steer: -1` turns right. Brake becomes reverse at rest.
+ * `steer: +1` turns left; `steer: -1` turns right. `reverse` is an independent
+ * pedal: it brakes forward motion, then backs up. `brake` only stops the car.
  * `checkpoint` is the number collected (and the index of the next target).
  * A completed lap remains visible for 3 seconds before a new lap begins.
  */
@@ -88,6 +89,7 @@ export class DrivingSimulation {
     const normalized = {
       throttle: clamp(finite(input.throttle), 0, 1),
       brake: clamp(finite(input.brake), 0, 1),
+      reverse: clamp(finite(input.reverse), 0, 1),
       steer: clamp(finite(input.steer), -1, 1),
       handbrake: Boolean(input.handbrake),
     };
@@ -118,6 +120,7 @@ export class DrivingSimulation {
     return {
       throttle: clamp((desiredSpeed - s.speed) * 0.55, 0, 1),
       brake: clamp((s.speed - desiredSpeed) * 0.35, 0, 1),
+      reverse: 0,
       steer: clamp(error * 2.6, -1, 1),
       handbrake: false,
     };
@@ -129,7 +132,7 @@ export class DrivingSimulation {
     const wasBeach = s.x > 6.5;
     s.surface = wasBeach ? 'beach' : 'road';
     s.cameraBump *= Math.exp(-8 * dt);
-    if (input.throttle > 0.01 || input.brake > 0.01 || s.cruising) s.running = true;
+    if (input.throttle > 0.01 || input.reverse > 0.01 || s.cruising) s.running = true;
 
     if (s.completed) {
       this._completionRemaining -= dt;
@@ -143,22 +146,28 @@ export class DrivingSimulation {
     }
 
     const oldSpeed = s.speed;
-    let acceleration = input.throttle * (wasBeach ? 5.5 : 9.5);
-    if (input.brake) acceleration -= input.brake * (s.speed > 0.6 ? 18 : 6.5);
-    if (input.handbrake && Math.abs(s.speed) > 0.02) acceleration -= Math.sign(s.speed) * 24;
+    // Brakes always win over a held accelerator. This also makes multi-touch
+    // transitions predictable: neither brake pedal can accidentally select R.
+    const drive = input.brake || input.handbrake ? 0 : input.throttle - input.reverse;
+    const opposingMotion = drive * s.speed < -0.05;
+    const power = opposingMotion ? 18 : drive < 0 ? 6.5 : wasBeach ? 5.5 : 9.5;
+    let acceleration = drive * power;
+    acceleration -= Math.sign(s.speed) * (input.brake * 21 + (input.handbrake ? 24 : 0));
     const drag = (wasBeach ? 1.7 : 0.65) + Math.abs(s.speed) * 0.04 + s.speed * s.speed * 0.004;
     if (Math.abs(s.speed) > 0.005) acceleration -= Math.sign(s.speed) * drag;
     s.speed += acceleration * dt;
-    if (!input.throttle && !input.brake && Math.sign(oldSpeed) !== Math.sign(s.speed)) s.speed = 0;
-    if (input.handbrake && Math.sign(oldSpeed) !== Math.sign(s.speed)) s.speed = 0;
+    if (!drive && Math.sign(oldSpeed) !== Math.sign(s.speed)) s.speed = 0;
     s.speed = clamp(s.speed, -6, wasBeach ? 18 : 42);
-    if (!input.throttle && !input.brake && Math.abs(s.speed) < 0.035) s.speed = 0;
+    if (!drive && Math.abs(s.speed) < 0.035) s.speed = 0;
 
-    const steeringTarget = input.steer * 0.62 / (1 + Math.abs(s.speed) / 32);
-    s.steering += (steeringTarget - s.steering) * (1 - Math.exp(-9 * dt));
+    // A quicker, wider low-speed rack lets a thumb pad make a U-turn without
+    // requiring racing speed; the existing high-speed taper keeps it stable.
+    const steeringLimit = 0.62 + 0.16 * Math.exp(-Math.abs(s.speed) / 8);
+    const steeringTarget = input.steer * steeringLimit / (1 + Math.abs(s.speed) / 32);
+    s.steering += (steeringTarget - s.steering) * (1 - Math.exp(-12 * dt));
     const yawRate = clamp(s.speed / 2.65 * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -1.4, 1.4);
     s.yaw = wrapAngle(s.yaw + yawRate * dt);
-    const grip = input.handbrake && Math.abs(s.speed) > 4 ? 2.1 : (wasBeach ? 5 : 10);
+    const grip = input.handbrake && Math.abs(s.speed) > 4 ? 2.1 : (wasBeach ? 5 : 13);
     this._motionYaw = wrapAngle(this._motionYaw + wrapAngle(s.yaw - this._motionYaw) * (1 - Math.exp(-grip * dt)));
     s.x += Math.sin(this._motionYaw) * s.speed * dt;
     s.z += Math.cos(this._motionYaw) * s.speed * dt;

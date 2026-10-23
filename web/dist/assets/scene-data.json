@@ -30,18 +30,18 @@
   },
   "assets": {
     "environment.glb": {
-      "bytes": 10792856,
-      "meshes": 58,
-      "draw_calls": 59,
-      "vertices": 346213,
-      "triangles": 331792
+      "bytes": 16236432,
+      "meshes": 60,
+      "draw_calls": 61,
+      "vertices": 521463,
+      "triangles": 501904
     },
     "car.glb": {
-      "bytes": 1023164,
-      "meshes": 24,
-      "draw_calls": 24,
-      "vertices": 37456,
-      "triangles": 30594
+      "bytes": 1945772,
+      "meshes": 40,
+      "draw_calls": 40,
+      "vertices": 70077,
+      "triangles": 55608
     }
   }
 }

@@ -6,9 +6,11 @@
 
 ## 在线驾驶体验
 
-[打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（当前仅创建者可访问，请使用创建站点的 ChatGPT 账号打开）。
+[打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（公开访问）。
 
-网页版复用 Blender 导出的城市与跑车，支持键盘/触屏驾驶、自动巡游、三种镜头和六个路线光圈。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`R` 复位。网页版源码和本地运行说明在 [`web/`](web/README.md)。
+网页版复用 Blender 导出的城市与跑车，支持竖屏双手驾驶、独立倒车、自动巡游、四种可拖动镜头、双指缩放、原创双曲目电台和六个路线光圈。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`V` 镜头回正，`R` 复位，`M` 音乐，`N` 下一首。网页版源码和本地运行说明在 [`web/`](web/README.md)。
+
+V2 模型增加轮拱、车身接缝、轮胎和制动细节，以及沿线建筑立面。补充建模脚本 `scripts/detail_scene.py` 可在基础工程上运行。
 
 重新导出网页模型：
 
@@ -47,6 +49,9 @@ blender -b --python-exit-code 1 --python scripts/build_scene.py -- --render --re
 # 仅生成工程
 blender -b --python-exit-code 1 --python scripts/build_scene.py
 
+# 在基础工程上加入 V2 细节（可重复运行）
+blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/detail_scene.py
+
 # 检查保存的场景；结果写入 previews/validation.json
 blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/validate_scene.py
 
@@ -73,9 +78,10 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 | `scripts/build_scene.py` | 组装道路、海岸、植被、灯光和动画 |
 | `scripts/city.py` | Art Deco 街区与远景建筑 |
 | `scripts/vehicle.py` | 原创跑车模型 |
+| `scripts/detail_scene.py` | V2 轮拱、内饰、车身接缝及沿线店铺细化 |
 | `scripts/validate_scene.py` | 可重复运行的工程检查 |
 | `scripts/render_previews.py` | 渲染辅助视角与巡游视频 |
 
 所有几何和材质由本项目脚本生成，不依赖外部付费素材。代码及原创资产使用 [MIT License](LICENSE)。GTA / Grand Theft Auto 商标属于各自权利人；本项目为独立非官方作品。
 
-**English:** An original GTA6-inspired coastal environment for Blender 4.3+, with editable procedural assets and a 240-frame sunset cruise. Open the `.blend`, or rebuild it with the command above. This is an environment and animation prototype, not a playable game or an official Rockstar product.
+**English:** An original GTA6-inspired coastal environment for Blender 4.3+, with editable procedural assets and a 240-frame sunset cruise. Open the `.blend`, or rebuild it with the command above. Includes a public browser driving prototype; this is an independent project, not an official Rockstar product.

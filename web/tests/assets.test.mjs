@@ -63,8 +63,8 @@ test('actual GLB files load with the shipped Three.js loader and no external ass
       assert.equal(entry.uri, undefined, 'asset must be self-contained');
     }
   }
-  assert.ok(environment.bytes < 15 * 1024 * 1024);
-  assert.ok(car.bytes < 1024 * 1024);
+  assert.ok(environment.bytes < 20 * 1024 * 1024);
+  assert.ok(car.bytes < 3 * 1024 * 1024);
 });
 
 test('environment and car contain finite surfaces within the shared drawing budget', () => {

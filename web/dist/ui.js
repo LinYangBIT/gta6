@@ -14,6 +14,10 @@ export function createUI(handlers = {}) {
   const video = byId('cruise-video');
   const toastElement = byId('toast');
   const pointers = new Map();
+  const steeringPad = byId('steering-pad');
+  const steeringKnob = byId('steering-knob');
+  let steeringPointer = null;
+  let steeringValue = 0;
   const last = {};
   let ready = false;
   let toastTimeout;
@@ -47,7 +51,18 @@ export function createUI(handlers = {}) {
     openDialog(videoDialog);
     video?.play()?.catch(() => {});
   }
+  function setSteering(value) {
+    steeringValue = Math.max(-1, Math.min(1, Number(value) || 0));
+    if (Math.abs(steeringValue) < 0.055) steeringValue = 0;
+    steeringKnob.style.setProperty('--steering-x', `${-steeringValue * 30}px`);
+    steeringPad.setAttribute('aria-valuenow', String(Math.round(steeringValue * 100)));
+    steeringPad.setAttribute('aria-valuetext', steeringValue === 0 ? '直行' : `${steeringValue > 0 ? '左转' : '右转'} ${Math.round(Math.abs(steeringValue) * 100)}%`);
+    steeringPad.classList.toggle('is-pressed', steeringValue !== 0);
+    handlers.steer?.(steeringValue);
+  }
   function releaseAll() {
+    steeringPointer = null;
+    setSteering(0);
     const controls = new Set(pointers.values());
     pointers.clear();
     for (const control of controls) handlers.touch?.(control, false);
@@ -80,6 +95,9 @@ export function createUI(handlers = {}) {
   onClick('start-drive', () => { if (ready) handlers.start?.('drive'); });
   onClick('start-cruise', () => { if (ready) handlers.start?.('cruise'); });
   onClick('camera-button', () => handlers.camera?.());
+  onClick('recenter-button', () => handlers.recenter?.());
+  onClick('music-button', () => handlers.music?.());
+  onClick('track-button', () => handlers.track?.());
   onClick('reset-button', () => handlers.reset?.());
   onClick('sound-button', () => handlers.sound?.());
   onClick('fullscreen-button', () => handlers.fullscreen?.());
@@ -108,29 +126,83 @@ export function createUI(handlers = {}) {
     });
   }
 
+  // Each finger owns its input until released; steering and pedals work together.
   for (const button of document.querySelectorAll('[data-control]')) {
     const control = button.dataset.control;
-    button.addEventListener('contextmenu', event => event.preventDefault());
-    button.addEventListener('pointerdown', event => {
-      event.preventDefault();
+    const press = id => {
       const alreadyPressed = [...pointers.values()].includes(control);
-      pointers.set(event.pointerId, control);
-      button.setPointerCapture?.(event.pointerId);
+      pointers.set(id, control);
       button.classList.add('is-pressed');
       if (!alreadyPressed) handlers.touch?.(control, true);
-    });
-    const release = event => {
-      if (!pointers.has(event.pointerId)) return;
-      pointers.delete(event.pointerId);
+    };
+    const release = id => {
+      if (!pointers.has(id)) return;
+      pointers.delete(id);
       if (![...pointers.values()].includes(control)) {
         handlers.touch?.(control, false);
         button.classList.remove('is-pressed');
       }
     };
-    button.addEventListener('pointerup', release);
-    button.addEventListener('pointercancel', release);
-    button.addEventListener('lostpointercapture', release);
+    button.addEventListener('contextmenu', event => event.preventDefault());
+    button.addEventListener('pointerdown', event => {
+      if (event.button !== undefined && event.button !== 0) return;
+      event.preventDefault();
+      press(event.pointerId);
+      button.setPointerCapture?.(event.pointerId);
+    });
+    for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      button.addEventListener(name, event => release(event.pointerId));
+    }
+    button.addEventListener('keydown', event => {
+      if (!['Space', 'Enter'].includes(event.code)) return;
+      event.preventDefault();
+      if (!event.repeat) press(`keyboard:${control}`);
+    });
+    button.addEventListener('keyup', event => {
+      if (!['Space', 'Enter'].includes(event.code)) return;
+      event.preventDefault();
+      release(`keyboard:${control}`);
+    });
+    button.addEventListener('blur', () => release(`keyboard:${control}`));
   }
+  const steerAt = event => {
+    const bounds = steeringPad.getBoundingClientRect();
+    const center = bounds.left + bounds.width / 2;
+    setSteering((center - event.clientX) / (bounds.width * .32));
+  };
+  steeringPad.addEventListener('contextmenu', event => event.preventDefault());
+  steeringPad.addEventListener('pointerdown', event => {
+    if (steeringPointer !== null || (event.button !== undefined && event.button !== 0)) return;
+    event.preventDefault();
+    steeringPointer = event.pointerId;
+    steeringPad.setPointerCapture?.(event.pointerId);
+    steerAt(event);
+  });
+  steeringPad.addEventListener('pointermove', event => {
+    if (event.pointerId !== steeringPointer) return;
+    event.preventDefault();
+    steerAt(event);
+  });
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+    steeringPad.addEventListener(name, event => {
+      if (event.pointerId !== steeringPointer) return;
+      steeringPointer = null;
+      setSteering(0);
+    });
+  }
+  steeringPad.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.code)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSteering(event.code === 'ArrowLeft' ? 1 : event.code === 'ArrowRight' ? -1 : 0);
+  });
+  steeringPad.addEventListener('keyup', event => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.code)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setSteering(0);
+  });
+  steeringPad.addEventListener('blur', () => { steeringPointer = null; setSteering(0); });
   window.addEventListener('blur', releaseAll);
   document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
 
@@ -187,9 +259,17 @@ export function createUI(handlers = {}) {
       const soundOn = Boolean(state.soundOn);
       if (last.soundOn !== soundOn) {
         byId('sound-button').setAttribute('aria-pressed', String(soundOn));
-        byId('sound-button').setAttribute('aria-label', `${soundOn ? '关闭' : '打开'}声音，快捷键 M`);
+        byId('sound-button').setAttribute('aria-label', `${soundOn ? '关闭' : '打开'}引擎声`);
         last.soundOn = soundOn;
       }
+      const musicOn = Boolean(state.musicOn);
+      if (last.musicOn !== musicOn) {
+        byId('music-button').setAttribute('aria-pressed', String(musicOn));
+        byId('music-button').setAttribute('aria-label', `${musicOn ? '关闭' : '打开'}背景音乐`);
+        text('radio-state', musicOn ? 'ON AIR' : 'OFF');
+        last.musicOn = musicOn;
+      }
+      if (state.trackLabel) text('track-label', state.trackLabel);
       byId('cruise-badge').hidden = !state.cruising;
     },
     showIntro,

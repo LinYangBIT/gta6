@@ -46,5 +46,68 @@ test('visible controls have an accessible name and touch actions are unambiguous
   }
   const controls = [...html.matchAll(/data-control="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(controls).size, controls.length, 'Duplicate touch controls');
-  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'handbrake'].includes(action), `Unknown touch action ${action}`);
+  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'reverse', 'handbrake'].includes(action), `Unknown touch action ${action}`);
+});
+
+
+test('portrait controls support simultaneous steering and pedals and release safely', async () => {
+  class Element {
+    constructor(id = '', control) {
+      this.id = id; this.dataset = control ? { control } : {};
+      this.listeners = new Map(); this.attrs = new Map();
+      this.style = { setProperty(name, value) { this[name] = value; } };
+      const classes = new Set();
+      this.classList = { add: value => classes.add(value), remove: value => classes.delete(value),
+        contains: value => classes.has(value), toggle(value, enabled) { enabled ? classes.add(value) : classes.delete(value); } };
+    }
+    addEventListener(type, callback) { const callbacks = this.listeners.get(type) ?? []; callbacks.push(callback); this.listeners.set(type, callbacks); }
+    emit(type, details = {}) { const event = { preventDefault() {}, stopPropagation() {}, target: this, ...details }; for (const callback of this.listeners.get(type) ?? []) callback(event); }
+    setAttribute(name, value) { this.attrs.set(name, value); }
+    removeAttribute(name) { this.attrs.delete(name); }
+    setPointerCapture() {}
+    getBoundingClientRect() { return { left: 0, width: 120 }; }
+    focus() {}
+  }
+  const elements = new Map([...html.matchAll(/\bid="([^"]+)"/g)].map(match => [match[1], new Element(match[1])]));
+  const pedals = ['throttle', 'brake', 'reverse', 'handbrake'].map(control => new Element('', control));
+  const fakeWindow = new Element();
+  const fakeDocument = new Element();
+  fakeDocument.getElementById = id => elements.get(id);
+  fakeDocument.querySelector = () => null;
+  fakeDocument.querySelectorAll = selector => selector === '[data-control]' ? pedals : selector === '[data-control].is-pressed' ? pedals.filter(p => p.classList.contains('is-pressed')) : [];
+  fakeDocument.body = new Element();
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  globalThis.document = fakeDocument; globalThis.window = fakeWindow;
+  try {
+    const { createUI } = await import('../dist/ui.js');
+    const touch = {}, steering = [];
+    const ui = createUI({ touch(control, value) { touch[control] = value; }, steer(value) { steering.push(value); } });
+    const throttle = pedals[0], reverse = pedals[2], pad = elements.get('steering-pad');
+    throttle.emit('pointerdown', { pointerId: 1, button: 0 });
+    pad.emit('pointerdown', { pointerId: 2, button: 0, clientX: 12 });
+    assert.equal(touch.throttle, true);
+    assert.equal(steering.at(-1), 1, 'left thumb turns left while accelerator is held');
+    pad.emit('pointermove', { pointerId: 2, clientX: 108 });
+    assert.equal(steering.at(-1), -1, 'same gesture can turn right');
+    pad.emit('pointercancel', { pointerId: 2 });
+    assert.equal(steering.at(-1), 0, 'cancelled steering springs to center');
+    assert.equal(touch.throttle, true, 'releasing steering does not release another finger');
+    throttle.emit('lostpointercapture', { pointerId: 1 });
+    assert.equal(touch.throttle, false, 'lost touch capture releases accelerator');
+    reverse.emit('pointerdown', { pointerId: 3, button: 0 });
+    throttle.emit('keydown', { code: 'Space', repeat: false });
+    assert.equal(touch.reverse, true); assert.equal(touch.throttle, true);
+    fakeWindow.emit('blur');
+    assert.equal(touch.reverse, false); assert.equal(touch.throttle, false); assert.equal(steering.at(-1), 0);
+    pad.emit('keydown', { code: 'ArrowLeft' });
+    assert.equal(steering.at(-1), 1);
+    pad.emit('keyup', { code: 'ArrowLeft' });
+    assert.equal(steering.at(-1), 0);
+    ui.update({ musicOn: true, soundOn: false, trackLabel: 'Sunset Frequencies', cameraLabel: '自由环视' });
+    assert.equal(elements.get('music-button').attrs.get('aria-pressed'), 'true');
+    assert.equal(elements.get('sound-button').attrs.get('aria-pressed'), 'false', 'engine and music have separate switches');
+    assert.equal(elements.get('track-label').textContent, 'Sunset Frequencies');
+  } finally {
+    globalThis.document = previousDocument; globalThis.window = previousWindow;
+  }
 });

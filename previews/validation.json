@@ -2,9 +2,9 @@
   "status": "passed",
   "blender_version": "4.3.2",
   "project": "sunset_coast.blend",
-  "object_count": 1992,
-  "mesh_vertices": 86527,
-  "mesh_polygons": 41209,
+  "object_count": 2890,
+  "mesh_vertices": 105080,
+  "mesh_polygons": 54488,
   "camera_count": 3,
   "checks": {
     "saved_project_loaded": {

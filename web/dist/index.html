@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#e79782">
+  <meta name="theme-color" content="#252334">
   <meta name="description" content="驶入日落时分的海滨城市。驾驶原创跑车，沿棕榈大道自由探索 Sunset Coast。">
   <title>Sunset Coast — 日落海岸</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=2">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body class="is-intro">
@@ -20,6 +20,9 @@
     <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></symbol>
     <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 9l11-2"/><ellipse cx="6" cy="18" rx="3" ry="2"/><ellipse cx="17" cy="16" rx="3" ry="2"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m5 5 10 7L5 19V5zm13 0v14"/></symbol>
+    <symbol id="i-center" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/><circle cx="12" cy="12" r="3"/></symbol>
     <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   </svg>
   <canvas id="world" tabindex="0" aria-label="Sunset Coast 三维驾驶场景"></canvas>
@@ -33,9 +36,9 @@
       <a class="source-link" href="https://github.com/LinYangBIT/gta6" target="_blank" rel="noopener noreferrer">探索源代码 <span aria-hidden="true">↗</span></a>
     </header>
     <div class="intro__content">
-      <p class="eyebrow"><span class="live-dot"></span> OCEAN DRIVE, 18:42 <span class="eyebrow__line"></span> THE GOLDEN HOUR</p>
+      <p class="eyebrow"><span class="live-dot"></span> OCEAN DRIVE, 18:42 <span class="eyebrow__line"></span> DRIVE · EXPLORE · LISTEN</p>
       <h1 id="intro-title"><span>SUNSET</span><span class="intro__coast">COAST<span class="title-period">.</span></span></h1>
-      <p class="intro__description">日落之后，沿海出发。<br><span>一辆跑车，一条棕榈大道。把时间留给海风。</span></p>
+      <p class="intro__description">日落之后，沿海出发。<br><span>转动方向，调好电台。沿着海岸，随心出发。</span></p>
       <div class="intro__actions">
         <button id="start-drive" class="button button--primary" disabled>开始驾驶 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
         <button id="start-cruise" class="button button--outline" disabled>自动巡游</button>
@@ -45,7 +48,7 @@
         <div class="loading__meta"><span id="loading-message">正在准备海岸…</span><span id="loading-percent">0%</span></div>
         <div class="loading__track"><span id="loading-fill"></span></div>
       </div>
-      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 海岸已就绪 · 键盘与触屏均可驾驶</p>
+      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 海岸已就绪 · 支持手机竖屏与自由镜头</p>
       <div id="load-error" class="load-error" role="alert" hidden>
         <strong>暂时无法进入三维场景</strong><p id="error-message"></p>
         <div><button id="retry-load" class="text-button">重新加载 ↻</button><button id="error-video" class="text-button">先看巡游短片 ↗</button></div>
@@ -60,38 +63,46 @@
       <div class="hud__identity"><span class="brand__sun" aria-hidden="true"></span><div><strong>SUNSET COAST</strong><span id="district">棕榈大道</span></div></div>
       <div class="hud__time"><span class="live-dot"></span>18:42 <span>GOLDEN HOUR</span></div>
       <nav class="toolbar" aria-label="体验设置">
-        <button id="camera-button" class="icon-button" aria-label="切换镜头，快捷键 C" title="切换镜头 · C"><svg aria-hidden="true"><use href="#i-camera"/></svg><span id="camera-label" class="toolbar__label">追车视角</span></button>
-        <button id="sound-button" class="icon-button" aria-label="打开声音，快捷键 M" aria-pressed="false" title="声音 · M"><svg aria-hidden="true"><use href="#i-sound"/></svg><span class="mute-slash" aria-hidden="true"></span></button>
+        <button id="sound-button" class="icon-button" aria-label="打开引擎声" aria-pressed="false" title="引擎声"><svg aria-hidden="true"><use href="#i-sound"/></svg><span class="mute-slash" aria-hidden="true"></span></button>
         <button id="fullscreen-button" class="icon-button desktop-only" aria-label="切换全屏" title="全屏"><svg aria-hidden="true"><use href="#i-expand"/></svg></button>
-        <button id="help-button" class="icon-button desktop-only" aria-label="打开操作指南" title="操作指南"><svg aria-hidden="true"><use href="#i-help"/></svg></button>
+        <button id="help-button" class="icon-button" aria-label="打开操作指南" title="操作指南"><svg aria-hidden="true"><use href="#i-help"/></svg></button>
         <button id="menu-button" class="icon-button" aria-label="返回菜单，快捷键 Esc" title="返回菜单 · Esc"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
       </nav>
     </header>
     <div class="route-panel">
-      <div class="route-panel__top"><span class="route-mark" aria-hidden="true">◇</span><span>海岸路线</span><span id="checkpoint-count">0 / 5</span></div>
+      <div class="route-panel__top"><span class="route-mark" aria-hidden="true">◇</span><span>海岸路线</span><span id="checkpoint-count">0 / 6</span></div>
       <p id="route-description">驶过光圈，探索海岸</p>
       <div class="route-progress"><span id="route-fill"></span></div>
       <div class="route-panel__bottom"><span>本次 <strong id="elapsed-time">00:00</strong></span><span>最佳 <strong id="best-time">--:--</strong></span></div>
     </div>
+    <div class="radio-card" aria-label="海岸电台"><button id="music-button" class="radio-card__play" aria-label="打开背景音乐" aria-pressed="false" title="电台音乐开关"><svg aria-hidden="true"><use href="#i-music"/></svg><span class="radio-card__equalizer" aria-hidden="true"><i></i><i></i><i></i></span></button><div class="radio-card__track"><span>COAST FM <b id="radio-state">OFF</b></span><strong id="track-label">海岸电台</strong></div><button id="track-button" class="icon-button" aria-label="切换下一首音乐" title="下一首"><svg aria-hidden="true"><use href="#i-next"/></svg></button></div>
+    <div class="camera-dock" aria-label="视角控制"><button id="camera-button" class="camera-chip" aria-label="切换镜头，快捷键 C" title="切换镜头 · C"><svg aria-hidden="true"><use href="#i-camera"/></svg><span id="camera-label">追逐镜头</span><span aria-hidden="true">⌄</span></button><button id="recenter-button" class="icon-button" aria-label="镜头回到车后" title="镜头回正"><svg aria-hidden="true"><use href="#i-center"/></svg></button><span class="camera-dock__hint">拖动画面 · 自由环视</span></div>
     <div id="cruise-badge" class="cruise-badge" hidden><span class="live-dot"></span> 自动巡游中 <small>操控方向即可接管</small></div>
     <div class="minimap-wrap"><canvas id="minimap" width="256" height="256" aria-label="海岸路线小地图"></canvas><span class="minimap-north">N ↑</span><span class="minimap-label">OCEAN DRIVE</span></div>
-    <div class="drive-hints" aria-hidden="true"><span><kbd>W A S D</kbd> 驾驶</span><i></i><span><kbd>SPACE</kbd> 手刹</span><i></i><span><kbd>C</kbd> 镜头</span></div>
+    <div class="drive-hints" aria-hidden="true"><span><kbd>W A S D</kbd> 驾驶</span><i></i><span><kbd>SPACE</kbd> 手刹</span><i></i><span><kbd>C</kbd> 镜头 · 拖动环视</span></div>
     <div class="speedometer" aria-label="车速"><div class="speedometer__top"><span id="gear">N</span><button id="reset-button" class="reset-button" title="回到起点 · R" aria-label="回到起点，快捷键 R"><svg aria-hidden="true"><use href="#i-reset"/></svg></button></div><div class="speedometer__value"><span id="speed">0</span><small>km/h</small></div><div class="speedometer__line"><span id="speed-fill"></span></div><p>COASTAL GT <span>●</span></p></div>
     <div class="touch-controls" aria-label="触屏驾驶控件">
-      <div class="touch-controls__steer"><button data-control="left" aria-label="向左转向">←</button><button data-control="right" aria-label="向右转向">→</button></div>
-      <div class="touch-controls__pedals"><button data-control="handbrake" class="touch-handbrake" aria-label="手刹">P</button><button data-control="brake" aria-label="减速或倒车">刹车</button><button data-control="throttle" class="touch-throttle" aria-label="加速">油门 <span>↑</span></button></div>
+      <div class="touch-controls__steer">
+        <div id="steering-pad" class="steering-pad" role="slider" tabindex="0" aria-label="方向盘，左右拖动转向" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0" aria-valuetext="直行" aria-orientation="horizontal">
+          <span class="steering-pad__rail" aria-hidden="true"></span><span class="steering-pad__left" aria-hidden="true">‹</span><span class="steering-pad__right" aria-hidden="true">›</span><span id="steering-knob" class="steering-pad__knob" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14"/><circle cx="20" cy="20" r="4"/><path d="M6 17h10m8 0h10M20 24v10"/></svg></span>
+        </div><span class="touch-controls__caption">左右拖动转向</span>
+      </div>
+      <div class="touch-controls__pedals">
+        <div class="touch-controls__utility"><button data-control="handbrake" class="touch-handbrake" aria-label="按住手刹">手刹</button><button data-control="brake" class="touch-brake" aria-label="按住刹车">刹车<span aria-hidden="true">Ⅱ</span></button><button data-control="reverse" class="touch-reverse" aria-label="按住倒车">倒车 <span aria-hidden="true">R</span></button></div>
+        <button data-control="throttle" class="touch-throttle" aria-label="按住油门前进"><span aria-hidden="true">↑</span><strong>油门</strong><small>按住前进</small><i aria-hidden="true"></i></button>
+      </div>
     </div>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <dialog id="help-dialog" class="dialog help-dialog" aria-labelledby="help-title">
     <button class="dialog__close icon-button" data-close="help-dialog" aria-label="关闭操作指南"><svg aria-hidden="true"><use href="#i-close"/></svg></button>
-    <p class="eyebrow">MAKE YOUR OWN WAY</p><h2 id="help-title">沿海，自由驾驶。</h2><p class="dialog__intro">追着落日走，也可以沿着光圈完成一段海岸路线。</p>
-    <dl class="key-guide"><div><dt><kbd>W</kbd> / <kbd>↑</kbd></dt><dd>加速前进</dd></div><div><dt><kbd>S</kbd> / <kbd>↓</kbd></dt><dd>减速与倒车</dd></div><div><dt><kbd>A D</kbd> / <kbd>← →</kbd></dt><dd>左右转向</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>手刹</dd></div><div><dt><kbd>C</kbd></dt><dd>切换镜头</dd></div><div><dt><kbd>R</kbd></dt><dd>回到起点</dd></div><div><dt><kbd>M</kbd></dt><dd>声音开关</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
-    <p class="help-note">手机上使用屏幕两侧的转向与油门按钮。选择「自动巡游」也可以只看风景。</p>
+    <p class="eyebrow">MAKE YOUR OWN WAY</p><h2 id="help-title">沿海，自由驾驶。</h2><p class="dialog__intro">自由转向、倒车、环视。打开海岸电台，沿光圈完成海岸路线。</p>
+    <dl class="key-guide"><div><dt><kbd>W</kbd> / <kbd>↑</kbd></dt><dd>加速前进</dd></div><div><dt><kbd>S</kbd> / <kbd>↓</kbd></dt><dd>减速与倒车</dd></div><div><dt><kbd>A D</kbd> / <kbd>← →</kbd></dt><dd>左右转向</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>手刹</dd></div><div><dt><kbd>C</kbd></dt><dd>切换镜头</dd></div><div><dt><kbd>V</kbd></dt><dd>镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>电台开关 / 下一首</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
+    <p class="help-note">手机竖屏：左手拖动方向盘，右手按住油门；松开减速，刹车停车，倒车键后退。拖动场景即可环视，双指缩放远近；镜头按钮切换视角，旁边的回正键恢复跟车。电台可独立开关和切歌。</p>
     <button class="button button--primary" data-close="help-dialog">知道了 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </dialog>
   <dialog id="video-dialog" class="dialog video-dialog" aria-labelledby="video-title"><button class="dialog__close icon-button" data-close="video-dialog" aria-label="关闭短片"><svg aria-hidden="true"><use href="#i-close"/></svg></button><p id="video-title" class="eyebrow">SUNSET COAST / A SHORT CRUISE</p><video id="cruise-video" controls playsinline preload="none" poster="./assets/poster.png"><source src="./assets/sunset_cruise.mp4" type="video/mp4">你的浏览器无法播放此视频，可<a href="./assets/sunset_cruise.mp4">下载短片</a>。</video></dialog>
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="./main.js?v=2"></script>
 </body>
 </html>
