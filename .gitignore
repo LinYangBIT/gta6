@@ -1,0 +1,17 @@
+# Blender incremental backups
+*.blend[0-9]*
+*.blend@
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Temporary animation frames / local renders
+renders/
+frames/
+render_frames/
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
