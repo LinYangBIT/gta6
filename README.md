@@ -4,6 +4,18 @@
 
 这是受 GTA6 海滨都市氛围启发的场景原型，不是完整游戏，也不包含 Rockstar 的模型、纹理或游戏代码。
 
+## 在线驾驶体验
+
+[打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（当前仅创建者可访问，请使用创建站点的 ChatGPT 账号打开）。
+
+网页版复用 Blender 导出的城市与跑车，支持键盘/触屏驾驶、自动巡游、三种镜头和六个路线光圈。`WASD` 或方向键驾驶，空格手刹，`C` 切镜头，`R` 复位。网页版源码和本地运行说明在 [`web/`](web/README.md)。
+
+重新导出网页模型：
+
+```bash
+blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/export_web.py -- --output-dir web/dist/assets
+```
+
 ![Sunset Coast 场景预览](previews/sunset_coast.png)
 
 ![原创跑车特写](previews/hero_car.png)

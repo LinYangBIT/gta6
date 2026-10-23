@@ -1,0 +1,47 @@
+{
+  "source": "Original Sunset Coast Blender scene",
+  "coordinates": "Y-up; car forward +Z; metres",
+  "wheel_nodes": [
+    "wheel_left_front",
+    "wheel_left_rear",
+    "wheel_right_front",
+    "wheel_right_rear"
+  ],
+  "wheel_radius": 0.43,
+  "road": {
+    "min_x": -6.5,
+    "max_x": 6.5,
+    "surface_y": 0
+  },
+  "beach": {
+    "min_x": 11,
+    "max_x": 31,
+    "surface_y": -0.18
+  },
+  "ocean": {
+    "min_x": 31,
+    "surface_y": -0.37
+  },
+  "playable_bounds": {
+    "min_x": -5.3,
+    "max_x": 28,
+    "min_z": -450,
+    "max_z": 55
+  },
+  "assets": {
+    "environment.glb": {
+      "bytes": 10792856,
+      "meshes": 58,
+      "draw_calls": 59,
+      "vertices": 346213,
+      "triangles": 331792
+    },
+    "car.glb": {
+      "bytes": 1023164,
+      "meshes": 24,
+      "draw_calls": 24,
+      "vertices": 37456,
+      "triangles": 30594
+    }
+  }
+}
