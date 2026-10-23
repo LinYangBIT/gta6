@@ -1,6 +1,6 @@
 /** On-foot exploration and transferable cars; no rendering or browser dependency. */
-import { DrivingSimulation, wrapAngle } from './driving.js';
-import { CHUNK_SIZE, collidersNear, hashCoordinates, isRoad } from './world-layout.js';
+import { DrivingSimulation, wrapAngle } from './driving.js?v=5';
+import { CHUNK_SIZE, collidersNear, generateChunk, hashCoordinates, isRoad } from './world-layout.js?v=5';
 
 export const VEHICLE_HISTORY_LIMIT = 64;
 export const VEHICLE_INTERACT_RADIUS = 6.5;
@@ -11,16 +11,16 @@ const LABELS = { coupe: 'COASTAL GT · 跑车', sedan: 'SUNDOWN · 轿车', suv:
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 
-function makeVehicle(cx, cz, slot, seed) {
+function makeVehicle(cx, cz, slot, seed, parking = null) {
   const hash = hashCoordinates('vehicle', cx, cz, slot, seed);
   const hero = cx === 0 && cz === 0 && slot === 0;
   const side = slot < 2 ? 1 : -1;
   const kind = hero ? 'coupe' : KINDS[hash % KINDS.length];
   return {
     id: `${cx},${cz}/car/${slot}`, homeChunk: `${cx},${cz}`,
-    x: cx * CHUNK_SIZE + side * 7,
-    z: cz * CHUNK_SIZE + [30, 78, 46, 102][slot],
-    yaw: side > 0 ? Math.PI : 0, kind, label: LABELS[kind],
+    x: parking?.x ?? cx * CHUNK_SIZE + side * 7,
+    z: parking?.z ?? cz * CHUNK_SIZE + [30, 78, 46, 102][slot],
+    yaw: parking?.yaw ?? (side > 0 ? Math.PI : 0), kind, label: LABELS[kind],
     color: hero ? PALETTE[0] : PALETTE[(hash >>> 7) % PALETTE.length],
     speed: 0, steering: 0, wheelAngle: 0, modified: false,
   };
@@ -247,11 +247,17 @@ export class Gameplay {
     this._streamKey = key;
     const next = new Map();
     const nearby = car => Math.abs(Math.floor(car.x / CHUNK_SIZE) - cx) <= 1 && Math.abs(Math.floor(car.z / CHUNK_SIZE) - cz) <= 1;
-    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) for (let slot = 0; slot < 4; slot++) {
-      const id = `${cx + dx},${cz + dz}/car/${slot}`;
-      if (this.vehicleHistory.has(id)) continue;
-      const car = this.vehicles.get(id) || makeVehicle(cx + dx, cz + dz, slot, this.seed);
-      next.set(id, car);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const tileX = cx + dx, tileZ = cz + dz, chunk = generateChunk(tileX, tileZ, this.seed);
+      // Coastal parking follows the authored road geometry; sea and plazas do
+      // not inherit the old grid's four curbside placeholders.
+      const spaces = chunk.coastal ? chunk.vehicleSpawns || [] : Array(4).fill(null);
+      for (let slot = 0; slot < spaces.length; slot++) {
+        const id = `${tileX},${tileZ}/car/${slot}`;
+        if (this.vehicleHistory.has(id)) continue;
+        const car = this.vehicles.get(id) || makeVehicle(tileX, tileZ, slot, this.seed, spaces[slot]);
+        next.set(id, car);
+      }
     }
     for (const car of this.vehicleHistory.values()) if (car.id === this.activeVehicleId || nearby(car)) next.set(car.id, car);
     this.vehicles = next;

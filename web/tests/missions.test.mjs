@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MissionSystem } from '../dist/missions.js';
-import { collidersNear } from '../dist/world-layout.js';
+import { collidersNear, isRoad } from '../dist/world-layout.js';
 
 const walk = (x, z) => ({ mode: 'walk', x, z, speed: 0, activeVehicleId: null });
 const drive = (x, z, speed = 0, activeVehicleId = 'any-sedan-42') => ({ mode: 'drive', x, z, speed, activeVehicleId });
@@ -97,9 +97,14 @@ test('repeat contracts are seeded, unbounded in count, and place contacts clear 
   for (let i = 0; i < 80; i++) {
     assert.deepEqual(a.snapshot().target, b.snapshot().target);
     targets.push(a.snapshot().target);
+    const parking = a.snapshot().target;
+    assert.ok(isRoad(parking.x, parking.z), 'every contract provides an actual road parking area');
+    for (const collider of collidersNear(parking.x, parking.z, 281)) {
+      assert.ok(parking.x < collider.minX - 2.5 || parking.x > collider.maxX + 2.5 || parking.z < collider.minZ - 2.5 || parking.z > collider.maxZ + 2.5, 'parking clearance overlaps a building or water');
+    }
     const point = a.contact;
     for (const collider of collidersNear(point.x, point.z, 281)) {
-      assert.ok(point.x < collider.minX || point.x > collider.maxX || point.z < collider.minZ || point.z > collider.maxZ);
+      assert.ok(point.x < collider.minX - .7 || point.x > collider.maxX + .7 || point.z < collider.minZ - .7 || point.z > collider.maxZ + .7);
     }
     finish(a); finish(b);
     const previous = a.contact;

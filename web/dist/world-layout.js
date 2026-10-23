@@ -1,6 +1,7 @@
+import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=5';
 /**
  * Seeded city planning shared by the renderer, collisions and navigation.
- * Coordinates are metres. Every 128m grid line is a continuous public street.
+ * Coordinates are metres. A curved coastal quarter connects to the infinite street grid.
  * This module does not retain explored history or depend on rendering state.
  */
 export const CHUNK_SIZE = 128;
@@ -46,6 +47,7 @@ export function chunkAt(x, z) {
 }
 
 export function isRoad(x, z) {
+  const coast=coastRoadAt(x,z);if(coast!==null)return coast;
   const dx = mod(x + CHUNK_SIZE / 2, CHUNK_SIZE) - CHUNK_SIZE / 2;
   const dz = mod(z + CHUNK_SIZE / 2, CHUNK_SIZE) - CHUNK_SIZE / 2;
   return Math.abs(dx) <= ROAD_HALF_WIDTH || Math.abs(dz) <= ROAD_HALF_WIDTH;
@@ -65,12 +67,14 @@ function districtForChunk(cx, cz, seed) {
 }
 
 export function districtAt(x, z, seed = WORLD_SEED) {
+  if(inCoast(x,z))return COAST_DISTRICT;
   const { cx, cz } = chunkAt(x, z);
   return districtForChunk(cx, cz, seed);
 }
 
 export function generateChunk(cx, cz, seed = WORLD_SEED) {
   if (!Number.isSafeInteger(cx) || !Number.isSafeInteger(cz)) throw new RangeError('Chunk coordinates must be safe integers');
+  const coast=getCoastChunk(cx,cz,seed);if(coast)return coast;
   const x = cx * CHUNK_SIZE, z = cz * CHUNK_SIZE;
   const key = `${cx},${cz}`;
   const detailSeed = hashCoordinates('chunk', cx, cz, seed);
@@ -151,7 +155,10 @@ export function collidersNear(x, z, seed = WORLD_SEED) {
   while (collisionCache.size > COLLISION_CACHE_LIMIT) collisionCache.delete(collisionCache.keys().next().value);
   // Neighboring plots start 18m beyond each chunk seam, well outside the car's
   // collision radius. Current-chunk colliders cover every reachable contact.
-  return chunk.colliders;
+  const coastal=coastCollidersNear(x,z);
+  if(!coastal)return chunk.colliders;
+  if(chunk.coastal)return coastal;
+  return [...chunk.colliders,...coastal];
 }
 export function clearWorldCache() { collisionCache.clear(); }
 export function worldCacheSize() { return collisionCache.size; }

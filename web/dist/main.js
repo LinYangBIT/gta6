@@ -1,16 +1,18 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Gameplay } from './gameplay.js?v=4';
-import { MissionSystem } from './missions.js?v=4';
-import { ActorVisuals } from './actors.js?v=4';
-import { createUI } from './ui.js?v=4';
-import { CameraControls } from './camera-controls.js?v=4';
-import { createRadio } from './radio.js?v=4';
-import { refineMaterials } from './surface-detail.js?v=4';
-import { InfiniteCity } from './infinite-city.js?v=4';
-import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=4';
-import { FloatingOrigin } from './world-origin.js?v=4';
+import { Gameplay } from './gameplay.js?v=5';
+import { MissionSystem } from './missions.js?v=5';
+import { ActorVisuals } from './actors.js?v=5';
+import { createUI } from './ui.js?v=5';
+import { CameraControls } from './camera-controls.js?v=5';
+import { createRadio } from './radio.js?v=5';
+import { createSoundtrack } from './soundtrack.js?v=5';
+import { coastRoute, coastGroundHeight } from './coast-layout.js?v=5';
+import { refineMaterials } from './surface-detail.js?v=5';
+import { InfiniteCity } from './infinite-city.js?v=5';
+import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=5';
+import { FloatingOrigin } from './world-origin.js?v=5';
 
 const canvas = document.querySelector('#world');
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -23,6 +25,7 @@ let missionEnabled=true, missionView, lastNotice=0;
 let walkCameraYaw=Math.PI;
 const origin = new FloatingOrigin();
 let city, cityStats={loaded:0}, mapCacheKey='', mapChunks=[];
+let routeCacheKey='', routePoints=null;
 const keys = new Set();
 const touch = {left:false,right:false,throttle:false,brake:false,reverse:false,handbrake:false,sprint:false};
 let touchSteer = 0, touchMoveX=0, touchMoveZ=0;
@@ -43,13 +46,21 @@ const lookDestination = new THREE.Vector3();
 const forward = new THREE.Vector3();
 const carPosition = new THREE.Vector3();
 
-const ui = createUI({
+let ui;
+const soundtrack=createSoundtrack({
+  onSelection(source){const paused=!active||document.hidden||ui?.orientationBlocked||!!document.querySelector('dialog[open]');radio.setPaused(source!=='coast'||paused);if(source==='coast'&&!paused)radio.start();},
+  onStatus(message){ui?.toast(message);},
+  onFocus(){focusCanvas();},
+  onCoastToggle(){radioStarted=true;radio.toggle().then(ok=>ui.toast(ok?'COAST FM · 音乐已开启':'电台已暂停'));},
+  onCoastNext(){radio.nextTrack();}
+});
+ui = createUI({
   start(mode){
     if (!ready) return;
     active=true; missionEnabled=mode!=='free'; ui.hideIntro();
-    radio.setPaused(false);
-    if(!radioStarted){radioStarted=true;radio.start().then(ok=>{if(!ok)ui.toast('点电台按钮开启音乐');});}
-    else if(radio.enabled)radio.start();
+    syncMusic(false);
+    if(!radioStarted){radioStarted=true;if(soundtrack.source==='coast')radio.start();else ui.toast('点右上电台，在 GTA V 原声播放器中播放');}
+    else if(soundtrack.source==='coast'&&radio.enabled)radio.start();
     focusCanvas();
   },
   newCity(){newCity();},
@@ -58,11 +69,11 @@ const ui = createUI({
   recenter(){recenterCamera();focusCanvas();},
   reset(){resetCar();focusCanvas();},
   sound(){toggleSound();focusCanvas();},
-  music(){radioStarted=true;radio.toggle().then(ok=>ui.toast(ok?'COAST FM · 音乐已开启':'电台已暂停'));focusCanvas();},
-  track(){radioStarted=true;radio.nextTrack().then(ok=>ui.toast(ok?radio.trackLabel:'点电台按钮开启音乐'));focusCanvas();},
+  music(){soundtrack.togglePanel();focusCanvas();},
+  track(){nextMusic();focusCanvas();},
   fullscreen(){toggleFullscreen();},
   menu(){showMenu();},
-  dialog(open){if(open)clearInput();radio.setPaused(open||!active||document.hidden);updateSound();},
+  dialog(open){if(open)clearInput();syncMusic(open||!active||document.hidden||ui.orientationBlocked);updateSound();},
   orientation(blocked){if(blocked)clearInput();},
   steer(value){touchSteer=Number.isFinite(value)?Math.max(-1,Math.min(1,value)):0;},
   move(x,z){touchMoveX=Number.isFinite(x)?x:0;touchMoveZ=Number.isFinite(z)?z:0;},
@@ -75,7 +86,7 @@ function newCity(){
   if(!ready)return;
   worldSeed=Math.floor(Math.random()*2147483646)+1;
   try{localStorage.setItem('sunset-city-seed',String(worldSeed));}catch{/* Optional persistence. */}
-  game.setSeed(worldSeed);missions.reset({seed:worldSeed});city.setSeed(worldSeed);mapCacheKey='';lastNotice=0;walkCameraYaw=Math.PI;
+  game.setSeed(worldSeed);missions.reset({seed:worldSeed});city.setSeed(worldSeed);mapCacheKey='';routeCacheKey='';lastNotice=0;walkCameraYaw=Math.PI;
   clearInput();view.reset();syncOrigin();cityStats=city.update(game.state.x,game.state.z,origin.x,origin.z);
   snapCamera();ui.toast('新城市已生成 · 从街头开始新的旅程');
 }
@@ -100,7 +111,9 @@ function snapCamera(){
 
 function focusCanvas(){canvas.focus({preventScroll:true});}
 function clearInput(){keys.clear();Object.keys(touch).forEach(key=>touch[key]=false);touchSteer=0;touchMoveX=0;touchMoveZ=0;view.clear();}
-function showMenu(){active=false;clearInput();radio.setPaused(true);updateSound();ui.showIntro();}
+function showMenu(){active=false;clearInput();syncMusic(true);updateSound();ui.showIntro();}
+function syncMusic(paused){radio.setPaused(paused||soundtrack.source!=='coast');soundtrack.setPaused(paused);}
+function nextMusic(){if(soundtrack.source==='coast')radio.nextTrack();else soundtrack.open();}
 function setupRenderer(){
   renderer=new THREE.WebGLRenderer({canvas,antialias:!mobile,alpha:false,powerPreference:'high-performance'});
   renderer.setPixelRatio(Math.min(devicePixelRatio,mobile?1.3:1.8));
@@ -115,7 +128,7 @@ function setupRenderer(){
   camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.15,2600);
   camera.position.set(43,22,48);cameraTarget.set(-2,4,-25);
   camera.lookAt(cameraTarget);
-  const hemisphere=new THREE.HemisphereLight('#c4e2f1','#7d7565',1.1);scene.add(hemisphere);
+  const hemisphere=new THREE.HemisphereLight('#c4e2f1','#7d7565',.88);scene.add(hemisphere);
   sun=new THREE.DirectionalLight('#ffe1b1',3.1);sun.position.set(-55,70,80);
   sun.castShadow=true;
   sun.shadow.mapSize.set(mobile?1024:2048,mobile?1024:2048);sun.shadow.bias=-.00025;sun.shadow.normalBias=.06;
@@ -162,7 +175,7 @@ function createCourse(){
 async function downloadAsset(file,totalHint,onChunk){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),120000);
   try{
-    const response=await fetch(new URL(`./assets/${file}?v=4`,import.meta.url),{signal:controller.signal});
+    const response=await fetch(new URL(`./assets/${file}?v=5`,import.meta.url),{signal:controller.signal});
     if(!response.ok)throw new Error(`素材加载失败 (${response.status})`);
     if(!response.body){const data=await response.arrayBuffer();onChunk(data.byteLength,totalHint);return data;}
     const reader=response.body.getReader();const chunks=[];let loaded=0;
@@ -203,18 +216,18 @@ function readInput(){
 
 function updateCamera(dt){
   const s=game.state, walking=game.mode==='walk', portrait=innerHeight>innerWidth;
-  const px=s.x-origin.x,pz=s.z-origin.z;
+  const px=s.x-origin.x,pz=s.z-origin.z,groundOffset=(coastGroundHeight(s.x,s.z)??.22)-.22;
   if(!active){
     if(!reduceMotion)introOrbit+=dt*.035;
-    cameraDestination.set(px-8+Math.sin(introOrbit)*2,3.8,pz+9+Math.cos(introOrbit)*2);
-    lookDestination.set(px+5,2.1,pz-22);
+    cameraDestination.set(px+5+Math.sin(introOrbit)*2,4.5,pz+24+Math.cos(introOrbit)*2);
+    lookDestination.set(px-44,6.2,pz-8);
   }else{
     carPosition.set(px,0,pz);
     const yaw=(walking?walkCameraYaw:s.yaw)+view.yaw;
     forward.set(Math.sin(yaw),0,Math.cos(yaw));
     if(view.mode===2){
       cameraDestination.copy(carPosition).addScaledVector(new THREE.Vector3(Math.sin(s.yaw),0,Math.cos(s.yaw)),walking?.08:1.85);
-      cameraDestination.y=walking?1.88:1.24;
+      cameraDestination.y=(walking?1.88:1.24)+groundOffset;
       lookDestination.copy(cameraDestination).addScaledVector(forward,30);
       lookDestination.y+=Math.sin(-view.pitch)*20;
     }else{
@@ -224,7 +237,7 @@ function updateCamera(dt){
       else{radius=portrait?28:24;elevation=.91;}
       elevation=THREE.MathUtils.clamp(elevation+view.pitch,.10,1.42);
       radius*=view.zoom;
-      const eye=walking?1.55:.95;
+      const eye=(walking?1.55:.95)+groundOffset;
       cameraDestination.set(px-Math.sin(angle)*radius*Math.cos(elevation),eye+radius*Math.sin(elevation),pz-Math.cos(angle)*radius*Math.cos(elevation));
       lookDestination.copy(carPosition);lookDestination.y=eye;
       if(walking&&view.mode===0){cameraDestination.x-=Math.cos(angle)*.48;cameraDestination.z+=Math.sin(angle)*.48;}
@@ -269,7 +282,7 @@ function updateMarkers(){
   const point=objectiveTarget(),marker=markers[0];
   marker.group.visible=active&&Boolean(point);
   if(point){
-    marker.group.position.set(point.x-origin.x,.22,point.z-origin.z);
+    marker.group.position.set(point.x-origin.x,coastGroundHeight(point.x,point.z)??.22,point.z-origin.z);
     const scale=missionView?.stage==='drive'?1:.38;
     marker.ring.scale.setScalar(scale*(1+Math.sin(clock*2)*.04));
     marker.foot.scale.setScalar(scale);
@@ -285,22 +298,41 @@ function drawMap(){
   const cx=Math.floor(s.x/CHUNK_SIZE),cz=Math.floor(s.z/CHUNK_SIZE),key=`${worldSeed}:${cx}:${cz}`;
   if(key!==mapCacheKey){mapCacheKey=key;mapChunks=[];for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++)mapChunks.push(generateChunk(cx+dx,cz+dz,worldSeed));}
   const sx=x=>w/2+(x-s.x)*scale,sz=z=>h/2+(z-s.z)*scale;
-  map.clearRect(0,0,w,h);map.fillStyle='#3a3445';map.fillRect(0,0,w,h);
-  map.fillStyle='#77717c';
-  for(let i=-2;i<=3;i++){map.fillRect(sx((cx+i)*CHUNK_SIZE-10),0,20*scale,h);map.fillRect(0,sz((cz+i)*CHUNK_SIZE-10),w,20*scale);}
+  map.clearRect(0,0,w,h);map.fillStyle='#535b50';map.fillRect(0,0,w,h);
+  const roads=new Map();
   for(const chunk of mapChunks){
-    for(const feature of chunk.features){map.fillStyle=feature.kind==='canal'||feature.kind==='fountain'?'#548e98':'#638476';map.fillRect(sx(feature.x-feature.width/2),sz(feature.z-feature.depth/2),feature.width*scale,feature.depth*scale);}
-    map.fillStyle=chunk.district.id==='downtown'?'#98a5b0':'#ba9c9e';
-    for(const b of chunk.buildings)map.fillRect(sx(b.x-b.width/2),sz(b.z-b.depth/2),b.width*scale,b.depth*scale);
+    map.save();map.beginPath();map.rect(sx(chunk.x),sz(chunk.z),CHUNK_SIZE*scale,CHUNK_SIZE*scale);map.clip();
+    map.fillStyle=chunk.coastal?'#7c8c68':'#454b50';map.fillRect(sx(chunk.x),sz(chunk.z),CHUNK_SIZE*scale,CHUNK_SIZE*scale);
+    for(const feature of chunk.features){
+      map.fillStyle=['ocean','water','canal','fountain','marina'].includes(feature.kind)?'#438f9c':feature.kind==='beach'?'#d6c393':feature.kind==='plaza'?'#baa99a':'#779069';
+      if(feature.points?.length){map.beginPath();feature.points.forEach((p,i)=>i?map.lineTo(sx(p.x),sz(p.z)):map.moveTo(sx(p.x),sz(p.z)));map.closePath();map.fill();}
+      else if(Number.isFinite(feature.width)&&Number.isFinite(feature.depth))map.fillRect(sx(feature.x-feature.width/2),sz(feature.z-feature.depth/2),feature.width*scale,feature.depth*scale);
+    }
+    if(chunk.coastal){for(const road of chunk.roads||[])roads.set(road.id,road);}
+    else{
+      map.fillStyle='#b2aaa0';
+      for(const x of [chunk.x,chunk.x+CHUNK_SIZE])map.fillRect(sx(x-10),sz(chunk.z),20*scale,CHUNK_SIZE*scale);
+      for(const z of [chunk.z,chunk.z+CHUNK_SIZE])map.fillRect(sx(chunk.x),sz(z-10),CHUNK_SIZE*scale,20*scale);
+    }
+    map.restore();
+  }
+  map.lineCap='round';map.lineJoin='round';
+  for(const road of roads.values()){
+    map.beginPath();road.points.forEach((p,i)=>i?map.lineTo(sx(p.x),sz(p.z)):map.moveTo(sx(p.x),sz(p.z)));
+    if(road.closed)map.closePath();map.strokeStyle=road.kind==='alley'?'#a4968b':'#c1b7a4';map.lineWidth=road.width*scale;map.stroke();
+  }
+  for(const chunk of mapChunks){
+    for(const b of chunk.buildings){map.fillStyle=b.landmark?'#ecd2aa':chunk.district.id==='downtown'?'#98a5b0':'#b49f90';map.fillRect(sx(b.x-b.width/2),sz(b.z-b.depth/2),b.width*scale,b.depth*scale);}
   }
   const target=objectiveTarget();
   if(target){
-    if(game.mode==='drive'){map.beginPath();map.strokeStyle='#edc968';map.lineWidth=3;map.setLineDash([5,4]);map.moveTo(w/2,h/2);map.lineTo(w/2,sz(Math.round(s.z/CHUNK_SIZE)*CHUNK_SIZE));map.lineTo(sx(Math.round(target.x/CHUNK_SIZE)*CHUNK_SIZE),sz(Math.round(s.z/CHUNK_SIZE)*CHUNK_SIZE));map.lineTo(sx(Math.round(target.x/CHUNK_SIZE)*CHUNK_SIZE),sz(target.z));map.lineTo(sx(target.x),sz(target.z));map.stroke();map.setLineDash([]);}
+    const routeKey=`${target.x},${target.z}/${Math.floor(s.x/20)},${Math.floor(s.z/20)}`;
+    if(routeKey!==routeCacheKey){routeCacheKey=routeKey;routePoints=coastRoute(s,target);}
+    if(game.mode==='drive'&&routePoints?.length){map.beginPath();map.strokeStyle='#ffda73';map.lineWidth=3;routePoints.forEach((p,i)=>i?map.lineTo(sx(p.x),sz(p.z)):map.moveTo(sx(p.x),sz(p.z)));map.stroke();}
     const tx=Math.max(9,Math.min(w-9,sx(target.x))),tz=Math.max(9,Math.min(h-9,sz(target.z)));
     map.fillStyle='#ffe18c';map.beginPath();map.arc(tx,tz,5,0,Math.PI*2);map.fill();
   }
-  map.fillStyle='#b8def0';for(const v of game.vehicles.values()){if(v.id===game.activeVehicle?.id)continue;map.fillRect(sx(v.x)-2,sz(v.z)-3,4,6);}
-
+  map.fillStyle='#c0e2ef';for(const v of game.vehicles.values()){if(v.id===game.activeVehicle?.id)continue;map.fillRect(sx(v.x)-2,sz(v.z)-3,4,6);}
   map.save();map.translate(w/2,h/2);map.rotate(-s.yaw);map.fillStyle='#fff9e6';map.strokeStyle='#292339';map.lineWidth=2;map.beginPath();map.moveTo(0,8);map.lineTo(-5,-5);map.lineTo(0,-2);map.lineTo(5,-5);map.closePath();map.stroke();map.fill();map.restore();
 }
 
@@ -343,8 +375,9 @@ function tick(now){
   if(missionEnabled&&missionView.noticeId!==lastNotice){lastNotice=missionView.noticeId;if(missionView.notice)ui.toast(missionView.notice);}
   syncOrigin();
   cityStats=city.update(game.state.x,game.state.z,origin.x,origin.z);
+  city.updateTime?.(clock);
   actors.update(game,origin,clock,missionEnabled?missionView:null);
-  radio.setPaused(!active||paused);
+  syncMusic(!active||paused);
   updateCamera(dt);updateMarkers();updateSound();
   const s=game.state, target=objectiveTarget(), nearest=game.nearbyVehicle();
   const context=missionEnabled?missionView.interaction:null;
@@ -352,7 +385,7 @@ function tick(now){
   const interactionLabel=context?.label??(game.mode==='drive'?(canExit?'下车':'停车后下车'):nearest?`驾驶 ${nearest.label??'车辆'}`:'靠近车辆可上车');
   ui.update({mode:game.mode,vehicleLabel:game.activeVehicle?.label??'街头漫步',interactionLabel,canInteract:!!context?.available||canExit||!!nearest,
     mission:missionEnabled?missionView:{...missionView,chapter:'FREE ROAM',title:'城市属于你',objective:'步行探索，或靠近任意车辆上车。菜单可进入任务模式。',progress:0,total:0,target:null},
-    speed:Math.abs(s.speed)*3.6,gear:s.speed<-.15?'R':Math.abs(s.speed)<.15?'N':String(Math.min(5,1+Math.floor(Math.abs(s.speed)/9))),checkpoint:missionView.completed,total:0,time:s.lapTime,distance:s.distance,seed:worldSeed,loadedChunks:cityStats.loaded,destinationDistance:target?Math.hypot(s.x-target.x,s.z-target.z):0,cameraLabel:cameraLabels[view.mode],musicOn:radio.enabled,trackLabel:radio.trackLabel,soundOn,cruising:s.cruising,district:districtAt(s.x,s.z,worldSeed).label});
+    speed:Math.abs(s.speed)*3.6,gear:s.speed<-.15?'R':Math.abs(s.speed)<.15?'N':String(Math.min(5,1+Math.floor(Math.abs(s.speed)/9))),checkpoint:missionView.completed,total:0,time:s.lapTime,distance:s.distance,seed:worldSeed,loadedChunks:cityStats.loaded,destinationDistance:target?Math.hypot(s.x-target.x,s.z-target.z):0,cameraLabel:cameraLabels[view.mode],musicSource:soundtrack.source,musicPanelOpen:soundtrack.isOpen,musicOn:soundtrack.source==='coast'?radio.enabled:soundtrack.playing,trackLabel:soundtrack.source==='coast'?radio.trackLabel:soundtrack.label,soundOn,cruising:s.cruising,district:districtAt(s.x,s.z,worldSeed).label});
   if(frameCount%5===0)drawMap();
   renderer.render(scene,camera);
   frameCount++;
@@ -369,23 +402,23 @@ window.addEventListener('keydown',event=>{
   if(event.code==='KeyC')cycleCamera();
   if(event.code==='KeyR')resetCar();
   if(event.code==='KeyV')recenterCamera();
-  if(event.code==='KeyN'){radioStarted=true;radio.nextTrack();}
-  if(event.code==='KeyM'){radioStarted=true;radio.toggle();}
+  if(event.code==='KeyN')nextMusic();
+  if(event.code==='KeyM')soundtrack.togglePanel();
 });
 window.addEventListener('keyup',event=>keys.delete(event.code));
 window.addEventListener('blur',clearInput);
-document.addEventListener('visibilitychange',()=>{lastTime=performance.now();if(document.hidden)clearInput();radio.setPaused(document.hidden||!active||!!document.querySelector('dialog[open]'));updateSound();});
+document.addEventListener('visibilitychange',()=>{lastTime=performance.now();if(document.hidden)clearInput();syncMusic(document.hidden||!active||ui.orientationBlocked||!!document.querySelector('dialog[open]'));updateSound();});
 window.addEventListener('resize',()=>{if(renderer&&camera){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}});
 canvas.addEventListener('pointerdown',event=>{
   if(!active||ui.orientationBlocked||document.querySelector('dialog[open]'))return;
-  event.preventDefault();view.begin(event.pointerId,event.clientX,event.clientY);canvas.setPointerCapture(event.pointerId);
+  event.preventDefault();focusCanvas();view.begin(event.pointerId,event.clientX,event.clientY);canvas.setPointerCapture(event.pointerId);
 });
 canvas.addEventListener('pointermove',event=>view.move(event.pointerId,event.clientX,event.clientY));
 for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(type,event=>view.end(event.pointerId));
 canvas.addEventListener('wheel',event=>{if(active){event.preventDefault();view.zoomBy(Math.exp(event.deltaY*.001));}},{passive:false});
 canvas.addEventListener('dblclick',recenterCamera);
 canvas.addEventListener('contextmenu',event=>event.preventDefault());
-canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;clearInput();radio.setPaused(true);ui.setError('图形连接暂时中断，请重新载入海岸。');});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;clearInput();syncMusic(true);ui.setError('图形连接暂时中断，请重新载入海岸。');});
 
 try{setupRenderer();requestAnimationFrame(tick);await loadWorld();}
 catch(error){console.error('Coast initialization failed',error);ui.setError(error instanceof Error?`暂时无法进入 3D 场景：${error.message}`:'暂时无法载入 3D 场景。你仍可观看预览短片。');}

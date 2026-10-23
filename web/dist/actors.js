@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { createHuman, animateHuman } from './human-model.js';
-import { CHUNK_SIZE, isRoad } from './world-layout.js';
+import { createHuman, animateHuman } from './human-model.js?v=5';
+import { CHUNK_SIZE, isRoad } from './world-layout.js?v=5';
+import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=5';
 
 // Gameplay holds 36 streamed vehicles plus at most 64 remembered relocations.
 // Capacity covers the entire bounded map, including a crowded parked-car block.
@@ -8,6 +9,24 @@ const MAX_VEHICLES = 128;
 const identity = new THREE.Matrix4();
 const Y = new THREE.Vector3(0, 1, 0);
 const X = new THREE.Vector3(1, 0, 0);
+const groundHeight = (x, z) => coastGroundHeight(x, z) ?? (isRoad(x, z) ? .015 : .22);
+
+function coastalPedestrianPose(path, time, offset) {
+  const points = path.points;
+  const lengths = points.slice(1).map((p, i) => Math.hypot(p.x - points[i].x, p.z - points[i].z));
+  const total = lengths.reduce((sum, length) => sum + length, 0);
+  const phase = (time * (path.speed || 1.05) + offset) % (total * 2);
+  const direction = phase < total ? 1 : -1;
+  let travel = direction > 0 ? phase : total * 2 - phase;
+  for (let i = 0; i < lengths.length; i++) {
+    if (travel <= lengths[i] || i === lengths.length - 1) {
+      const a = points[i], b = points[i + 1], t = travel / Math.max(.001, lengths[i]);
+      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, yaw: Math.atan2((b.x - a.x) * direction, (b.z - a.z) * direction) };
+    }
+    travel -= lengths[i];
+  }
+  return { ...points[0], yaw: 0 };
+}
 
 // Bake static detail into a handful of shared meshes. No DOM/canvas dependency:
 // the same models can be inspected and exported with Node or Blender tooling.
@@ -147,18 +166,28 @@ export class ActorVisuals {
   update(gameplay,origin={x:0,z:0},time=0,mission={}) {
     if(this.disposed)return this.stats;
     const state=gameplay.state,ox=origin.x||0,oz=origin.z||0;
-    this.avatar.visible=gameplay.mode==='walk';this.avatar.position.set(state.x-ox,isRoad(state.x,state.z)?.015:.22,state.z-oz);this.avatar.rotation.y=state.yaw;
+    this.avatar.visible=gameplay.mode==='walk';this.avatar.position.set(state.x-ox,groundHeight(state.x,state.z),state.z-oz);this.avatar.rotation.y=state.yaw;
     animateHuman(this.avatar,{speed:this.avatar.visible?Math.abs(state.speed):0,time});
     const contact=mission?.contact;
     this.contact.visible=!!contact&&Math.hypot(contact.x-state.x,contact.z-state.z)<220;
-    if(contact){this.contact.position.set(contact.x-ox,.22,contact.z-oz);this.contact.rotation.y=Math.atan2(state.x-contact.x,state.z-contact.z);animateHuman(this.contact,{time,gesture:true});}
+    if(contact){this.contact.position.set(contact.x-ox,groundHeight(contact.x,contact.z),contact.z-oz);this.contact.rotation.y=Math.atan2(state.x-contact.x,state.z-contact.z);animateHuman(this.contact,{time,gesture:true});}
     this._updateVehicles(gameplay,origin);
     // Stroll along unobstructed sidewalks; each actor remains in a single block.
     const cx=Math.floor(state.x/CHUNK_SIZE),cz=Math.floor(state.z/CHUNK_SIZE);
     for(let i=0;i<this.pedestrians.length;i++){
+      if(coastRoadAt(state.x,state.z)!==null && COAST_PEDESTRIAN_PATHS.length){
+        const p=this.pedestrians[i],path=COAST_PEDESTRIAN_PATHS[i%COAST_PEDESTRIAN_PATHS.length],pose=coastalPedestrianPose(path,time,i*23);
+        p.position.set(pose.x-ox,groundHeight(pose.x,pose.z),pose.z-oz);p.rotation.y=pose.yaw;p.visible=Math.hypot(pose.x-state.x,pose.z-state.z)<200;
+        animateHuman(p,{speed:path.speed||1.05,time,phase:i});continue;
+      }
       const p=this.pedestrians[i],blockX=cx+(i%3)-1,blockZ=cz+Math.floor(i/3);
+      p.visible=true;
       const phase=(time*(.9+i*.07)+i*23)%144,positive=phase<72,z=blockZ*CHUNK_SIZE+26+(positive?phase:144-phase);
-      p.position.set(blockX*CHUNK_SIZE+(i%2?114:14)-ox,.22,z-oz);p.rotation.y=positive?0:Math.PI;
+      const x=blockX*CHUNK_SIZE+(i%2?114:14);
+      p.position.set(x-ox,groundHeight(x,z),z-oz);p.rotation.y=positive?0:Math.PI;
+      // A procedural actor near the district boundary must not enter its water
+      // or buildings before the fixed coastal paths become active.
+      p.visible=coastRoadAt(x,z)===null;
       animateHuman(p,{speed:1.15,time,phase:i});
     }
     return this.stats;
@@ -171,7 +200,7 @@ export class ActorVisuals {
     if(this.hero)this.hero.visible=!!heroRecord;
     for(const record of records) {
       const kind=this.vehicleModels.has(record.kind)?record.kind:'sedan',model=this.vehicleModels.get(kind);
-      const y=isRoad(record.x,record.z)?.015:.22;
+      const y=groundHeight(record.x,record.z);
       const yaw=record.yaw||0,steer=record.steering||0,roll=record.wheelAngle||0;
       this._q.setFromAxisAngle(Y,yaw);this._position.set(record.x-ox,y,record.z-oz);this._scale.set(1,1,1);this._matrix.compose(this._position,this._q,this._scale);
       if(record===heroRecord){

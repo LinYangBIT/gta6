@@ -9,13 +9,21 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = resolve(option('--source', resolve(root, 'web/dist')));
 const output = resolve(option('--output', '/tmp/endless-city.json'));
 const seed = Number(option('--seed', '610'));
-const street = args.includes('--street');
+const coastal = args.includes('--coastal');
+const street = args.includes('--street') || coastal;
+const aerial = option('--view', 'street') === 'aerial';
+const vectorOption = (name, fallback) => option(name, fallback.join(',')).split(',').map(Number);
+const center = vectorOption('--center', coastal ? [0,-128] : [3,30]);
+const time = Number(option('--time', '1.8'));
+const radius = Number(option('--radius', coastal ? '3' : '2'));
+if (![...center,time,radius].every(Number.isFinite)) throw new Error('Preview coordinates must be finite numbers');
 const THREE = await import(pathToFileURL(resolve(source, 'vendor/three.module.js')));
 const { InfiniteCity } = await import(pathToFileURL(resolve(source, 'infinite-city.js')));
 const scene = new THREE.Scene();
-const city = new InfiniteCity(scene, { mobile: true, seed });
-let stats = city.update(3, 30, 0, 0);
-while (stats.pending > 0) stats = city.update(3, 30, 0, 0);
+const city = new InfiniteCity(scene, { mobile: true, seed, radius });
+let stats = city.update(...center, 0, 0);
+while (stats.pending > 0) stats = city.update(...center, 0, 0);
+city.updateTime?.(time);
 let actors=null,hero=null;
 if(street){
   const { Gameplay }=await import(pathToFileURL(resolve(source,'gameplay.js')));
@@ -26,7 +34,7 @@ if(street){
   // in this geometry snapshot, with their per-instance and per-vertex colors.
   if(hero)gameplay.vehicles.delete(hero.id);
   actors=new ActorVisuals(scene,{mobile:false});
-  actors.update(gameplay,{x:0,z:0},1.8,{contact:{x:13,z:13}});
+  actors.update(gameplay,{x:0,z:0},time,{contact:{x:13,z:13}});
 }
 scene.updateMatrixWorld(true);
 const local = new THREE.Matrix4();
@@ -40,6 +48,9 @@ scene.traverse(object => {
   const position = geometry.getAttribute('position');
   if (!position) return;
   const material = Array.isArray(object.material) ? object.material[0] : object.material;
+  const surface = object.name.startsWith('City / ') ? object.name.slice(7) : '';
+  const image=material.map?.image;
+  const atlas=image?.data&&image.width&&image.height?{width:image.width,height:image.height,data:Buffer.from(image.data.buffer,image.data.byteOffset,image.data.byteLength).toString('base64'),columns:material.userData?.atlasColumns??4,rows:material.userData?.atlasRows??2}:null;
   const instances = [];
   const count = object.isInstancedMesh ? object.count : 1;
   for (let i = 0; i < count; i++) {
@@ -59,11 +70,14 @@ scene.traverse(object => {
   batches.push({
     name: object.name || material.name || 'City material',
     geometry: { positions: Array.from(position.array), colors: geometry.attributes.color?Array.from(geometry.attributes.color.array):null, normals: geometry.attributes.normal ? Array.from(geometry.attributes.normal.array) : null, uv: geometry.attributes.uv ? Array.from(geometry.attributes.uv.array) : null, indices: geometry.index ? Array.from(geometry.index.array) : null },
-    material: { signAtlas: object.name==='City / sign'?{width:material.map.image.width,height:material.map.image.height,data:Buffer.from(material.map.image.data).toString('base64')}:null, road:object.name==='City / road', paving:object.name==='City / paving', vertexColors:!!material.vertexColors, facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
-      emissive: material.emissive?.toArray() || [0, 0, 0], emissiveIntensity: material.emissiveIntensity ?? 0 },
+    material: { signAtlas: atlas, basicMaterial:!!material.isMeshBasicMaterial, road:['road','roadTri'].includes(surface), paving:['paving','pavingTri'].includes(surface), vertexColors:!!material.vertexColors, facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
+      emissive: material.isMeshBasicMaterial ? (material.color?.toArray() || [1,1,1]) : material.emissive?.toArray() || [0, 0, 0], emissiveIntensity: material.isMeshBasicMaterial ? 1 : material.emissiveIntensity ?? 0, water:object.name==='City / water', smooth:['round','cylinder','canopy','crown'].some(type=>object.name===`City / ${type}`) },
     instances,
   });
 });
-await writeFile(output, JSON.stringify({ seed, stats, street, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera: street?[9,3.4,41]:[250,230,270], target: street?[9,2.3,0]:[35,12,30], lens:street?28:36, aspect:street?16/9:3/2, batches }));
+const camera=vectorOption('--camera', aerial ? [330,340,330] : coastal ? [12,2.2,92] : street ? [9,3.4,41] : [250,230,270]);
+const target=vectorOption('--target', aerial ? [-15,0,-150] : coastal ? [-20,4.4,0] : street ? [9,2.3,0] : [35,12,30]);
+const lens=Number(option('--lens', aerial?'38':coastal?'25.5':street?'28':'36'));
+await writeFile(output, JSON.stringify({ seed, stats, street, coastal, aerial, time, center, radius, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera, target, lens, aspect:street?16/9:3/2, batches }));
 console.log(JSON.stringify({ output, batches: batches.length, instances: batches.reduce((total, batch) => total + batch.instances.length, 0), stats }));
 actors?.dispose();city.dispose();

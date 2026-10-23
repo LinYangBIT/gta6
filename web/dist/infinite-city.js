@@ -1,6 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js';
-import { createStreetSignMaterial } from './street-signs.js';
+import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=5';
+import { createStreetSignMaterial } from './street-signs.js?v=5';
+import { describeCoastChunk } from './coast-render.js?v=5';
 
 const WHITE = '#eee7d8';
 const DARK = '#20303b';
@@ -60,11 +61,11 @@ function leafGeometry() {
   // Narrow individual leaflets along a curved spine give recognizable feathery
   // silhouettes instead of a solid star shape. One geometry is shared by all trees.
   const point=(x,y,z)=>{vertices.push(x,y,z);return vertices.length/3-1;};
-  for(let n=0;n<10;n++) {
-    const t=n/10,next=(n+1)/10,curve=u=>Math.sin(u*Math.PI)*.16-u*u*.20;
-    const width=.24*Math.sin((t*.86+.1)*Math.PI)*(1-t*.55);
+  for(let n=0;n<14;n++) {
+    const t=n/14,next=(n+1)/14,curve=u=>Math.sin(u*Math.PI)*.20-u*u*.55;
+    const width=.27*Math.sin((t*.86+.1)*Math.PI)*(1-t*.55);
     const a=point(0,curve(t),t),b=point(0,curve(next),next);
-    const l=point(-width,curve(t)-.025,t+.11),r=point(width,curve(t)-.025,t+.11);
+    const l=point(-width,curve(t)-.045,t+.10),r=point(width,curve(t)-.045,t+.10);
     indices.push(a,b,l,a,r,b);
   }
   geo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));geo.setIndex(indices);geo.computeVertexNormals();return geo;
@@ -72,6 +73,7 @@ function leafGeometry() {
 
 /** All architecture is stored as lightweight transforms, then globally instanced. */
 function describeChunk(data, lod = 0) {
+  if(data.coastal)return describeCoastChunk(data,lod);
   const records = [];
   const add = (type,x,y,z,sx,sy,sz,color,ry=0,seed=0) => records.push({type,x,y,z,sx,sy,sz,color,ry,seed});
   const box = (x,y,z,w,h,d,color,type='solid',ry=0,seed=0) => add(type,x,y,z,w,h,d,color,ry,seed);
@@ -302,6 +304,45 @@ function describeChunk(data, lod = 0) {
   return records;
 }
 
+/** Fine stucco and ground detail stay procedural and require no borrowed textures. */
+function grainMaterial(kind='stucco') {
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:kind==='stucco'?.84:.96});
+  material.onBeforeCompile=shader=>{
+    shader.vertexShader=`varying vec3 vGrainPosition;\n${shader.vertexShader}`;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvGrainPosition=(instanceMatrix*vec4(position,1.0)).xyz;');
+    shader.fragmentShader=`varying vec3 vGrainPosition;float coastGrain(vec3 p){return fract(sin(dot(p,vec3(12.9898,78.233,39.425)))*43758.5453); }\n${shader.fragmentShader}`;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      float grit=coastGrain(floor(vGrainPosition*${kind==='stucco'?'57.0':'18.0'}));
+      diffuseColor.rgb*=.94+grit*.09;
+      ${kind==='stucco'?`float stain=(1.0-smoothstep(.22,1.2,vGrainPosition.y))*(.5+.5*coastGrain(floor(vGrainPosition*vec3(.7,0.0,.7))));diffuseColor.rgb*=1.0-stain*.18;`:`float drift=sin(vGrainPosition.x*.45+sin(vGrainPosition.z*.32));diffuseColor.rgb*=.98+drift*.024;`}
+    `);
+  };
+  material.customProgramCacheKey=()=>`coastal-${kind}-1`;return material;
+}
+function oceanMaterial(time,foam=false){
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:foam?.8:.19,metalness:foam?0:.35,transparent:foam,opacity:foam?.72:1,depthWrite:!foam});
+  material.onBeforeCompile=shader=>{
+    shader.uniforms.coastTime=time;
+    shader.vertexShader=`varying vec3 vOceanPosition;\n${shader.vertexShader}`;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvOceanPosition=(instanceMatrix*vec4(position,1.0)).xyz;');
+    shader.fragmentShader=`varying vec3 vOceanPosition;uniform float coastTime;\n${shader.fragmentShader}`;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      float waves=sin(vOceanPosition.x*.43+sin(vOceanPosition.z*.12)*.7-coastTime*.8)*.5+.5;
+      float ripples=sin(vOceanPosition.x*1.7+vOceanPosition.z*1.1+coastTime*1.2)*.5+.5;
+      diffuseColor.rgb*=.90+waves*.13+ripples*.05;
+      ${foam?'diffuseColor.a*=.38+.62*pow(waves,2.0);':'diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.53,.77,.73),pow(waves,22.0)*.10);'}
+    `);
+  };
+  material.customProgramCacheKey=()=>foam?'coastal-foam-1':'coastal-water-1';return material;
+}
+
+function trianglePrismGeometry(){
+  const v=[[0,-.5,0],[1,-.5,0],[0,-.5,1],[0,.5,0],[1,.5,0],[0,.5,1]];
+  const faces=[[0,1,2],[3,5,4],[0,3,4],[0,4,1],[1,4,5],[1,5,2],[2,5,3],[2,3,0]],positions=[];
+  for(const face of faces)for(const index of face)positions.push(...v[index]);
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();return geometry;
+}
+
 export class InfiniteCity {
   constructor(scene, {mobile=false, seed=610, radius}={}) {
     this.mobile=mobile;this.seed=seed;this.radius=radius??(mobile?2:3);
@@ -309,13 +350,16 @@ export class InfiniteCity {
     this.chunks=new Map();this.pools=new Map();this.colors=new Map();this.pending=[];
     this.centerKey=null;this.originX=0;this.originZ=0;this.disposed=false;
     this.stats={loaded:0,buildings:0,instances:0,pending:0,drawCalls:0,district:''};
-    this.geometry={sign:new THREE.PlaneGeometry(1,1),box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),leaf:leafGeometry(),crown:new THREE.IcosahedronGeometry(1,1)};
+    this.geometry={triangle:trianglePrismGeometry(),sign:new THREE.PlaneGeometry(1,1),box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),round:new THREE.CylinderGeometry(1,1,1,24),canopy:new THREE.ConeGeometry(1,1,16),leaf:leafGeometry(),crown:new THREE.IcosahedronGeometry(1,1)};
+    this._coastTime={value:0};
     const standard=(roughness=.7,metalness=0)=>new THREE.MeshStandardMaterial({color:0xffffff,roughness,metalness});
-    this.materials={sign:createStreetSignMaterial(),road:streetMaterial(),paving:streetMaterial(true),solid:standard(.68),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.38,.5),glazing:standard(.22,.55),paint:standard(.9),green:standard(.91),cylinder:standard(.67),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff}),water:standard(.22,.4)};
+    this.materials={sign:createStreetSignMaterial(),road:streetMaterial(),paving:streetMaterial(true),solid:standard(.68),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.38,.5),glazing:standard(.22,.55),paint:standard(.9),green:standard(.91),cylinder:standard(.67),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff}),water:oceanMaterial(this._coastTime),foam:oceanMaterial(this._coastTime,true),round:standard(.72),canopy:standard(.83),stucco:grainMaterial('stucco'),ground:grainMaterial('ground'),sand:grainMaterial('sand')};
+    this.materials.roadTri=this.materials.road;this.materials.pavingTri=this.materials.paving;this.materials.curbTri=this.materials.solid;this.materials.paintTri=this.materials.paint;
     this.materials.leaf.side=THREE.DoubleSide;
     for(const material of Object.values(this.materials))material.envMapIntensity=.58;
-    this._matrix=new THREE.Matrix4();
+    this._matrix=new THREE.Matrix4();this._rotation=new THREE.Euler();this._quaternion=new THREE.Quaternion();this._position=new THREE.Vector3();this._scale=new THREE.Vector3();
   }
+  updateTime(time){if(Number.isFinite(time))this._coastTime.value=time;}
   setSeed(seed) {
     this.seed=seed;this.chunks.clear();this.pending=[];this.centerKey=null;
     for(const pool of this.pools.values())pool.count=0;
@@ -364,20 +408,23 @@ export class InfiniteCity {
       if(!pool||pool.instanceMatrix.count<records.length) {
         if(pool){this.group.remove(pool);pool.geometry.dispose();pool.dispose();}
         let capacity=256;while(capacity<records.length)capacity*=2;
-        const shape=['cylinder','leaf','crown','sign'].includes(type)?type:'box';
+        const shape=type.endsWith('Tri')?'triangle':['cylinder','round','canopy','leaf','crown','sign'].includes(type)?type:'box';
         const geometry=this.geometry[shape].clone();
         if(type==='facade'||type==='glass')geometry.setAttribute('facadeSeed',new THREE.InstancedBufferAttribute(new Float32Array(capacity),1));
         if(type==='sign')geometry.setAttribute('signIndex',new THREE.InstancedBufferAttribute(new Float32Array(capacity),1));
         pool=new THREE.InstancedMesh(geometry,this.materials[type],capacity);
         pool.name=`City / ${type}`;pool.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        pool.castShadow=!['road','paving','paint','glow','water','sign'].includes(type);
-        pool.receiveShadow=!['glow','water'].includes(type);pool.frustumCulled=true;
+        pool.castShadow=!['roadTri','pavingTri','paintTri','road','paving','paint','glow','water','foam','ground','sand','sign'].includes(type);
+        pool.receiveShadow=!['glow','water','foam'].includes(type);pool.frustumCulled=true;
         this.group.add(pool);this.pools.set(type,pool);
       }
       pool.count=records.length;total+=records.length;
       for(let i=0;i<records.length;i++) {
         const r=records[i],c=Math.cos(r.ry),s=Math.sin(r.ry);
-        this._matrix.set(c*r.sx,0,s*r.sz,r.x-this.originX,0,r.sy,0,r.y,-s*r.sx,0,c*r.sz,r.z-this.originZ,0,0,0,1);
+        if(r.basis){const [ax,az,bx,bz]=r.basis;this._matrix.set(ax,0,bx,r.x-this.originX,0,r.sy,0,r.y,az,0,bz,r.z-this.originZ,0,0,0,1);}
+        else if(r.rx||r.rz){
+          this._rotation.set(r.rx||0,r.ry||0,r.rz||0);this._quaternion.setFromEuler(this._rotation);this._position.set(r.x-this.originX,r.y,r.z-this.originZ);this._scale.set(r.sx,r.sy,r.sz);this._matrix.compose(this._position,this._quaternion,this._scale);
+        }else this._matrix.set(c*r.sx,0,s*r.sz,r.x-this.originX,0,r.sy,0,r.y,-s*r.sx,0,c*r.sz,r.z-this.originZ,0,0,0,1);
         pool.setMatrixAt(i,this._matrix);
         let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);this.colors.set(r.color,color);}
         pool.setColorAt(i,color);
@@ -396,7 +443,7 @@ export class InfiniteCity {
     if(this.disposed)return;this.disposed=true;
     for(const pool of this.pools.values()){pool.geometry.dispose();pool.dispose();}
     for(const geo of Object.values(this.geometry))geo.dispose();
-    for(const material of Object.values(this.materials)){material.map?.dispose();material.dispose();}
+    for(const material of new Set(Object.values(this.materials))){material.map?.dispose();material.dispose();}
     this.group.removeFromParent();this.pools.clear();this.chunks.clear();this.pending=[];this.colors.clear();
   }
 }

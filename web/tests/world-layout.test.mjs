@@ -16,8 +16,8 @@ test('a world seed reproduces complete architecture after traversal and cache ev
   assert.deepEqual(collidersNear(-7 * 128 + 50, 11 * 128 + 50, 610), first);
 });
 
-test('continuous streets cross every positive and negative chunk seam', () => {
-  for (const grid of [-1000000, -17, -1, 0, 1, 23, 1000000]) {
+test('procedural streets cross positive and negative chunk seams outside the coastal quarter', () => {
+  for (const grid of [-1000000, -17, 23, 1000000]) {
     const line = grid * CHUNK_SIZE;
     for (let offset = -64; offset <= 64; offset += 4) {
       for (const lane of [-ROAD_HALF_WIDTH, -3, 0, 3, ROAD_HALF_WIDTH]) {
@@ -37,13 +37,16 @@ test('districts form coherent regions with different building styles, heights an
     const chunk = generateChunk(cx, cz);
     districts.add(chunk.district.id); layouts.add(chunk.layout);
     const regionStart = { x: Math.floor(cx / 3) * 3 * 128, z: Math.floor(cz / 3) * 3 * 128 };
-    assert.equal(districtAt(chunk.x + 64, chunk.z + 64).id, districtAt(regionStart.x + 2, regionStart.z + 2).id);
+    if (!chunk.coastal && !generateChunk(Math.floor(cx / 3) * 3, Math.floor(cz / 3) * 3).coastal)
+      assert.equal(districtAt(chunk.x + 64, chunk.z + 64).id, districtAt(regionStart.x + 2, regionStart.z + 2).id);
     for (const building of chunk.buildings) { styles.add(building.style); heights.add(building.height); colors.add(building.color); }
     for (const feature of chunk.features) features.add(feature.kind);
   }
-  assert.equal(districts.size, DISTRICTS.length);
+  assert.equal(districts.size, DISTRICTS.length + 1);
+  assert.ok(districts.has('ocean-drive'));
   assert.equal(styles.size, 5);
-  assert.equal(layouts.size, 4);
+  assert.equal(layouts.size, 5);
+  assert.ok(layouts.has('coastal'));
   assert.ok(heights.size > 35);
   assert.ok(colors.size >= 18);
   assert.ok(features.has('canal') && features.has('park') && features.has('plaza'));
@@ -52,6 +55,7 @@ test('districts form coherent regions with different building styles, heights an
 test('all plots stay clear of streets and building footprints never intersect', () => {
   for (let cx = -8; cx < 8; cx++) for (let cz = -8; cz < 8; cz++) {
     const chunk = generateChunk(cx, cz);
+    if (chunk.coastal) continue; // Curved coastal plots have their own geometric tests.
     assert.ok(chunk.buildings.length >= 4);
     for (const collider of chunk.colliders) {
       assert.ok(collider.minX >= chunk.x + 18 && collider.maxX <= chunk.x + 110, JSON.stringify(collider));

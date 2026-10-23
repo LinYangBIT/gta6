@@ -10,6 +10,12 @@ blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
 #   --input /tmp/street-life.json --output previews/street_life.png \
 #   --blend scenes/street_life.blend --resolution 1200
 
+# Coastal reconstruction, plus an overview from the same Blender scene:
+# node scripts/export_infinite_preview.mjs --coastal --output /tmp/coastal-district.json
+# blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
+#   --input /tmp/coastal-district.json --output previews/coastal_district.png \
+#   --overview-output previews/coast_network.png --blend scenes/coastal_district.blend
+
 The live city is infinite; this preview contains only its bounded nearby cells.
 Facade window masks are baked offline from the browser shader; GPU precision,
 lighting and postprocessing can differ. This is not a browser screenshot.
@@ -30,6 +36,8 @@ parser.add_argument('--input', type=Path, required=True)
 parser.add_argument('--output', type=Path, default=Path('previews/endless_city.png'))
 parser.add_argument('--blend', type=Path)
 parser.add_argument('--resolution', type=int, default=1200)
+parser.add_argument('--overview-output', type=Path)
+parser.add_argument('--samples', type=int, default=24)
 args = parser.parse_args(sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else [])
 data = json.loads(args.input.read_text())
 bpy.ops.object.select_all(action='SELECT')
@@ -39,16 +47,16 @@ bpy.ops.object.delete(use_global=False)
 convert = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 groups = defaultdict(lambda: {'vertices': [], 'faces': [], 'uv': [], 'colors': [], 'normals': []})
 materials = {}
-sign_atlas = None
+sign_atlases = {}
 for batch in data['batches']:
     atlas = batch['material'].get('signAtlas')
     if atlas:
         import numpy as np
-        sign_atlas = bpy.data.images.new('Original storefront sign atlas', width=atlas['width'], height=atlas['height'])
+        sign_atlas = bpy.data.images.new(batch['name']+' / sign atlas', width=atlas['width'], height=atlas['height'])
         sign_atlas.colorspace_settings.name = 'sRGB'
         sign_atlas.pixels.foreach_set(np.frombuffer(base64.b64decode(atlas['data']),dtype=np.uint8).astype(np.float32)/255)
         sign_atlas.pack()
-        break
+        sign_atlases[batch['name']] = sign_atlas
 
 
 def facade_images(key, name):
@@ -107,8 +115,8 @@ def get_material(key, name):
         attribute=mat.node_tree.nodes.new('ShaderNodeVertexColor')
         attribute.layer_name='Browser vertex color'
         mat.node_tree.links.new(attribute.outputs['Color'],bsdf.inputs['Base Color'])
-    if key[8] and sign_atlas:
-        node=mat.node_tree.nodes.new('ShaderNodeTexImage');node.image=sign_atlas
+    if key[8] in sign_atlases:
+        node=mat.node_tree.nodes.new('ShaderNodeTexImage');node.image=sign_atlases[key[8]]
         mat.node_tree.links.new(node.outputs['Color'],bsdf.inputs['Base Color'])
     if key[6]:
         noise=mat.node_tree.nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=34
@@ -128,6 +136,13 @@ def get_material(key, name):
             tiles.inputs['Mortar'].default_value=(*[channel*.70 for channel in key[0]],1)
             mat.node_tree.links.new(coordinate.outputs['Position'],tiles.inputs['Vector'])
             mat.node_tree.links.new(tiles.outputs['Color'],bsdf.inputs['Base Color'])
+    if key[10]:
+        coordinate=mat.node_tree.nodes.new('ShaderNodeNewGeometry')
+        noise=mat.node_tree.nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=.6;noise.inputs['Detail'].default_value=3
+        mat.node_tree.links.new(coordinate.outputs['Position'],noise.inputs['Vector'])
+        bump=mat.node_tree.nodes.new('ShaderNodeBump');bump.inputs['Strength'].default_value=.28;bump.inputs['Distance'].default_value=.14
+        mat.node_tree.links.new(noise.outputs['Fac'],bump.inputs['Height']);mat.node_tree.links.new(bump.outputs['Normal'],bsdf.inputs['Normal'])
+        bsdf.inputs['Roughness'].default_value=.20
     materials[key] = mat
     return mat
 
@@ -142,7 +157,10 @@ for batch in data['batches']:
     for instance in batch['instances']:
         color = instance.get('color') or [1,1,1]
         rgb = tuple(round(color[i]*base['color'][i],4) for i in range(3))
-        basic = (rgb,base.get('roughness',.7),base.get('metalness',0),tuple(base.get('emissive',[0,0,0])),base.get('emissiveIntensity',0))
+        # MeshBasicMaterial uses each instance's color for its full unlit output.
+        # Retain colored neon lettering instead of turning every pooled sign white.
+        emission = rgb if base.get('basicMaterial') else tuple(base.get('emissive',[0,0,0]))
+        basic = (rgb,base.get('roughness',.7),base.get('metalness',0),emission,base.get('emissiveIntensity',0))
         values = instance['matrix']
         matrix = convert @ Matrix(tuple(tuple(values[col*4+row] for col in range(4)) for row in range(4)))
         transformed = [tuple(matrix @ position) for position in positions]
@@ -153,7 +171,7 @@ for batch in data['batches']:
                 dimensions = instance['dimensions']
                 width = dimensions[2] if abs(normals[face[0]*3]) > .5 else dimensions[0]
                 facade = (base['facade'],round(width,3),round(dimensions[1],3),round(instance['facadeSeed'],4))
-            key = (*basic,facade,'road' if base.get('road') else 'paving' if base.get('paving') else None, bool(base.get('vertexColors')), bool(base.get('signAtlas')), not batch['name'].startswith('City /'))
+            key = (*basic,facade,'road' if base.get('road') else 'paving' if base.get('paving') else None, bool(base.get('vertexColors')), batch['name'] if base.get('signAtlas') else None, bool(base.get('smooth')) or not batch['name'].startswith('City /'),bool(base.get('water')))
             get_material(key,batch['name'])
             target = groups[key]
             offset = len(target['vertices'])
@@ -162,7 +180,7 @@ for batch in data['batches']:
             for index in face:
                 texcoord=tuple(uv[index*2:index*2+2]) if uv else (0,0)
                 if base.get('signAtlas'):
-                    slot=instance['signIndex'];texcoord=((texcoord[0]+slot%4)/4,(texcoord[1]+math.floor(slot/4))/2)
+                    slot=instance.get('signIndex',0);cols=base['signAtlas'].get('columns',4);rows=base['signAtlas'].get('rows',2);texcoord=((texcoord[0]+slot%cols)/cols,(texcoord[1]+math.floor(slot/cols))/rows)
                 target['uv'].append(texcoord)
                 target['normals'].append(tuple((normal_matrix @ Vector(normals[index*3:index*3+3])).normalized()) if normals else (0,0,1))
                 colors=geometry.get('colors')
@@ -200,8 +218,14 @@ if hero:
 scene = bpy.context.scene
 scene['world_seed'] = data['seed']
 scene['source'] = 'Actual infinite-city.js and actors.js geometry; original car.glb; offline Blender lighting' if data.get('street') else 'Actual infinite-city.js instance batches; browser-local procedural city'
+scene['finite_snapshot'] = True
+scene['streamed_chunk_count'] = data['stats']['loaded']
+if data.get('coastal'):
+    scene['source'] = 'Actual coast-layout/coast-render/coast-architecture + infinite-city/actors/gameplay geometry; original car.glb; offline Blender lighting'
+    scene['reference_direction'] = 'Manually authored from viewed public Vice City Ocean Drive / GTA VI Dominion and Dixon screenshots. No extracted game geometry or textures.'
+scene['preview_limits'] = 'Finite snapshot of the live infinite world. Offline materials, lighting and tone mapping differ from the browser. This is not a gameplay screenshot.'
 scene.render.engine = 'CYCLES'
-scene.cycles.samples = 24 if data.get('street') else 16
+scene.cycles.samples = args.samples if data.get('street') else min(args.samples,16)
 import _cycles
 scene.cycles.use_denoising = bool(getattr(_cycles, 'with_openimagedenoise', False))
 scene.render.resolution_x = args.resolution
@@ -221,7 +245,7 @@ if data.get('street'):
     # Nishita still supplies ambient illumination to physical surfaces.
     import numpy as np
     rgba=np.ones((256,512,4),dtype=np.float32)
-    bottom=np.array([.77,.68,.55]);top=np.array([.10,.40,.68])
+    bottom=np.array([.55,.73,.91]);top=np.array([.035,.25,.56])
     for row in range(256):
         elevation=max(0,math.sin((row/255-.5)*math.pi));t=min(1,elevation/.22);t=t*t*(3-2*t)
         rgba[row,:,:3]=bottom*(1-t)+top*t
@@ -254,6 +278,13 @@ camera.rotation_euler = (target - camera.location).to_track_quat('-Z', 'Y').to_e
 camera_data.lens = data.get('lens',36)
 camera_data.clip_end = 3000
 scene.camera = camera
+overview=None
+if args.overview_output:
+    overview_data=bpy.data.cameras.new('Coastal district / aerial camera');overview_data.lens=38;overview_data.clip_end=3000
+    overview=bpy.data.objects.new('Coastal district / aerial camera',overview_data);bpy.context.collection.objects.link(overview)
+    overview.location=(330,-330,340)
+    overview_target=Vector((-15,150,0))
+    overview.rotation_euler=(overview_target-overview.location).to_track_quat('-Z','Y').to_euler()
 args.output.parent.mkdir(parents=True, exist_ok=True)
 scene.render.image_settings.file_format = 'PNG'
 scene.render.filepath = str(args.output.resolve())
@@ -261,4 +292,8 @@ if args.blend:
     args.blend.parent.mkdir(parents=True, exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(args.blend.resolve()), compress=True)
 bpy.ops.render.render(write_still=True)
+if overview:
+    scene.camera=overview;args.overview_output.parent.mkdir(parents=True,exist_ok=True)
+    scene.render.filepath=str(args.overview_output.resolve());bpy.ops.render.render(write_still=True)
+    scene.camera=camera
 print('CITY_PREVIEW_OK', len(data['batches']), len(groups), len(scene.objects))

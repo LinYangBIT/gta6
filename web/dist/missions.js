@@ -1,4 +1,5 @@
-import { CHUNK_SIZE, WORLD_SEED, hashCoordinates } from './world-layout.js';
+import { CHUNK_SIZE, WORLD_SEED, collidersNear, hashCoordinates, isRoad } from './world-layout.js?v=5';
+import { COAST_MISSION_STOPS } from './coast-layout.js?v=5';
 
 const INTERACTION_RADIUS = 3;
 const PARKING_RADIUS = 12;
@@ -90,6 +91,19 @@ export class MissionSystem {
     this.contract++;
     this.pickup = { ...this.destination };
     const hash = hashCoordinates('coast-delivery', this.seed, this.contract);
+    // The first few jobs introduce distinct authored landmarks. Later contracts
+    // continue into the generated city rather than cycling this finite district.
+    if (this.contract <= 4 && COAST_MISSION_STOPS.length) {
+      const options = COAST_MISSION_STOPS.filter(stop => distance(this.pickup, stop.contact) > 60);
+      const stop = options[hash % options.length];
+      if (stop) {
+        this.destination = { ...stop.contact, label: `${stop.label}收件人`, kind: 'contact' };
+        this.parking = { ...stop.parking, label: `${stop.label} · 停车点`, kind: 'parking' };
+        this.reward = 250 + Math.round(distance(this.pickup, this.destination) / 50) * 25;
+        this.stopTime = 0; this.stage = 'vehicle';
+        return;
+      }
+    }
     const gridX = Math.round((this.pickup.x - 13) / CHUNK_SIZE);
     const gridZ = Math.round((this.pickup.z - 13) / CHUNK_SIZE);
     const direction = hash % 4;
@@ -97,8 +111,15 @@ export class MissionSystem {
     const sideStep = ((hash >>> 8) % 3) - 1;
     const offsets = [[sideStep, -blocks], [blocks, sideStep], [sideStep, blocks], [-blocks, sideStep]];
     const [dx, dz] = offsets[direction];
-    const x = (gridX + dx) * CHUNK_SIZE;
-    const z = (gridZ + dz) * CHUNK_SIZE;
+    let x = (gridX + dx) * CHUNK_SIZE;
+    let z = (gridZ + dz) * CHUNK_SIZE;
+    const clear = (px, pz, radius) => !collidersNear(px, pz, this.seed).some(rect => px + radius >= rect.minX && px - radius <= rect.maxX && pz + radius >= rect.minZ && pz - radius <= rect.maxZ);
+    // A grid point can now lie in coastal sand or water. Extend that leg until
+    // both the parking area and the pedestrian handover are actually reachable.
+    for (let attempt = 0; attempt < 12; attempt++) {
+      if (isRoad(x + 3, z) && !isRoad(x + 13, z + 13) && clear(x + 3, z, 2.5) && clear(x + 13, z + 13, .7)) break;
+      x += dx * CHUNK_SIZE; z += dz * CHUNK_SIZE;
+    }
     const names = ['棕榈唱片店', '湾畔照相馆', '日落修车铺', '海岸咖啡', '花园小卖部', '霓虹旅店'];
     const label = names[(hash >>> 12) % names.length];
     this.destination = { x: x + 13, z: z + 13, label: `${label}收件人`, kind: 'contact' };

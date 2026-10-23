@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../dist/vendor/three.module.js';
 import { ActorVisuals } from '../dist/actors.js';
+import { coastGroundHeight, COAST_PEDESTRIAN_PATHS } from '../dist/coast-layout.js';
+import { collidersNear } from '../dist/world-layout.js';
 
 function game(count=6,x=13,z=30){
   const vehicles=new Map();
@@ -60,4 +62,33 @@ test('Blender coupe detail replaces one procedural car without duplicating or di
   assert.equal(actors.avatar.visible,false);assert.equal(actors.stats.hero,'v3');
   actors.dispose();assert.equal(geometryDisposed,0);assert.equal(materialDisposed,0);
   geometry.dispose();material.dispose();
+});
+
+test('coastal actors and cars follow asphalt, sidewalk and beach ground heights',()=>{
+  const actors=new ActorVisuals(new THREE.Scene()),g=game(1),matrix=new THREE.Matrix4();
+  for(const [x,z,height] of [[3,30,.03],[13,30,.22],[43,30,.02],[90,30,.02],[52,30,.22]]){
+    Object.assign(g.state,{x,z});Object.assign(g.vehicles.get('v0'),{x,z});
+    actors.update(g,{x:0,z:0},0,{contact:{x,z}});
+    assert.equal(actors.avatar.position.y,height);
+    assert.equal(actors.contact.position.y,height);
+    actors.vehiclePools.get('coupe:paint').getMatrixAt(0,matrix);
+    assert.ok(Math.abs(matrix.elements[13]-height)<1e-7);
+  }
+  actors.dispose();
+});
+
+test('ambient pedestrians stay on safe coastal paths through their complete walking cycles',()=>{
+  const actors=new ActorVisuals(new THREE.Scene()),g=game(0);
+  for(let t=0;t<=400;t+=2){
+    actors.update(g,{x:0,z:0},t,{});
+    for(let i=0;i<actors.pedestrians.length;i++){
+      const p=actors.pedestrians[i],path=COAST_PEDESTRIAN_PATHS[i%COAST_PEDESTRIAN_PATHS.length];
+      const {x,z}=p.position;
+      assert.equal(p.position.y,coastGroundHeight(x,z));
+      assert.ok(x>=Math.min(...path.points.map(p=>p.x))-.001&&x<=Math.max(...path.points.map(p=>p.x))+.001);
+      assert.ok(z>=Math.min(...path.points.map(p=>p.z))-.001&&z<=Math.max(...path.points.map(p=>p.z))+.001);
+      for(const r of collidersNear(x,z))assert.ok(x<r.minX-.34||x>r.maxX+.34||z<r.minZ-.34||z>r.maxZ+.34,'pedestrian enters an obstacle');
+    }
+  }
+  actors.dispose();
 });

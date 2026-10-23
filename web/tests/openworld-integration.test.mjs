@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { Gameplay } from '../dist/gameplay.js';
 import { MissionSystem } from '../dist/missions.js';
 import { wrapAngle } from '../dist/driving.js';
+import { coastRoute } from '../dist/coast-layout.js';
+import { isRoad } from '../dist/world-layout.js';
 
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 
@@ -38,23 +40,32 @@ function firstDelivery({ seed = 610, parkingSlot = 0, stepTime = 1 / 60 } = {}) 
   step();
   assert.equal(missions.stage, 'drive');
 
-  let touchedObstacle = false;
+  let touchedObstacle = false, leftRoad = false;
+  const route = coastRoute({ x: 3, z: parkingZ - 22 }, { x: 3, z: -128 });
+  assert.ok(route.length > 8, 'the delivery uses a sampled curved boulevard');
+  assert.ok(route.some(point => point.x < -15), 'journey follows the western bend');
+  let routeIndex = 0;
   for (let frame = 0; frame < Math.ceil(55 / stepTime) && missions.stage !== 'deliver'; frame++) {
     const state = game.state;
     // Leave the curb for the open lane before passing the next parked car.
     const enteringLane = state.z > parkingZ - 15;
-    const targetX = 3, targetZ = enteringLane ? parkingZ - 22 : -128;
+    while (routeIndex < route.length - 1 && Math.hypot(route[routeIndex].x - state.x, route[routeIndex].z - state.z) < 6) routeIndex++;
+    const targetX = enteringLane ? 3 : route[routeIndex].x, targetZ = enteringLane ? parkingZ - 22 : route[routeIndex].z;
     const dx = targetX - state.x, dz = targetZ - state.z;
     const error = wrapAngle(Math.atan2(dx, dz) - state.yaw);
-    const desiredSpeed = enteringLane ? 8 : Math.min(11, Math.max(0, (Math.hypot(dx, dz) - 6) * .7));
+    const finishing = routeIndex >= route.length - 3;
+    let desiredSpeed = enteringLane ? 8 : finishing ? Math.min(9, Math.max(0, (Math.hypot(3 - state.x, -128 - state.z) - 6) * .7)) : 8;
+    if (Math.abs(error) > .5) desiredSpeed = Math.min(desiredSpeed, 4.5);
     step({
       steer: clamp(error * 2.8, -1, 1),
       throttle: clamp((desiredSpeed - state.speed) * .4, 0, 1),
       brake: clamp((state.speed - desiredSpeed) * .5, 0, 1),
     });
     touchedObstacle ||= game.state.collision;
+    leftRoad ||= !isRoad(game.state.x, game.state.z);
   }
   assert.equal(touchedObstacle, false, 'first delivery has a clear driving route');
+  assert.equal(leftRoad, false, 'curved route stays on the rendered road');
   assert.equal(missions.stage, 'deliver', 'stopping at destination advances the mission');
   assert.ok(Math.abs(game.state.speed) < .7);
   assert.equal(missions.interact(actor()).ok, false, 'delivery requires getting out');
@@ -79,7 +90,7 @@ function firstDelivery({ seed = 610, parkingSlot = 0, stepTime = 1 / 60 } = {}) 
   assert.equal(missions.cash, 300);
   assert.equal(missions.stage, 'vehicle');
   assert.equal(missions.contract, 2);
-  assert.ok(Math.hypot(missions.destination.x - 13, missions.destination.z + 115) >= 256);
+  assert.ok(Math.hypot(missions.destination.x - 13, missions.destination.z + 115) > 60);
 }
 
 test('complete the first mission from walking spawn through pickup, driving, exit and reward', () => {

@@ -106,10 +106,12 @@ test('frame-rate changes are stable and tab-resume dt is bounded', () => {
 
 test('roads remain drivable far beyond the old map in both coordinate axes', () => {
   const north = new DrivingSimulation();
+  north.state.x = -512 + 3;
+  north.state.z = -640;
   run(north, 80, { throttle: 1 });
   assert.ok(north.state.z < -2000);
   assert.ok(north.state.speed > 30);
-  assert.ok(Math.abs(north.state.x - 3) < .0001);
+  assert.ok(Math.abs(north.state.x - (-512 + 3)) < .0001);
   const east = new DrivingSimulation();
   east.state.x = CHUNK_SIZE * 1700 + 30; east.state.z = 3;
   east.state.yaw = east._motionYaw = Math.PI / 2;
@@ -119,7 +121,7 @@ test('roads remain drivable far beyond the old map in both coordinate axes', () 
 });
 
 test('the full car capsule collides with actual procedural building footprints', () => {
-  const building = generateChunk(0, 0).buildings[0];
+  const building = generateChunk(-5, 0).buildings[0];
   const edge = building.z - building.depth / 2;
   const car = new DrivingSimulation();
   car.state.x = building.x;
@@ -130,6 +132,20 @@ test('the full car capsule collides with actual procedural building footprints',
   assert.ok(car.state.collision, 'front of car must contact the generated facade');
   assert.ok(car.state.z + 2.25 <= edge + .002, 'car nose should not pass through the wall');
   assert.ok(car.state.speed < 1);
+});
+
+test('the causeway connects the coastal road across the bay to the infinite city', () => {
+  const car = new DrivingSimulation();
+  Object.assign(car.state, { x: 95, z: -384, yaw: Math.PI / 2 });
+  car._motionYaw = Math.PI / 2;
+  let collisions = 0, offRoad = 0;
+  for (let i = 0; i < 35 * 60; i++) {
+    car.update(1 / 60, { throttle: 1 });
+    collisions += Number(car.state.collision);
+    offRoad += Number(!isRoad(car.state.x, car.state.z));
+  }
+  assert.ok(car.state.x > 1024 && car.state.speed > 30);
+  assert.equal(collisions, 0); assert.equal(offRoad, 0);
 });
 
 test('autonomous cruise traverses more than ten kilometres, turning without seams or teleports', () => {
@@ -187,9 +203,13 @@ test('city seeds reproduce navigation, and resetting a new seed resets the explo
   assert.equal(first.state.x, 3);
 });
 
-test('cruise finds a clear courtyard exit instead of repeatedly driving into the nearest building', () => {
+test('cruise finds a clear procedural courtyard exit instead of repeatedly driving into the nearest building', () => {
   const car = new DrivingSimulation({ seed: 610 });
-  Object.assign(car.state, { x: 80, z: 64, yaw: 1 });
+  // Keep this regression at the same plot layout, outside the authored coast.
+  const candidates = Array.from({ length: 20 }, (_, i) => generateChunk(-5 - i, 0, 610));
+  const chunk = candidates.find(c => c.layout === 0);
+  assert.ok(chunk);
+  Object.assign(car.state, { x: chunk.x + 80, z: 64, yaw: 1 });
   car._motionYaw = 1;
   car.setCruise(true);
   let collisions = 0;

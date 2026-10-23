@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Gameplay, VEHICLE_HISTORY_LIMIT, WALK_RADIUS } from '../dist/gameplay.js';
-import { generateChunk } from '../dist/world-layout.js';
+import { generateChunk, isRoad } from '../dist/world-layout.js';
+import { COAST_BOUNDS } from '../dist/coast-layout.js';
 
 function run(game, seconds, input = {}, yaw = Math.PI, step = 1 / 60) {
   for (let i = 0; i < Math.round(seconds / step); i++) game.update(step, input, yaw);
@@ -13,7 +14,7 @@ test('start on foot beside an enterable car; all generated car kinds can be ente
   assert.equal(game.activeVehicle, null);
   assert.equal(game.state.x, 13);
   assert.equal(game.nearbyVehicle().id, '0,0/car/0');
-  assert.equal(game.vehicles.size, 36);
+  assert.ok(game.vehicles.size > 8 && game.vehicles.size <= 36, 'coastal parking is sparse and bounded');
   const cars = [...game.vehicles.values()];
   assert.deepEqual(new Set(cars.map(car => car.kind)), new Set(['coupe', 'sedan', 'suv']));
   for (const car of cars) {
@@ -50,9 +51,47 @@ test('walking follows camera forward and right, with a capped diagonal and faste
   assert.ok(right.state.x > before.x + 1.5 && Math.abs(right.state.z - before.z) < .001);
 });
 
+test('every coastal parked car has a safe door, can be driven and exits without colliding with architecture or water', () => {
+  let count = 0;
+  for (let cx = COAST_BOUNDS.minX / 128; cx < COAST_BOUNDS.maxX / 128; cx++) {
+    for (let cz = COAST_BOUNDS.minZ / 128; cz < COAST_BOUNDS.maxZ / 128; cz++) {
+      const chunk = generateChunk(cx, cz);
+      for (let slot = 0; slot < chunk.vehicleSpawns.length; slot++) {
+        const space = chunk.vehicleSpawns[slot], game = new Gameplay();
+        const rx = Math.cos(space.yaw), rz = -Math.sin(space.yaw);
+        game.walk.x = space.x + rx * 2.5; game.walk.z = space.z + rz * 2.5;
+        game.update(.001, {});
+        const id = `${cx},${cz}/car/${slot}`;
+        assert.ok(isRoad(space.x, space.z), `${id} parked outside asphalt`);
+        assert.ok(game._walkClear(game.state.x, game.state.z), `${id} door blocked`);
+        assert.equal(game.interact().ok, true, id);
+        assert.equal(game.activeVehicle.id, id);
+        run(game, .1);
+        assert.equal(game.state.collision, false, `${id} starts in an obstacle`);
+        assert.ok(Math.hypot(game.state.x - space.x, game.state.z - space.z) < .001);
+        run(game, .3, { throttle: .3 });
+        assert.ok(game.state.distance > .05, `${id} cannot move`);
+        run(game, .3, { brake: 1 });
+        assert.equal(game.interact().ok, true, `${id} cannot be left`);
+        assert.ok(game._walkClear(game.state.x, game.state.z));
+        count++;
+      }
+    }
+  }
+  assert.ok(count >= 20, 'the coastal district has a varied fleet');
+});
+
+test('walking reaches the beach but stops at the ocean shoreline', () => {
+  const game = new Gameplay();
+  game.walk.x = 106; game.walk.z = 0;
+  run(game, 3, { moveX: 1, sprint: true });
+  assert.ok(game.state.x > 109 && game.state.x <= 110 - WALK_RADIUS + .002);
+  assert.equal(game.state.collision, true);
+});
+
 test('walking stops at building walls without tunneling and slides along them', () => {
   const game = new Gameplay();
-  const wall = generateChunk(0, 0).colliders.find(c => c.kind === 'building');
+  const wall = generateChunk(-5, 0).colliders.find(c => c.kind === 'building');
   game.walk.x = wall.minX - 2; game.walk.z = (wall.minZ + wall.maxZ) / 2;
   run(game, 2, { moveX: 1, sprint: true }, Math.PI, .1);
   assert.ok(game.state.x <= wall.minX - WALK_RADIUS + .002);
@@ -124,7 +163,7 @@ test('a driven car survives chunk changes and returning does not recreate it at 
 test('vehicle generation and modified history stay bounded over distant exploration', () => {
   const game = new Gameplay();
   for (let i = 0; i < 100; i++) {
-    game.walk.x = i * 512 + 10; game.walk.z = 30;
+    game.walk.x = -512 - i * 512 + 10; game.walk.z = 30;
     game.update(.01, {});
     assert.ok(game.vehicles.size <= 36 + VEHICLE_HISTORY_LIMIT);
     assert.equal(game.interact().ok, true);

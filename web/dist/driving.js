@@ -3,7 +3,8 @@
  * World coordinates stay in double precision; rendering owns its floating origin.
  * +Z is forward at yaw 0; positive steering turns left. Brake never reverses.
  */
-import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js';
+import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=5';
+import { coastRoadAt, coastRoute } from './coast-layout.js?v=5';
 
 const WHEEL_RADIUS = .43;
 const CAR_RADIUS = 1.10;
@@ -105,6 +106,7 @@ export class DrivingSimulation {
     this._stuckTime = 0;
     this._recoveryTime = 0;
     this._approach = [];
+    this._coastNavigation = false;
     this._setDestination(0, 0);
     return this.state;
   }
@@ -151,6 +153,18 @@ export class DrivingSimulation {
 
   _joinLocalRoad() {
     const s = this.state;
+    if (coastRoadAt(s.x, s.z) !== null) {
+      const path = coastRoute(s, { x: 0, z: -512 });
+      if (path?.length) {
+        this._approach = path.map(point => ({ x: point.x, z: point.z }));
+        this._approach.push({ x: 0, z: -548 });
+        this._coastNavigation = true;
+        this._routeHeading = 0;
+        this._setDestination(0, -640);
+        return;
+      }
+    }
+    this._coastNavigation = false;
     this._approach = roadJoinPath(s, this.seed);
     const join = this._approach.at(-1) || s;
     const gx = Math.round(join.x / CHUNK_SIZE) * CHUNK_SIZE;
@@ -202,8 +216,8 @@ export class DrivingSimulation {
     if (Math.abs(s.speed) < .5) this._stuckTime += dt;
     else this._stuckTime = 0;
     if (this._stuckTime > 2.5) { this._recoveryTime = 1.1; this._stuckTime = 0; }
-    let desiredSpeed = Math.min(17, 4.5 + Math.max(0, distance - 7) * .40);
-    if (this._approach.length) desiredSpeed = Math.min(desiredSpeed, 5);
+    let desiredSpeed = this._coastNavigation && this._approach.length ? 8 : Math.min(17, 4.5 + Math.max(0, distance - 7) * .40);
+    if (this._approach.length) desiredSpeed = Math.min(desiredSpeed, this._coastNavigation ? 8 : 5);
     if (Math.abs(error) > .2) desiredSpeed = Math.min(desiredSpeed, 9);
     if (Math.abs(error) > .55) desiredSpeed = Math.min(desiredSpeed, 4.5);
     if (Math.abs(error) > 1.15) desiredSpeed = 3.2;
