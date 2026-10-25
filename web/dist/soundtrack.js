@@ -18,7 +18,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   window:win=globalThis.window,urlAPI=globalThis.URL,spotifyLoader}={}){
   const byId=id=>dom.getElementById(id),panel=byId('soundtrack-panel'),mount=byId('spotify-mount');
   const audio=byId('local-audio'),fileInput=byId('local-audio-file'),localLabel=byId('local-audio-name');
-  let source='coast',opened=false,suspended=false,disposed=false,started=false,desired=false,userPaused=false;
+  let source='spotify',opened=false,suspended=false,disposed=false,started=false,desired=false,userPaused=false;
   let localPlaying=false,coastPlaying=false,spotifyPlaying=false,spotifyKnown=false,volume=.38;
   let objectURL=null,filename='',controller=null,controllerReady=false,spotifyNode=null,spotifyLoading=false,expectedLocalPause=false;
   let epoch=0,spotifyEpoch=0,pendingPlayback=false;
@@ -28,6 +28,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   const isPlaying=()=>!suspended&&(source==='coast'?coastPlaying:source==='local'?localPlaying:spotifyPlaying);
   const isDocked=()=>source==='spotify'&&!opened&&Boolean(spotifyNode||spotifyLoading);
   function sync(){
+    dom.body?.classList.toggle('has-spotify-player',source==='spotify'&&Boolean(spotifyNode||spotifyLoading)&&!disposed);
     panel.hidden=!(opened||isDocked());panel.setAttribute('data-compact',String(isDocked()));panel.setAttribute('data-docked',String(isDocked()));
     const compact=byId('soundtrack-compact');
     if(compact){compact.hidden=source!=='spotify';compact.textContent=isDocked()?'展开':'只显示播放器';compact.setAttribute('aria-pressed',String(isDocked()));compact.setAttribute('aria-label',isDocked()?'展开音乐设置':'收起设置，音乐继续播放');}
@@ -47,7 +48,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   }
   function pauseSpotify(){if(controller){try{controller.pause();}catch{unloadSpotify();}}else if(spotifyNode)unloadSpotify();spotifyPlaying=false;}
   function stopCurrent(){epoch++;pendingPlayback=false;radio?.setPaused(true);coastPlaying=false;pauseLocal();pauseSpotify();sync();}
-  function attemptSpotify(){if(!desired||suspended||source!=='spotify'||disposed||!controllerReady)return;if(controller){try{controller.play();}catch{status('请在 Spotify 播放器中点击播放');}}}
+  function attemptSpotify(){if(!desired||suspended||source!=='spotify'||disposed||!controllerReady)return;if(controller){try{controller.play();status('已请求播放 GTA V 原声；若未响起，请点击播放器的播放键');}catch{status('请在 Spotify 播放器中点击播放');}}}
   function fallbackSpotify(ticket){
     if(ticket!==spotifyEpoch||disposed||source!=='spotify')return;
     spotifyNode?.remove();const frame=dom.createElement('iframe');frame.title='GTA V 原声 · Spotify 官方播放器';frame.src=GTA_SCORE_EMBED;
@@ -65,7 +66,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
       api.createController(target,{uri:'spotify:album:5EJAJsaHhQYLwVbynpcGkD',width:'100%',height:152,theme:'dark'},embed=>{
         if(ticket!==spotifyEpoch||disposed||source!=='spotify'){embed.destroy();return;}
         controller=embed;spotifyLoading=false;
-        embed.addListener('ready',()=>{if(ticket!==spotifyEpoch)return;controllerReady=true;status('Spotify 已就绪；若未自动响起，请点击播放器的播放键');attemptSpotify();sync();});
+        embed.addListener('ready',()=>{if(ticket!==spotifyEpoch)return;controllerReady=true;if(!desired)status('GTA V 原声已就绪 · 点击进入城市时尝试自动播放');attemptSpotify();sync();});
         embed.addListener('playback_started',()=>{if(ticket!==spotifyEpoch)return;if(suspended){embed.pause();return;}if(!desired)return;spotifyPlaying=true;spotifyKnown=true;sync();});
         embed.addListener('playback_update',event=>{
           if(ticket!==spotifyEpoch||disposed)return;
@@ -91,8 +92,11 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
       pendingPlayback=true;try{await audio.play();if(ticket!==epoch||disposed||source!=='local'||suspended||!desired)return false;pendingPlayback=false;localPlaying=true;sync();return true;}
       catch{if(ticket===epoch){pendingPlayback=false;localPlaying=false;status('浏览器暂未允许自动播放，请点击播放键');sync();}return false;}
     }
-    ensureSpotify();attemptSpotify();return false; // Only real Spotify events confirm playback.
+    ensureSpotify();attemptSpotify();sync();return false; // Only real Spotify events confirm playback.
   }
+  // Warm the official controller during asset loading, without requesting any
+  // audio. A later trusted Enter click can call play() before its first await.
+  function prepare(){if(!disposed&&source==='spotify')ensureSpotify();}
   function start(){if(disposed)return Promise.resolve(false);if(started&&userPaused)return Promise.resolve(false);started=true;desired=true;return playCurrent();}
   function togglePlayback(){
     if(disposed)return Promise.resolve(false);
@@ -139,7 +143,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   return {
     get source(){return source;},get isOpen(){return opened;},get isDocked(){return isDocked();},get isCompact(){return isDocked();},get playing(){return isPlaying();},
     get playbackKnown(){return source!=='spotify'||spotifyKnown;},get volume(){return volume;},get label(){return source==='spotify'?'GTA V · THE SCORE':source==='local'?filename||'本地音乐':radio?.trackLabel||'COAST FM';},
-    start,togglePlayback,nextTrack,select,open,close,togglePanel(){opened?close():open();},setSuspended,setPaused:setSuspended,setVolume,loadFile,
-    dispose(){if(disposed)return;desired=false;userPaused=true;stopCurrent();unloadSpotify();opened=false;disposed=true;for(const remove of removers)remove();audio.removeAttribute('src');audio.load();if(objectURL)urlAPI.revokeObjectURL(objectURL);objectURL=null;panel.hidden=true;radio?.dispose();},
+    prepare,start,togglePlayback,nextTrack,select,open,close,togglePanel(){opened?close():open();},setSuspended,setPaused:setSuspended,setVolume,loadFile,
+    dispose(){if(disposed)return;desired=false;userPaused=true;stopCurrent();unloadSpotify();opened=false;disposed=true;sync();for(const remove of removers)remove();audio.removeAttribute('src');audio.load();if(objectURL)urlAPI.revokeObjectURL(objectURL);objectURL=null;panel.hidden=true;radio?.dispose();},
   };
 }

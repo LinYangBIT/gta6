@@ -43,14 +43,60 @@ test('left and right steering produce mirrored turns and analog input makes a ge
   run(left, 1, { throttle: 0.5, steer: 1 });
   run(right, 1, { throttle: 0.5, steer: -1 });
   run(gentle, 1, { throttle: 0.5, steer: 0.3 });
-  assert.ok(left.state.x < 2.6 && right.state.x > 3.4, 'thumb steering needs visible lateral movement');
+  assert.ok(left.state.x < 2.7 && right.state.x > 3.3, 'held thumb steering needs useful low-speed lateral movement');
   assert.ok(Math.abs((3 - left.state.x) - (right.state.x - 3)) < 0.001);
-  assert.ok(wrapAngle(left.state.yaw - Math.PI) > 0.5);
-  assert.ok(wrapAngle(right.state.yaw - Math.PI) < -0.5);
+  assert.ok(wrapAngle(left.state.yaw - Math.PI) > 0.35);
+  assert.ok(wrapAngle(right.state.yaw - Math.PI) < -0.35);
   assert.ok(gentle.state.x > left.state.x && gentle.state.x < 3);
   const parked = new DrivingSimulation();
   run(parked, 2, { steer: 1 });
   assert.equal(parked.state.yaw, -Math.PI, 'stationary steering must not rotate the car in place');
+});
+
+test('a brief direction tap is gentle, holding builds lock, and releasing promptly centres the wheels', () => {
+  const car = new DrivingSimulation();
+  run(car, .1, { steer: 1 });
+  const tappedAngle = car.state.steering;
+  run(car, .9, { steer: 1 });
+  const heldAngle = car.state.steering;
+  assert.ok(tappedAngle > 0 && tappedAngle < heldAngle * .45, '100 ms tap must not snap to full lock');
+  assert.ok(heldAngle > .65, 'parking-speed full lock remains available');
+  run(car, .3, {});
+  assert.ok(car.state.steering < heldAngle * .08, 'release must quickly return to centre');
+  assert.equal(car.state.x, 3);
+  assert.equal(car.state.z, 30, 'steering alone cannot move a parked vehicle');
+});
+
+test('small analog corrections use less than proportional lock around the centre', () => {
+  const small = new DrivingSimulation(), full = new DrivingSimulation();
+  run(small, 1, { steer: .25 });
+  run(full, 1, { steer: 1 });
+  const ratio = small.state.steering / full.state.steering;
+  assert.ok(ratio > .1 && ratio < .18, 'quarter stick gives a precise, progressive correction');
+});
+
+test('high-speed steering makes a controlled sweep instead of a sudden sideways turn', () => {
+  const car = new DrivingSimulation();
+  Object.assign(car.state, { x: 3, z: -768, speed: 36 });
+  const initialYaw = car.state.yaw;
+  run(car, .1, { steer: 1, throttle: 1 });
+  assert.ok(Math.abs(wrapAngle(car.state.yaw - initialYaw)) < .025, 'quick tap at highway speed must stay below 1.5 degrees');
+  run(car, .4, { steer: 1, throttle: 1 });
+  const yawChange = Math.abs(wrapAngle(car.state.yaw - initialYaw));
+  assert.ok(yawChange > .035 && yawChange < .12, 'held full input should remain useful without whipping around');
+  assert.ok(car.state.speed > 30 && !car.state.collision);
+  assert.ok(isRoad(car.state.x, car.state.z), 'a half-second correction must stay on the broad street');
+});
+
+test('alternating steering and releasing behaves consistently at 30 and 60 Hz', () => {
+  const slow = new DrivingSimulation(), fast = new DrivingSimulation();
+  for (const [seconds, input] of [[1, { throttle: .5 }], [.2, { throttle: .5, steer: 1 }], [.2, { throttle: .5, steer: -1 }], [.3, { brake: .2 }]]) {
+    run(slow, seconds, input, 1 / 30);
+    run(fast, seconds, input, 1 / 60);
+  }
+  assert.ok(Math.hypot(slow.state.x - fast.state.x, slow.state.z - fast.state.z) < .001);
+  assert.ok(Math.abs(wrapAngle(slow.state.yaw - fast.state.yaw)) < .001);
+  assert.ok(Math.abs(slow.state.steering - fast.state.steering) < .001);
 });
 
 test('backing up reverses steering yaw and forward throttle can recover from reverse', () => {

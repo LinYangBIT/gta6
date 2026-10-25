@@ -1,19 +1,20 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Gameplay } from './gameplay.js?v=7';
-import { MissionSystem } from './missions.js?v=7';
-import { ActorVisuals } from './actors.js?v=7';
-import { createUI } from './ui.js?v=7';
-import { CameraControls } from './camera-controls.js?v=7';
-import { createRadio } from './radio.js?v=7';
-import { createSoundtrack } from './soundtrack.js?v=7';
-import { coastRoute, coastGroundHeight } from './coast-layout.js?v=7';
-import { refineMaterials } from './surface-detail.js?v=7';
-import { InfiniteCity } from './infinite-city.js?v=7';
-import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=7';
-import { FloatingOrigin } from './world-origin.js?v=7';
-import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=7';
+import { Gameplay } from './gameplay.js?v=8';
+import { MissionSystem } from './missions.js?v=8';
+import { ActorVisuals } from './actors.js?v=8';
+import { createUI } from './ui.js?v=8';
+import { CameraControls } from './camera-controls.js?v=8';
+import { createRadio } from './radio.js?v=8';
+import { createSoundtrack } from './soundtrack.js?v=8';
+import { EntryCinematic } from './entry-cinematic.js?v=8';
+import { coastRoute, coastGroundHeight } from './coast-layout.js?v=8';
+import { refineMaterials } from './surface-detail.js?v=8';
+import { InfiniteCity } from './infinite-city.js?v=8';
+import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=8';
+import { FloatingOrigin } from './world-origin.js?v=8';
+import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=8';
 
 const canvas = document.querySelector('#world');
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -40,6 +41,10 @@ let audioContext, engine, audioGain, engineFilter;
 let frameCost = 0, frameCount = 0, adaptiveFrames = 0, autoTier = 'high', qualityMode='auto';
 try{const saved=localStorage.getItem('sunset-graphics-quality');if(QUALITY_MODES.includes(saved))qualityMode=saved;}catch{/* Optional setting persistence. */}
 let introOrbit = 0;
+const entry = new EntryCinematic();
+let entryPlayed = false, cinematicFrame = null;
+const cinematicOverlay = document.getElementById('entry-cinematic');
+const cinematicSkip = document.getElementById('cinematic-skip');
 const markers = [];
 const cameraTarget = new THREE.Vector3();
 const cameraDestination = new THREE.Vector3();
@@ -55,10 +60,14 @@ const soundtrack=createSoundtrack({
 });
 ui = createUI({
   start(mode){
-    if (!ready) return;
-    active=true; missionEnabled=mode!=='free'; ui.hideIntro();
+    if (!ready || entry.playing) return;
+    // Request official audio in this trusted click, before the visual transition.
     soundtrack.start();
-    focusCanvas();
+    active=false; missionEnabled=mode!=='free'; clearInput();view.reset();walkCameraYaw=game.state.yaw;
+    cinematicFrame=entry.start({x:game.state.x,z:game.state.z,ground:coastGroundHeight(game.state.x,game.state.z)??.22,quick:entryPlayed,reducedMotion:reduceMotion});
+    document.body.classList.add('is-cinematic');
+    cinematicOverlay.hidden=false;document.getElementById('hud').inert=true;
+    ui.hideIntro();paintCinematic();cinematicSkip.focus({preventScroll:true});
   },
   newCity(){newCity();},
   interact(){interact();focusCanvas();},
@@ -76,6 +85,22 @@ ui = createUI({
   move(x,z){touchMoveX=Number.isFinite(x)?x:0;touchMoveZ=Number.isFinite(z)?z:0;},
   touch(control,pressed){if(control in touch)touch[control]=pressed;}
 });
+soundtrack.prepare();
+cinematicSkip?.addEventListener('click',()=>entry.skip());
+function paintCinematic(){
+  if(!cinematicFrame)return;
+  cinematicOverlay.style.setProperty('--cinema-fade',String(cinematicFrame.fade));
+  cinematicOverlay.style.setProperty('--cinema-progress',String(cinematicFrame.progress));
+  document.getElementById('cinematic-title').textContent=cinematicFrame.title;
+  document.getElementById('cinematic-subtitle').textContent=cinematicFrame.subtitle;
+}
+function closeCinematic(){
+  entry.cancel();cinematicFrame=null;cinematicOverlay.hidden=true;
+  document.body.classList.remove('is-cinematic');document.getElementById('hud').inert=false;
+}
+function finishEntry(){
+  closeCinematic();entryPlayed=true;active=true;clearInput();focusCanvas();
+}
 function recenterCamera(){view.mode=0;view.reset();walkCameraYaw=game.state.yaw;ui.toast('镜头已回正 · 拖动画面自由环视');}
 function cycleCamera(){view.cycle();ui.toast(`${cameraLabels[view.mode]} · 拖动环绕 / 双指缩放`);}
 function resetCar(){game.reset();missions.reset({seed:worldSeed});lastNotice=0;walkCameraYaw=Math.PI;view.reset();clearInput();syncOrigin();snapCamera();ui.toast('已回到街头起点 · 任务已重新开始');}
@@ -83,7 +108,7 @@ function newCity(){
   if(!ready)return;
   worldSeed=Math.floor(Math.random()*2147483646)+1;
   try{localStorage.setItem('sunset-city-seed',String(worldSeed));}catch{/* Optional persistence. */}
-  game.setSeed(worldSeed);missions.reset({seed:worldSeed});city.setSeed(worldSeed);mapCacheKey='';routeCacheKey='';lastNotice=0;walkCameraYaw=Math.PI;
+  game.setSeed(worldSeed);missions.reset({seed:worldSeed});city.setSeed(worldSeed);mapCacheKey='';routeCacheKey='';lastNotice=0;walkCameraYaw=Math.PI;entryPlayed=false;
   clearInput();view.reset();syncOrigin();cityStats=city.update(game.state.x,game.state.z,origin.x,origin.z);
   snapCamera();ui.toast('新城市已生成 · 从街头开始新的旅程');
 }
@@ -108,7 +133,7 @@ function snapCamera(){
 
 function focusCanvas(){canvas.focus({preventScroll:true});}
 function clearInput(){keys.clear();Object.keys(touch).forEach(key=>touch[key]=false);touchSteer=0;touchMoveX=0;touchMoveZ=0;view.clear();}
-function showMenu(){active=false;clearInput();updateSound();ui.showIntro();}
+function showMenu(){closeCinematic();active=false;clearInput();updateSound();ui.showIntro();}
 function nextMusic(){soundtrack.nextTrack();}
 function applyRenderQuality(){
   if(!renderer)return;
@@ -180,7 +205,7 @@ function createCourse(){
 async function downloadAsset(file,totalHint,onChunk){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),120000);
   try{
-    const response=await fetch(new URL(`./assets/${file}?v=7`,import.meta.url),{signal:controller.signal});
+    const response=await fetch(new URL(`./assets/${file}?v=8`,import.meta.url),{signal:controller.signal});
     if(!response.ok)throw new Error(`素材加载失败 (${response.status})`);
     if(!response.body){const data=await response.arrayBuffer();onChunk(data.byteLength,totalHint);return data;}
     const reader=response.body.getReader();const chunks=[];let loaded=0;
@@ -222,7 +247,10 @@ function readInput(){
 function updateCamera(dt){
   const s=game.state, walking=game.mode==='walk', portrait=innerHeight>innerWidth;
   const px=s.x-origin.x,pz=s.z-origin.z,groundOffset=(coastGroundHeight(s.x,s.z)??.22)-.22;
-  if(!active){
+  if(cinematicFrame?.camera){
+    const [cx,cy,cz]=cinematicFrame.camera,[tx,ty,tz]=cinematicFrame.target;
+    cameraDestination.set(cx-origin.x,cy,cz-origin.z);lookDestination.set(tx-origin.x,ty,tz-origin.z);
+  }else if(!active&&!entry.playing){
     if(!reduceMotion)introOrbit+=dt*.035;
     cameraDestination.set(px+5+Math.sin(introOrbit)*2,4.5,pz+24+Math.cos(introOrbit)*2);
     lookDestination.set(px-44,6.2,pz-8);
@@ -250,10 +278,10 @@ function updateCamera(dt){
       avoidCameraWalls(s);
     }
   }
-  const factor=1-Math.exp(-dt*(view.pointers.size?15:view.mode===2?16:7));
+  const factor=entry.playing?1:1-Math.exp(-dt*(view.pointers.size?15:view.mode===2?16:7));
   camera.position.lerp(cameraDestination,factor);cameraTarget.lerp(lookDestination,factor);camera.lookAt(cameraTarget);
   const baseFov=portrait?64:55;
-  const targetFov=active&&view.mode===2?THREE.MathUtils.clamp(baseFov/view.zoom,35,88):baseFov+(active&&view.mode===0?Math.min(7,Math.abs(s.speed)*.2):0);
+  const targetFov=cinematicFrame?.camera?cinematicFrame.fov:active&&view.mode===2?THREE.MathUtils.clamp(baseFov/view.zoom,35,88):baseFov+(active&&view.mode===0?Math.min(7,Math.abs(s.speed)*.2):0);
   if(Math.abs(camera.fov-targetFov)>.05){camera.fov=THREE.MathUtils.lerp(camera.fov,targetFov,factor);camera.updateProjectionMatrix();}
   sky.position.copy(camera.position);
   sun.position.set(px-55,70,pz+80);sun.target.position.set(px,0,pz);
@@ -371,6 +399,7 @@ function tick(now){
   const dt=Math.min(.05,Math.max(0,elapsed));clock+=dt;
   if(!renderer||!ready)return;
   const paused=document.hidden||ui.orientationBlocked||!!document.querySelector('dialog[open]');
+  if(entry.playing){cinematicFrame=entry.update(paused?0:dt);if(entry.playing)paintCinematic();else finishEntry();}
   if(active&&!paused){
     const input=readInput();
     game.update(dt,input,walkCameraYaw+view.yaw);
@@ -397,6 +426,11 @@ function tick(now){
 }
 
 window.addEventListener('keydown',event=>{
+  if(entry.playing){
+    const editing=event.target.matches('input,textarea,select,[contenteditable="true"]');
+    if(!editing&&(event.code==='Escape'||(['Space','Enter'].includes(event.code)&&!event.target.matches('button,a')))){event.preventDefault();entry.skip();}
+    return;
+  }
   if(event.target.matches('input,textarea,select,button,a,[role="button"],[contenteditable="true"]')||document.querySelector('dialog[open]'))return;
   if(event.code==='Escape'){if(active)showMenu();return;}
   if(!active||ui.orientationBlocked)return;
@@ -422,7 +456,7 @@ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addE
 canvas.addEventListener('wheel',event=>{if(active){event.preventDefault();view.zoomBy(Math.exp(event.deltaY*.001));}},{passive:false});
 canvas.addEventListener('dblclick',recenterCamera);
 canvas.addEventListener('contextmenu',event=>event.preventDefault());
-canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;clearInput();soundtrack.setSuspended(true);ui.setError('图形连接暂时中断，请重新载入海岸。');});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;closeCinematic();clearInput();soundtrack.setSuspended(true);ui.showIntro();ui.setError('图形连接暂时中断，请重新载入海岸。');});
 
 try{setupRenderer();requestAnimationFrame(tick);await loadWorld();}
 catch(error){console.error('Coast initialization failed',error);ui.setError(error instanceof Error?`暂时无法进入 3D 场景：${error.message}`:'暂时无法载入 3D 场景。你仍可观看预览短片。');}

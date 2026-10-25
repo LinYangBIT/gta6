@@ -3,8 +3,8 @@
  * World coordinates stay in double precision; rendering owns its floating origin.
  * +Z is forward at yaw 0; positive steering turns left. Brake never reverses.
  */
-import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=7';
-import { coastRoadAt, coastRoute } from './coast-layout.js?v=7';
+import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=8';
+import { coastRoadAt, coastRoute } from './coast-layout.js?v=8';
 
 const WHEEL_RADIUS = .43;
 const CAR_RADIUS = 1.10;
@@ -281,10 +281,22 @@ export class DrivingSimulation {
     if (!drive && Math.sign(oldSpeed) !== Math.sign(s.speed)) s.speed = 0;
     s.speed = clamp(s.speed, -6, wasRoad ? 42 : 20);
     if (!drive && Math.abs(s.speed) < .035) s.speed = 0;
-    const steeringLimit = .62 + .16 * Math.exp(-Math.abs(s.speed) / 8);
-    const steeringTarget = input.steer * steeringLimit / (1 + Math.abs(s.speed) / 32);
-    s.steering += (steeringTarget - s.steering) * (1 - Math.exp(-12 * dt));
-    const yawRate = clamp(s.speed / 2.65 * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -1.4, 1.4);
+    const speed = Math.abs(s.speed);
+    // A thumbstick has useful travel around centre; a digital key takes time
+    // to build steering lock. Keep the route controller's calibrated response.
+    const amount = Math.abs(input.steer);
+    const progressiveInput = Math.sign(input.steer) * amount * (.4 + .6 * amount);
+    const steeringLimit = s.cruising
+      ? (.62 + .16 * Math.exp(-speed / 8)) / (1 + speed / 32)
+      : .72 / (1 + speed / 18 + speed * speed / 145);
+    const steeringTarget = (s.cruising ? input.steer : progressiveInput) * steeringLimit;
+    const returning = Math.abs(steeringTarget) < Math.abs(s.steering) || steeringTarget * s.steering < 0;
+    const steeringResponse = s.cruising ? 12 : returning ? 9 : 4.6;
+    s.steering += (steeringTarget - s.steering) * (1 - Math.exp(-steeringResponse * dt));
+    // High-speed full lock should make a sweeping bend, not whip the car
+    // sideways. Reverse keeps the same wheel direction and opposite yaw.
+    const yawLimit = s.cruising ? 1.4 : Math.min(1.05, (input.handbrake ? 9.2 : 7.2) / Math.max(speed, 1));
+    const yawRate = clamp(s.speed / 2.65 * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -yawLimit, yawLimit);
     s.yaw = wrapAngle(s.yaw + yawRate * dt);
     const grip = input.handbrake && Math.abs(s.speed) > 4 ? 2.1 : wasRoad ? 13 : 8;
     this._motionYaw = wrapAngle(this._motionYaw + wrapAngle(s.yaw - this._motionYaw) * (1 - Math.exp(-grip * dt)));
