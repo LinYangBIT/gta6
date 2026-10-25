@@ -9,7 +9,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = resolve(option('--source', resolve(root, 'web/dist')));
 const output = resolve(option('--output', '/tmp/endless-city.json'));
 const seed = Number(option('--seed', '610'));
-const dense = args.includes('--dense');
+const vivid = args.includes('--vivid');
+const dense = args.includes('--dense') || vivid;
 const coastal = args.includes('--coastal');
 const street = args.includes('--street') || coastal || dense;
 const aerial = option('--view', 'street') === 'aerial';
@@ -84,6 +85,6 @@ const lens=Number(option('--lens', aerial?'38':coastal||dense?'25.5':street?'28'
 const overviewCamera=vectorOption('--overview-camera',dense?[310,380,320]:[330,340,330]);
 const overviewTarget=vectorOption('--overview-target',dense?[-180,0,-140]:[-15,0,-150]);
 const overviewLens=Number(option('--overview-lens',dense?'33':'38'));
-await writeFile(output, JSON.stringify({ seed, stats, street, coastal, dense, aerial, time, center, radius, horizon, horizonRadius, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera, target, lens, overviewCamera, overviewTarget, overviewLens, aspect:street?16/9:3/2, batches }));
+await writeFile(output, JSON.stringify({ seed, stats, street, coastal, dense, vivid, aerial, time, center, radius, horizon, horizonRadius, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera, target, lens, overviewCamera, overviewTarget, overviewLens, aspect:street?16/9:3/2, batches }));
 console.log(JSON.stringify({ output, batches: batches.length, instances: batches.reduce((total, batch) => total + batch.instances.length, 0), stats }));
 actors?.dispose();city.dispose();

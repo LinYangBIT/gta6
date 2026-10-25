@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=6';
+import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=7';
 
 /** A finite moving window onto the same unlimited city, with cheap distant geometry.
  * Far buildings keep the exact footprint/height of their detailed counterparts.
@@ -10,11 +10,11 @@ export function describeHorizonChunk(data) {
   const box=(type,x,y,z,sx,sy,sz,color,seed=0,ry=0)=>records.push({type,x,y,z,sx,sy,sz,color,seed,ry});
   const X=data.x,Z=data.z,S=CHUNK_SIZE;
   if(data.coastal) {
-    box('solid',X+S/2,-.105,Z+S/2,S,.20,S,X>=0?'#a5b58b':'#bcb29e');
+    box('solid',X+S/2,-.105,Z+S/2,S,.20,S,X>=0?'#a1bd87':'#bcb29e');
     for(const f of data.features) {
       if(f.kind==='roundabout')continue; // Island is visible as land through its road loop.
       const water=['ocean','water','canal','marina'].includes(f.kind);
-      const color=water?'#338f9a':f.kind==='beach'?'#dbc9a4':['park','lawn'].includes(f.kind)?'#819360':'#d6c5af';
+      const color=water?'#20a8ba':f.kind==='beach'?'#f0d8a5':['park','lawn'].includes(f.kind)?'#79a468':'#d6c5af';
       box(water?'water':'solid',f.x,water?0:.003,f.z,f.width,.02,f.depth,color);
     }
     for(const road of data.roads||[])for(const s of road.segments||[]) {
@@ -29,7 +29,7 @@ export function describeHorizonChunk(data) {
     box('solid',X+S/2,.06,Z+S/2,S-21,.22,S-21,'#c8b6a8');
     for(const f of data.features) {
       const water=f.kind==='canal'||f.kind==='fountain';
-      box(water?'water':'solid',f.x,.245,f.z,f.width,.03,f.depth,water?'#338f9a':f.kind==='park'?'#607b52':'#c2b09a');
+      box(water?'water':'solid',f.x,.245,f.z,f.width,.03,f.depth,water?'#20a8ba':f.kind==='park'?'#607b52':'#c2b09a');
     }
   }
   for(const b of data.buildings) {

@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { createHuman, animateHuman } from './human-model.js?v=6';
-import { CHUNK_SIZE, isRoad } from './world-layout.js?v=6';
-import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=6';
+import { createHuman, animateHuman } from './human-model.js?v=7';
+import { CHUNK_SIZE, isRoad } from './world-layout.js?v=7';
+import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=7';
 
 // Gameplay holds 36 streamed vehicles plus at most 64 remembered relocations.
 // Capacity covers the entire bounded map, including a crowded parked-car block.
@@ -72,10 +72,15 @@ function makeVehicle(kind) {
   const suv = kind === 'suv', coupe = kind === 'coupe';
   const w=suv?1.02:.96, length=suv?2.35:coupe?2.24:2.4, belt=suv?1.04:.85;
   const roof=suv?1.84:coupe?1.34:1.52, rear=suv?-1.62:coupe?-.91:-1.06, front= coupe?.55:.81;
+  const wheelbase=suv?1.43:1.46,wheelY=suv?.45:.40,wheelRadius=suv?.46:.41;
   const buckets={paint:[],glass:[],detail:[],light:[],tail:[]};
   const add=(type,geometry,matrix,color)=>buckets[type].push({geometry,matrix,color});
   const box=(type,x,y,z,sx,sy,sz,color='#ffffff',rx=0,ry=0,rz=0)=>add(type,new THREE.BoxGeometry(1,1,1),transform(x,y,z,sx,sy,sz,rx,ry,rz),color);
-  add('paint',loft([[-length,w*.84,.42,belt-.12],[-length+.28,w,.36,belt],[-1.25,w,.36,belt+.05],[1.23,w,.36,belt+.04],[length-.26,w*.97,.4,belt-.02],[length,w*.8,.47,belt-.14]]));
+  const rounded=(type,x,y,z,sx,sy,sz,color='#ffffff')=>add(type,loft([[-sz/2,sx*.42,-sy*.34,sy*.34],[-sz*.36,sx/2,-sy/2,sy/2],[sz*.36,sx/2,-sy/2,sy/2],[sz/2,sx*.42,-sy*.34,sy*.34]]),transform(x,y,z),color);
+  const line=(type,a,b,r,color)=>{const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),delta=end.clone().sub(start),matrix=new THREE.Matrix4().compose(start.add(end).multiplyScalar(.5),new THREE.Quaternion().setFromUnitVectors(Y,delta.clone().normalize()),new THREE.Vector3(1,1,1));add(type,new THREE.CylinderGeometry(r,r,delta.length(),6),matrix,color);};
+  // Closely spaced shoulder sections produce real curved bumper highlights and
+  // defined wheel-haunches; the cabin still has its own glass and painted roof.
+  add('paint',loft([[-length,w*.82,.44,belt-.15],[-length+.10,w*.94,.39,belt-.07],[-length+.32,w,.36,belt],[-1.50,w*1.01,.36,belt+.035],[-1.12,w*.99,.36,belt+.045],[-.60,w*.97,.36,belt+.015],[.67,w*.97,.36,belt+.015],[1.22,w*1.01,.36,belt+.045],[length-.39,w*.99,.39,belt+.005],[length-.14,w*.91,.43,belt-.07],[length,w*.78,.48,belt-.15]]));
   add('glass',loft([[rear-.30,w*.91,belt-.015,belt+.015],[rear,w*.78,belt,roof-.08],[front,w*.73,belt,roof],[front+.6,w*.88,belt,belt+.018]]));
   add('paint',loft([[rear-.02,w*.79,roof-.095,roof-.065],[rear+.13,w*.78,roof-.08,roof+.015],[front-.13,w*.73,roof-.05,roof+.02],[front+.04,w*.72,roof-.06,roof-.025]]));
   // Door frames, sills, handles, trim, mirrors and subtly raised hood details.
@@ -87,10 +92,26 @@ function makeVehicle(kind) {
     if(!coupe)box('detail',side*w*.86,(belt+roof)/2,-.22,.06,roof-belt,.12,'#1c252b');
     box('detail',side*(w+.022),belt-.04,coupe?-.53:-.07,.05,.045,.24,'#c4c9ca');
     if(!coupe)box('detail',side*(w+.022),belt-.04,-1.18,.05,.045,.23,'#bcc2c4');
-    box('paint',side*(w+.14),belt+.17,.70,.26,.14,.31);
+    rounded('paint',side*(w+.14),belt+.17,.70,.26,.14,.31);
     box('glass',side*(w+.14),belt+.17,.55,.21,.11,.016);
     box('detail',side*w*.53,belt+.025,1.59,.018,.008,.48,'#59656a');
     box('detail',side*(w+.016),belt*.68,-1.26,.012,belt*.37,.015,'#3c4547');
+    // Thin panel gaps and separate seals make the doors, hood and pillars read
+    // at walking distance without adding a draw call for each component.
+    for(const doorZ of coupe?[-.85,.72]:[-1.28,-.15,.77])box('detail',side*(w+.017),.65,doorZ,.011,.31,.012,'#304146');
+    box('detail',side*(w+.022),.53,-.06,.012,.012,coupe?1.51:2.04,'#26383e');
+    line('detail',[side*w*.76,roof-.04,front-.08],[side*w*.87,belt+.025,front+.53],.018,'#40555a');
+    line('detail',[side*w*.79,roof-.09,rear+.04],[side*w*.89,belt+.025,rear-.25],.017,'#40555a');
+    line('detail',[side*w*.44,belt+.035,front+.60],[side*w*.61,belt-.04,length-.22],.009,'#45616a');
+    line('detail',[side*w*.13,belt+.055,front+.52],[side*w*.62,belt+.06,front+.45],.009,'#22343b');
+    // Raised fender lips and dark inner liners outline the wheels. The trim
+    // occupies the existing footprint; it does not change collision clearance.
+    for(const axle of [-1,1]) {
+      const z=axle*wheelbase;
+      add('detail',new THREE.TorusGeometry(wheelRadius+.032,.026,4,16,Math.PI),transform(side*(w+.019),wheelY,z,1,1,1,0,side*Math.PI/2,0),'#29363a');
+      add(suv?'detail':'paint',new THREE.TorusGeometry(wheelRadius+.063,.024,4,16,Math.PI),transform(side*(w+.031),wheelY,z,1,1,1,0,side*Math.PI/2,0),suv?'#465359':'#ffffff');
+      rounded('detail',side*(w+.065),wheelY+.08,z+.17,.065,.19,.11,coupe?'#cc4c3e':'#9b8c71');
+    }
     if(suv){box('detail',side*w*.68,roof+.08,-.36,.07,.09,2.4,'#58666a');box('detail',side*(w+.03),.31,-.1,.13,.06,2.6,'#8c9698');}
   }
   // Split headlights and grille lend each silhouette a distinct front face.
@@ -98,30 +119,46 @@ function makeVehicle(kind) {
   box('detail',0,.71,length-.025,w*.63,.21,.10,'#152329');
   for(let i=-3;i<=3;i++)box('detail',i*w*.085,.71,length+.033,.023,.16,.02,'#98a9ab');
   for(const side of [-1,1]) {
-    box('light',side*w*.68,belt-.095,length-.052,w*.40,.095,.07,'#e5f5ee');
+    rounded('detail',side*w*.68,belt-.095,length-.052,w*.43,.13,.09,'#23363c');
+    box('light',side*w*.68,belt-.075,length-.001,w*.36,.022,.025,'#d7f3fc');
+    box('light',side*w*.68,belt-.12,length-.001,w*.36,.019,.025,'#f0f8f3');
+    box('light',side*w*.90,belt-.10,length-.04,.035,.06,.025,'#ffb744');
     box('detail',side*w*.72,.48,length+.045,.21,.05,.02,'#a7bbc0');
-    box('tail',side*w*.63,belt-.09,-length+.025,w*.53,.10,.065,'#db373e');
-    box('detail',side*w*.65,.34,-length+.02,.16,.10,.12,'#9da8ab');
+    rounded('detail',side*w*.63,belt-.09,-length+.025,w*.56,.15,.085,'#46232e');
+    box('tail',side*w*.63,belt-.062,-length-.02,w*.48,.025,.02,'#f4414f');
+    box('tail',side*w*.63,belt-.115,-length-.02,w*.48,.02,.02,'#cd243d');
+    box('light',side*w*.48,belt-.09,-length-.02,.045,.027,.023,'#e5e6dc');
+    add('detail',new THREE.CylinderGeometry(.065,.065,.17,12),transform(side*w*.65,.34,-length+.02,1,1,1,Math.PI/2),'#9da8ab');
+    add('detail',new THREE.CylinderGeometry(.049,.049,.006,12),transform(side*w*.65,.34,-length-.069,1,1,1,Math.PI/2),'#1f2a30');
+    for(let n=0;n<3;n++)box('detail',side*w*.70,.57+n*.045,length+.035,.25,.014,.02,'#4b5c61');
   }
   box('detail',0,.61,-length-.016,.43,.18,.025,'#e9e7d8');
   box('detail',0,.59,length+.048,.40,.16,.025,'#d8ded7');
   if(coupe)box('paint',0,belt+.095,-length+.17,w*1.7,.055,.20);
   const out={};for(const [type,parts]of Object.entries(buckets))out[type]=bake(parts);
-  return {geometry:out,width:w,wheelbase:suv?1.43:1.46,wheelY:suv?.45:.40,wheelRadius:suv?.46:.41};
+  return {geometry:out,width:w,wheelbase,wheelY,wheelRadius};
 }
 
 function makeWheels() {
   const tire=[],rim=[];
   const add=(parts,geometry,matrix,color)=>parts.push({geometry,matrix,color});
-  add(tire,new THREE.CylinderGeometry(1,1,.60,20,1),transform(0,0,0,1,1,1,0,0,Math.PI/2),'#151b20');
+  add(tire,new THREE.CylinderGeometry(1,1,.60,32,1),transform(0,0,0,1,1,1,0,0,Math.PI/2),'#141c23');
+  // Small raised tread edges and shaped sidewalls retain a smooth tyre outline.
+  for(let n=0;n<24;n++){
+    const angle=n*Math.PI*2/24;
+    add(tire,new THREE.BoxGeometry(.43,.012,.032),transform(0,Math.cos(angle)*.991,Math.sin(angle)*.991,1,1,1,angle),'#283238');
+  }
   for(const side of [-1,1]) {
-    add(tire,new THREE.TorusGeometry(.82,.12,5,20),transform(side*.31,0,0,1,1,1,0,Math.PI/2,0),'#222a2b');
-    add(rim,new THREE.CylinderGeometry(.67,.67,.025,20),transform(side*.32,0,0,1,1,1,0,0,Math.PI/2),'#26333a');
-    add(rim,new THREE.TorusGeometry(.68,.055,5,20),transform(side*.345,0,0,1,1,1,0,Math.PI/2,0),'#bec9cc');
-    add(rim,new THREE.CylinderGeometry(.18,.18,.06,12),transform(side*.35,0,0,1,1,1,0,0,Math.PI/2),'#cdd5d5');
-    for(let i=0;i<5;i++) {
-      const angle=i*Math.PI*2/5;
-      add(rim,new THREE.BoxGeometry(.04,.12,.50),transform(side*.36,Math.sin(angle)*.40,Math.cos(angle)*.40,1,1,1,-angle),'#a7b9bd');
+    add(tire,new THREE.TorusGeometry(.82,.12,5,32),transform(side*.31,0,0,1,1,1,0,Math.PI/2,0),'#252e34');
+    add(rim,new THREE.CylinderGeometry(.67,.67,.025,32),transform(side*.32,0,0,1,1,1,0,0,Math.PI/2),'#26333a');
+    // The brake rotor sits behind narrow spokes instead of a solid wheel face.
+    add(rim,new THREE.CylinderGeometry(.53,.53,.025,24),transform(side*.338,0,0,1,1,1,0,0,Math.PI/2),'#6d7b80');
+    add(rim,new THREE.TorusGeometry(.68,.045,4,32),transform(side*.36,0,0,1,1,1,0,Math.PI/2,0),'#d0d9db');
+    add(rim,new THREE.CylinderGeometry(.16,.16,.065,12),transform(side*.38,0,0,1,1,1,0,0,Math.PI/2),'#cdd5d5');
+    for(let i=0;i<6;i++) {
+      const angle=i*Math.PI*2/6;
+      add(rim,new THREE.BoxGeometry(.045,.075,.49),transform(side*.385,Math.sin(angle)*.40,Math.cos(angle)*.40,1,1,1,-angle),'#bdced2');
+      add(rim,new THREE.CylinderGeometry(.034,.034,.016,6),transform(side*.42,Math.sin(angle)*.105,Math.cos(angle)*.105,1,1,1,0,0,Math.PI/2),'#53636c');
     }
   }
   return {tire:bake(tire),rim:bake(rim)};

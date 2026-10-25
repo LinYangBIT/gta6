@@ -15,7 +15,7 @@ test('dense buildings retain distinct styles while bounding every level of detai
   const fingerprints=new Set();
   for(const style of styles)for(const seed of [1,4,610,813,2147483647]){
     const b=building(style,seed),near=describeUrbanBuilding(b,0),mid=describeUrbanBuilding(b,1),far=describeUrbanBuilding(b,2);
-    assert.ok(near.length>=25&&near.length<=55,`${style}/${seed} near ${near.length}`);
+    assert.ok(near.length>=45&&near.length<=65,`${style}/${seed} near ${near.length}`);
     assert.ok(mid.length<=18&&mid.length>=8,`${style}/${seed} mid ${mid.length}`);
     assert.ok(far.length<=7&&far.length>=3,`${style}/${seed} far ${far.length}`);
     assert.ok(near.length>mid.length&&mid.length>far.length);
@@ -55,5 +55,17 @@ test('street-front signage and retail glazing face the selected street at all ca
     const outward=new THREE.Vector3(sign.x-b.x,0,sign.z-b.z).normalize();
     assert.ok(direction.dot(outward)>.999);
     assert.ok(records.some(r=>r.type==='glazing'&&Math.hypot(r.x-b.x,r.z-b.z)>Math.min(b.width,b.depth)/2));
+  }
+});
+
+test('short residential buildings keep balconies distinct and detailed windows below the roof',()=>{
+  for(const h of [6.3,9.45,12.6,31.5]){
+    const b={...building('residential',4),height:h,roof:'flat'},records=describeUrbanBuilding(b,0);
+    const balconySlabs=records.filter(r=>Math.abs(r.sx-b.width*.68)<1e-7&&r.sy===.13&&r.sz===.70);
+    assert.equal(new Set(balconySlabs.map(r=>r.y)).size,balconySlabs.length,'low storeys must not produce coincident balcony decks');
+    const upperGlazing=records.filter(r=>r.type==='glazing'&&r.y>4);
+    assert.equal(upperGlazing.length,2,'bounded close-up window detail independent of floor count');
+    for(const window of upperGlazing)assert.ok(window.y+window.sy/2<.22+h);
+    assert.ok(records.length<=65);
   }
 });

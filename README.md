@@ -8,26 +8,28 @@
 
 [打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（公开访问）。
 
-网页版已升级为横屏开放城市：**人物步行开局、任意车辆上下车、连续委托和现金奖励**。WASD 移动 / 驾驶，Shift 奔跑，E 交谈 / 上下车，C 切镜头，拖动自由环视。手机横屏左侧摇杆、右侧动作键。加入弯曲滨海大道、环岛、斜向连接路、酒店后巷和跨湾连接路；保留按需生成的无限街区。默认可在右上电台打开 GTA V 官方 Spotify 原声播放器，也可选原创 COAST FM 或本机音频。网页版源码及完整说明在 [`web/`](web/README.md)。
+网页版已升级为横屏开放城市：**人物步行开局、任意车辆上下车、连续委托和现金奖励**。WASD 移动 / 驾驶，Shift 奔跑，E 交谈 / 上下车，C 切镜头，拖动自由环视。手机横屏左侧摇杆、右侧动作键。加入弯曲滨海大道、环岛、斜向连接路、酒店后巷和跨湾连接路；保留按需生成的无限街区。点击“进入城市”自动启动原创 COAST FM；收起音乐设置后继续播放。可切换 GTA V 官方 Spotify 原声或本机音频，独立暂停和调节音量。网页版源码及完整说明在 [`web/`](web/README.md)。
 
 海洋大道重建实际参考了 [Vice City 海洋大道截图](https://www.videogameschronicle.com/files/2021/11/GTA-The-Trilogy-The-Definitive-Edition-Vice-City-Screen-9-1440x810.jpg)、[GTA VI Dominion 酒店](https://s1.cdn.autoevolution.com/images/news/gallery/gta-6-trailer-2-did-you-spot-all-the-major-vehicles_19.jpg) 与 [Dixon 酒店画面](https://media.gtaboom.com/variants/1920/media/images/9f/8e/Hotel_Dixon.jpg)，重新制作四类地标酒店的可见外观，并细化窗框、窗台、圆角立面、阳台、入口、咖啡座、屋顶设备和海滨植被。参考图片不随仓库分发，网页使用自行制作的几何与材质。这是有限街区的参考重建，外围连接原创无限城市；并非完整 GTA 地图。
 
 最新网页版把海滨陆侧从 **19 栋增加到 133 栋**，外围每个街区从 4–6 栋增加到 **16–22 栋**。连续沿街商铺、围合庭院、住宅区与办公楼群保留服务通道；远景采用同一套地图数据，走近后变成可探索的详细街区，持续生成并回收远处数据。
 
-最新可编辑快照是 [`scenes/dense_city.blend`](scenes/dense_city.blend)，包含网页同源的密集城区与有限远景。以下为 **Blender 离线预览**，网页实时光照会有差异：
+最新可编辑快照是 [`scenes/vivid_city.blend`](scenes/vivid_city.blend)，包含进一步细化的车辆、店面、窗框、阳台与更鲜明的热带配色。以下为 **1920×1080 Blender 离线预览**，网页实时光照会有差异：
 
-![连续都市街景](previews/dense_city.png)
+![高清海滨街景](previews/vivid_city.png)
 
-[密集城区俯瞰](previews/dense_city_aerial.png) · [旧版海洋大道](previews/coastal_district.png)
+[高清城区俯瞰](previews/vivid_city_aerial.png) · [密集城区旧版](previews/dense_city_aerial.png)
 
 ```bash
-node scripts/export_infinite_preview.mjs --dense --seed 610 --output /tmp/dense-city.json
-blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/dense-city.json --output previews/dense_city.png --overview-output previews/dense_city_aerial.png --blend scenes/dense_city.blend --resolution 1280 --samples 32
+node scripts/export_infinite_preview.mjs --vivid --seed 610 --output /tmp/vivid-city.json
+blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/vivid-city.json --output previews/vivid_city.png --overview-output previews/vivid_city_aerial.png --blend scenes/vivid_city.blend --resolution 1920 --samples 48
 ```
 
-网页近景窗口为手机 25 / 桌面 49 个区块，远景窗口为 17×17 / 23×23 个区块（扣除近景），不会无限占用内存。Blender 文件仅保存有限邻域；无限城市在网页运行时持续生成。来源、快照边界与复现参数记录于 [`previews/dense_city.json`](previews/dense_city.json)。
+游戏封面使用 [Rockstar 官方发布的完整壁纸](https://www.rockstargames.com/VI/media/artwork-wallpapers)：4K 横版与1080×1920竖版，保留原画面和色彩。它不是游戏截图；本站明确标识为非官方可玩场景。官方封面和 Logo 的版权属于 Rockstar / Take-Two，来源与文件哈希记录于 [`web/dist/assets/gta6-cover-attribution.json`](web/dist/assets/gta6-cover-attribution.json)，不适用本仓库 MIT 许可。
 
-GTA V 原声使用 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 的可见嵌入播放器，需点击播放；播放范围取决于平台地区、账号和规则。仓库不含商业音频文件。关闭播放器或进入菜单会停止原声。可选择本机音频，文件不会上传。原创 COAST FM 继续保留。
+背景音乐默认在进入城市时启动原创 COAST FM，关闭设置、返回菜单和帮助时继续；用户可独立暂停。本机音频选择后尝试播放并循环，不上传。GTA V 原声通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 及官方 iFrame API 播放，收起设置保留同一小播放器，不再直接卸载；自动播放和范围受浏览器、账号和地区限制。仓库不含商业音频文件。
+
+操作指南中提供自动、高清、均衡、流畅四档画质，默认高清优先。桌面最高约4K像素预算、手机约420万像素；抗锯齿始终开启。网页近景窗口为手机25 / 桌面49个区块，远景为17×17 / 23×23个区块（扣除近景）；Blender只保存有限快照，网页随行进持续生成。当前环境未进行浏览器或手机实机验收。
 
 V2 模型增加轮拱、车身接缝、轮胎和制动细节，以及沿线建筑立面。补充建模脚本 `scripts/detail_scene.py` 可在基础工程上运行。
 
@@ -100,6 +102,8 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 
 | 路径 | 内容 |
 | --- | --- |
+| `scenes/vivid_city.blend` | 细化车辆、建筑和鲜明配色的可编辑同源快照 |
+| `previews/vivid_city.png`、`previews/vivid_city_aerial.png` | 1920×1080 高清街景和城区俯瞰 |
 | `scenes/dense_city.blend` | 密集城区与有限远景的可编辑同源快照 |
 | `previews/dense_city.png`、`previews/dense_city_aerial.png` | 新版街景与连续城市俯瞰 |
 | `scenes/coastal_district.blend` | 海洋大道酒店、曲线路网与海滩的可编辑快照 |

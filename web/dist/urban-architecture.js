@@ -1,6 +1,6 @@
 /** Dense street-front architecture. Window shaders supply the repeated detail;
  * a bounded number of real parts gives each block a useful street silhouette. */
-const WHITE='#e3ddc9', DARK='#35474c';
+const WHITE='#f0e6cf', DARK='#29494f';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
 export function describeUrbanBuilding(building,lod=0) {
@@ -13,7 +13,11 @@ export function describeUrbanBuilding(building,lod=0) {
   const base=.22,top=base+h,front=-d/2;
   const hash=(b.detailSeed??1)>>>0,seed=hash%65521/101;
   const style=b.style||'deco',glass=style==='glass',residential=style==='residential';
-  const color=b.color||'#c9bba5',accent=b.accent||'#7a9c98';
+  const color=b.color||'#c9bba5';
+  // A compact, stable palette gives adjacent shops their own identity. Keep the
+  // wall color from the shared layout so near and distant buildings still match.
+  const trims=glass?['#63b9c9','#e1bc76','#89c5cb']:['#de837e','#49b5b1','#a89ac9','#e1b45f','#74b9a0'];
+  const accent=trims[(hash>>>4)%trims.length];
   function add(type,x,y,z,sx,sy,sz,tint,ry=0,rx=0,rz=0,partSeed=seed){
     records.push({type,x:b.x+co*x+si*z,y,z:b.z-si*x+co*z,sx,sy,sz,color:tint,ry:angle+ry,rx,rz,seed:partSeed});
   }
@@ -55,6 +59,26 @@ export function describeUrbanBuilding(building,lod=0) {
     box(x,1.66,front-.14,.095,2.70,.18,WHITE,'metal');
   }
   box(-w*.18+.23,1.35,front-.23,.04,.48,.035,'#cebd8f','metal');
+  // A real threshold and brass kickplate replace a flat ground-floor ribbon.
+  box(-w*.18,.27,front-.36,1.65,.10,.64,'#cbbca3','paving');
+  box(-w*.18,.65,front-.16,1.40,.30,.055,'#bb9c63','metal');
+  // A hanging valance, alternating fabric panels and brackets make the canopy
+  // readable in a close walking camera without adding a mesh for every fold.
+  const awningWidth=Math.min(w*.9,18);
+  box(0,3.35,front-.78,awningWidth,.27,.055,accent);
+  for(const x of [-awningWidth*.32,0,awningWidth*.32])box(x,3.57,front-.41,awningWidth*.13,.035,.78,WHITE);
+  for(const side of [-1,1])box(side*awningWidth*.40,3.26,front-.27,.065,.42,.48,DARK,'metal');
+  // Two framed first-storey windows add real sill depth; the other window rows
+  // continue to use the shared façade shader and do not grow with floor count.
+  const frameY=Math.min(5.35,h-1.1),frameWidth=Math.min(2.2,w*.22),frameHeight=1.72;
+  for(const side of [-1,1]){
+    const x=side*w*.28;
+    box(x,frameY,front-.04,frameWidth,frameHeight,.07,'#24596a','glazing');
+    for(const edge of [-1,1])box(x+edge*(frameWidth/2+.045),frameY,front-.12,.09,frameHeight+.16,.20,WHITE,'metal');
+    box(x,frameY+frameHeight/2+.06,front-.12,frameWidth+.18,.12,.20,WHITE);
+    box(x,frameY-frameHeight/2-.08,front-.21,frameWidth+.34,.14,.40,WHITE);
+    box(x,frameY,front-.13,.065,frameHeight,.15,WHITE,'metal');
+  }
   box(0,3.86,front-.16,Math.min(w*.70,10),.65,.23,glass?DARK:accent);
   add('sign',0,3.86,front-.285,Math.min(w*.68,9.7),.59,1,'#ffffff',Math.PI,0,0,hash%8);
   // Shallow side entrance and protected service equipment distinguish the
@@ -69,11 +93,12 @@ export function describeUrbanBuilding(building,lod=0) {
   }else if(residential||style==='hotel'){
     // Two real balconies are enough to give the street depth; upper storeys
     // remain detailed by the shared façade shader instead of per-window meshes.
-    for(const fraction of [.32,.65]){
+    for(const fraction of h<10?[.65]:[.32,.65]){
       const y=base+Math.max(4.2,h*fraction),balconyWidth=w*.68;
       box(0,y,front-.35,balconyWidth,.13,.70,WHITE);
       box(0,y+.62,front-.67,balconyWidth,.07,.07,accent,'metal');
       for(const side of [-1,1])box(side*balconyWidth/2,y+.32,front-.36,.065,.68,.68,WHITE,'metal');
+      for(const side of [-1,1])box(side*balconyWidth*.19,y+.33,front-.67,.04,.57,.055,WHITE,'metal');
     }
   }else{
     for(const side of [-1,1])box(side*(w/2-.27),base+h/2,front-.08,.24,h,.17,accent);
@@ -89,6 +114,7 @@ export function describeUrbanBuilding(building,lod=0) {
     // Service penthouse, paired vents and a water tank create nonuniform roofs.
     box(-w*.21,top+.63,d*.18,w*.23,1.08,d*.24,'#91958d');
     for(const side of [-1,1])box(-w*.21+side*w*.055,top+1.22,d*.18,w*.075,.15,d*.16,'#566663','metal');
+    for(const side of [-1,1])box(-w*.21+side*w*.055,top+1.32,d*.18,w*.055,.055,d*.12,'#bdc9bf','metal');
     if(hash%3===0){
       round(w*.24,top+.78,-d*.20,.60,1.25,'#a8b5aa');
       round(w*.24,top+1.43,-d*.20,.66,.10,'#c5cbbb');

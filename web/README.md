@@ -1,4 +1,4 @@
-# Sunset Coast — 连续都市
+# Sunset Coast — 高清海滨都市
 
 [公开体验](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site) · [Blender 与 GitHub 工程](https://github.com/LinYangBIT/gta6)
 
@@ -9,7 +9,8 @@
 - 步行：WASD / 方向键移动，Shift 奔跑，E 与联络人交谈或上下车。
 - 驾驶：W 加速，S 减速与倒车，A / D 转向，空格手刹；停稳后 E 下车。
 - 镜头：拖动画面自由环视，C 切换跟随、侧面、第一人称和俯瞰，V 回正；滚轮 / 双指缩放。
-- 电台：M 打开音乐面板，点击 Spotify 播放键播放 GTA V 原声；可选“只显示播放器”缩小面板。N 在 COAST FM 下切歌，其余来源打开播放器。引擎声可独立开关。Esc 打开菜单，R 回到起点并重新开始委托。
+- 音乐：点击“进入城市”后自动播放 COAST FM；M 打开 / 收起设置，电台旁的播放 / 暂停键控制音乐，N 切歌。收起设置或返回菜单不会停止音乐。封面右上也可播放 / 暂停。引擎声独立控制。Esc 打开菜单，R 回到起点并重新开始委托。
+- 清晰度：操作指南中可选自动、高清、均衡和流畅。自动模式优先高清；显式选择高清会保留该设置。
 - 手机横屏：左侧摇杆移动或转向，右侧奔跑 / 油门等动作键，中间右侧交互按钮上下车和领取任务。右侧空白画面可拖动环视。竖屏提供旋转提示，也可选择继续。
 
 开始任务后的流程是步行到联络人领取摄影器材，任选一辆车前往黄色停车标记，停稳后下车交付，获得 $300。之后可继续接取按城市种子生成的委托；换车不丢失包裹。自由探索模式暂时隐藏任务指引。进度和车辆位置为当前会话状态；菜单可继续，重新加载或重置会重新开始。
@@ -31,9 +32,19 @@ Colony、Dominion、Dixon 和 Coral 酒店采用分别制作的外观，加入�
 
 ## 音乐
 
-默认音乐来源是 [The Music of Grand Theft Auto V, Vol. 2: The Score](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD)，通过 Spotify 官方嵌入播放器由用户点击播放。可播放范围由 Spotify 的地区、账号和平台规则决定；网页不保存、下载或分发商业音轨。播放器保持可见，关闭面板、进入菜单或切至后台会停止外部音乐；再次打开需重新点击播放。
+默认是两首原创 Web Audio 合成音乐的 **COAST FM**，在点击“进入城市”这一用户操作中启动，不需要先打开音乐面板。收起面板、返回封面、打开帮助和旋转设备都不会主动停止音乐；播放 / 暂停按钮和音量独立控制。观看 Blender 短片时暂时暂停，关闭短片后恢复此前播放状态；用户手动暂停后不会被重新开始游戏强行恢复。
 
-也可选择两首原创 Web Audio 合成音乐的 COAST FM，或选择本机音频。所选文件只在本机播放，不上传；替换文件或退出时释放媒体资源。
+也可选择本机音频，选择后尝试自动播放并循环；文件只在本机使用，不上传，收起设置仍继续播放。浏览器拒绝自动播放时会显示播放提示；操作系统可能限制后台标签页或锁屏时的音频，本站不保证锁屏播放。
+
+GTA V 原声仍通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 播放。选择该来源时使用 [Spotify 官方 iFrame API](https://developer.spotify.com/documentation/embeds/references/iframe-api) 尝试启动，实际状态来自播放器事件；不把“播放器已加载”当成正在播放。收起设置后保留可见的小播放器和同一个 iframe，不重建或中断。自动播放、可播放范围受浏览器、Spotify 账号和地区限制；失败时可在播放器中点击播放。网页不保存、下载或分发商业音轨。
+
+## 高清封面与细节
+
+封面使用 [Rockstar 官方壁纸页](https://www.rockstargames.com/VI/media/artwork-wallpapers) 发布的完整原图：横版 **3840×2160**、竖版 **1080×1920**，保持画面比例和原色。站点保留“非官方可玩场景”标识，官方封面与 Logo 的来源、哈希及版权记录在 `dist/assets/gta6-cover-attribution.json`；它们不属于项目 MIT 资产。
+
+实时场景新增近景窗框、窗台、阳台立杆、门厅灯具、遮棚细节、轮拱、车门缝、灯组、刹车盘与细化轮辐。建筑采用更鲜明的珊瑚、青绿、粉紫与暖黄色，海水和天空更通透。车辆仍使用 17 组共享绘制批次，远景继续简化，避免把近景细节复制到所有远处建筑。
+
+高清模式启用抗锯齿和更高阴影精度，按屏幕比例提升渲染分辨率；桌面像素预算最高约 4K，手机最高约 420 万像素。自动模式在持续低帧率时逐级平衡清晰度；选择固定高清后不自动降低。新版 Blender 街景与俯瞰预览为 **1920×1080**。
 
 本轮把海滨陆侧建筑从 19 栋增加到 133 栋，保留五座地标；外围每个 128 米街区从 4–6 栋增加到 16–22 栋。楼房组成沿街商铺、围合庭院、住宅区和办公楼群，内部留出服务通道。
 
@@ -47,7 +58,7 @@ python -m http.server 8080 --directory dist
 node --test tests/*.test.mjs
 ```
 
-检查覆盖实际 GLB 加载、走路与驾驶碰撞、所有车型上车、停车安全下车、车辆回收和位置保留、任务顺序与奖励、完整首单流程、海滨道路连通与跨块接缝、密集建筑间距和服务通道、远近景交接及远景内存上限、镜头手势、多点触控、原声播放器生命周期、电台调度和 JS 语法。当前执行环境没有浏览器自动化工具；没有进行手机实机或浏览器画面验收。Blender 离线预览用于检查几何和构图，光照与网页实时渲染会有差异。
+检查覆盖实际 GLB 加载、走路与驾驶碰撞、所有车型上车、停车安全下车、车辆回收和位置保留、任务顺序与奖励、完整首单流程、海滨道路连通与跨块接缝、密集建筑间距和服务通道、远近景交接及远景内存上限、镜头手势、多点触控、背景播放、用户手动暂停、音频切换竞态、原声播放器生命周期、高清像素预算、电台调度和 JS 语法。当前执行环境没有浏览器自动化工具；没有进行手机实机或浏览器画面验收。Blender 离线预览用于检查几何和构图，光照与网页实时渲染会有差异。
 
 ## 源码与许可
 
@@ -59,9 +70,11 @@ node --test tests/*.test.mjs
 - `dist/urban-architecture.js`：密集商铺、住宅和办公楼的分级细节。
 - `dist/city-horizon.js`：与近景同源的有界远景窗口。
 - `dist/world-layout.js` / `infinite-city.js`：确定性布局与流式城市。
-- `dist/soundtrack.js`：Spotify、本地音频和原创电台来源选择。
+- `dist/soundtrack.js`：独立于设置面板的音乐生命周期、Spotify 官方 API、本地音频与电台。
+- `dist/render-quality.js`：分辨率、像素预算与自动画质。
+- `dist/cover.css` / `music.css`：官方封面展示与持续可见的原声小播放器。
 - `dist/street-signs.js`：本地生成原创店招图集。
-- Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑密集城区快照为 `scenes/dense_city.blend`，海洋大道旧版快照为 `scenes/coastal_district.blend`，人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
+- Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑细化城区快照为 `scenes/vivid_city.blend`，密集城区旧版快照为 `scenes/dense_city.blend`，海洋大道旧版快照为 `scenes/coastal_district.blend`，人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
 - Three.js 0.173.0 使用 MIT，许可在 `dist/vendor/LICENSE.three.txt`。原创代码和资产沿用主仓库 MIT 许可。
 - COAST FM 为 Web Audio 实时合成原创双曲目电台；GTA V 商业原声仅通过官方 Spotify 播放器播放，不属于项目 MIT 资产。
 

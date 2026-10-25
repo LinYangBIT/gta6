@@ -3,9 +3,9 @@
  * Ocean Drive / GTA VI hotel screenshots. These are new meshes, not game assets.
  * The street-facing elevation is local +X; widths/depths are X/Z footprints.
  */
-const CREAM = '#e8e2ce';
-const FRAME = '#d7d7c5';
-const GLASS = '#214553';
+const CREAM = '#f1e7cf';
+const FRAME = '#e2e0ce';
+const GLASS = '#1c5365';
 const DARK = '#394448';
 const FONT = {
   A:['01110','10001','10001','11111','10001','10001','10001'],
@@ -38,14 +38,17 @@ export function describeCoastBuilding(building, lod = 0) {
   const orientation=Number.isFinite(b.orientation)?b.orientation:0, co=Math.cos(orientation), si=Math.sin(orientation);
   const variant=b.landmark || (b.style==='glass'?'tower':'apartment');
   const styles={
-    colony:{wall:'#75aeb0',accent:'#80eadb',dark:'#427d88',floors:4},
-    dominion:{wall:'#e7dfc9',accent:'#d99594',dark:'#9d8d7f',floors:5},
-    dixon:{wall:'#e4e0d1',accent:'#daaa7b',dark:'#927468',floors:7},
-    coral:{wall:'#d99b94',accent:'#76bfb4',dark:'#b37570',floors:4},
+    colony:{wall:'#58b8be',accent:'#85f0d8',dark:'#317f8a',floors:4},
+    dominion:{wall:'#efe1c5',accent:'#e58f9c',dark:'#a58d78',floors:5},
+    dixon:{wall:'#eee3d2',accent:'#edb467',dark:'#a17b57',floors:7},
+    coral:{wall:'#e79b9d',accent:'#55c5b8',dark:'#b87674',floors:4},
     tower:{wall:'#aec5c5',accent:'#b7cfce',dark:'#728a95',floors:Math.round(h/3.5)},
     apartment:{wall:b.color||'#d9c8b1',accent:b.accent||'#a7bdad',dark:'#8a8d84',floors:b.floors||Math.round(h/3.4)},
   };
-  const style=styles[variant]||styles.apartment;
+  const theme=styles[variant]||styles.apartment;
+  // Shared layout color also drives distant massing, so approaching a landmark
+  // adds its details without swapping the dominant facade hue.
+  const style={...theme,wall:b.color||theme.wall};
   const floors=Math.max(2,Math.min(24,b.floors||style.floors));
   const floorH=(h-3.6)/(floors-1), roof=base+h;
   const seed=(b.detailSeed||1)%65521/101;
@@ -139,6 +142,18 @@ export function describeCoastBuilding(building, lod = 0) {
     if(lod===0) {
       box(x+.16,2.91,z,.05,.15,width-.3,'#d2b077','glow');
       box(x+.48,3.41,z,1.35,.025,width+1.3,'#eed3a0','glow');
+      // Separate transom, brass kickplates and tiled nosing make the lobby
+      // entrance read as layered construction at pedestrian camera height.
+      box(x+.19,2.48,z,.14,.065,width-.22,FRAME,'metal');
+      for(const side of [-1,1]) {
+        box(x+.20,.60,z+side*width*.24,.08,.36,width*.45,'#c1a46e','metal');
+        box(x+.26,1.45,z+side*.37,.055,.38,.04,'#e4c589','metal');
+        box(x+.72,.34,z+side*(width*.27),1.36,.035,.045,'#a48d70','paving');
+        const lampZ=z+side*(width/2+.57);
+        box(x+.25,2.35,lampZ,.26,.70,.30,style.dark,'metal');
+        box(x+.40,2.35,lampZ,.055,.48,.20,'#ffe1a1','glow');
+        box(x+.43,2.69,lampZ,.43,.08,.43,CREAM);
+      }
       for(const side of [-1,1]) {
         round(x+.75,.54,z+side*(width/2+1.25),.45,.52,'#d3baa0');
         add('crown',x+.75,1.1,z+side*(width/2+1.25),.54,.75,.54,'#457357');
@@ -170,6 +185,7 @@ export function describeCoastBuilding(building, lod = 0) {
         box(front+1.56,2.99,z,.10,.29,span+.05,'#bd8877');
         box(front+.77,3.01,z,1.53,.03,span-.12,'#90745e','metal',0,0,-.14);
       }
+      if(lod===0)for(let n=0;n<5;n++)box(front+.78,3.17,z+(n-2)*span/5,1.58,.025,span*.065,CREAM,'solid',0,0,-.14);
     }
     if(lod===0)text('CAFE',front+1.62,2.99,3.65+span/2,2.15,'#f3e1be','metal');
   }
@@ -177,6 +193,10 @@ export function describeCoastBuilding(building, lod = 0) {
     const x=front+1.45;
     round(x,1.55,z,.035,2.6,'#bfb6a1');
     add('canopy',x,2.87,z,1.40,.52,1.40,color);
+    if(lod===0)for(let n=0;n<6;n++){
+      const angle=n*Math.PI/3;
+      box(x+Math.sin(angle)*.58,2.92,z+Math.cos(angle)*.58,.025,.025,1.20,'#f4debf','metal',angle,.20);
+    }
     round(x,.94,z,.62,.08,'#d1b28c');
     round(x,.57,z,.045,.72,'#485454');
     round(x,.25,z,.30,.055,'#485454');
@@ -262,6 +282,10 @@ export function describeCoastBuilding(building, lod = 0) {
       if(lod<2) {
         box(front+1.44,y+.72,0,.055,.055,d*.78,'#a7b1a6','metal');
         for(let z=-d*.36;z<d*.38;z+=lod===0?1.15:2.4)box(front+1.44,y+.39,z,.055,.72,.055,'#a7b1a6','metal');
+      }
+      if(lod===0&&floor===2)for(const side of [-1,1]){
+        box(front+.94,y+.37,side*d*.27,.60,.38,1.35,'#c88e71');
+        add('crown',front+.94,y+.67,side*d*.27,.28,.24,.55,'#3d8b65');
       }
     }
     for(let tier=0;tier<3;tier++)box(-w*.12,roof+.45+tier*.65,0,w*.63-tier*1.0,.8,d*.63-tier*1.3,style.wall,'stucco');

@@ -1,0 +1,115 @@
+{
+  "title": "Sunset Coast / Vivid detailed city",
+  "kind": "Offline Blender render of actual playable scene geometry; not a browser screenshot",
+  "world_seed": 610,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "camera_three_y_up": [
+    12,
+    2.2,
+    92
+  ],
+  "target_three_y_up": [
+    -20,
+    4.4,
+    0
+  ],
+  "lens_mm": 25.5,
+  "aerial_camera_three_y_up": [
+    310,
+    380,
+    320
+  ],
+  "aerial_target_three_y_up": [
+    -180,
+    0,
+    -140
+  ],
+  "aerial_lens_mm": 33,
+  "snapshot_center_three_xz": [
+    -128,
+    -128
+  ],
+  "snapshot_chunk_radius": 3,
+  "snapshot_horizon_radius": 4,
+  "stats": {
+    "loaded": 49,
+    "buildings": 467,
+    "instances": 24606,
+    "pending": 0,
+    "drawCalls": 25,
+    "district": "OCEAN DRIVE \u00b7 \u6d77\u6d0b\u5927\u9053",
+    "farLoaded": 32,
+    "farBuildings": 460,
+    "farInstances": 1082,
+    "farDrawCalls": 4,
+    "totalBuildings": 927
+  },
+  "sources": [
+    "web/dist/coast-layout.js",
+    "web/dist/coast-render.js",
+    "web/dist/coast-architecture.js",
+    "web/dist/urban-architecture.js",
+    "web/dist/world-layout.js",
+    "web/dist/infinite-city.js",
+    "web/dist/city-horizon.js",
+    "web/dist/street-signs.js",
+    "web/dist/actors.js",
+    "web/dist/human-model.js",
+    "web/dist/gameplay.js",
+    "web/dist/assets/car.glb"
+  ],
+  "detail_changes": [
+    "Near-building recessed window frames, awning stripes, balcony bars, brass trims, roof equipment and tropical pastel accents",
+    "Curved vehicle body shoulders, wheel arch trim, door/hood seams, LED/amber lighting, mirrors, tyre tread, brake discs and rim spokes",
+    "Shared richer turquoise, coral, lilac and gold building palettes; no changes to the building footprints"
+  ],
+  "reference_direction": "New authored geometry studied from public Vice City Ocean Drive and GTA VI Dominion / Dixon imagery: Art Deco hotel silhouettes, mullioned windows, cafe frontages, neon blades, curved coastal roads, palms and beach. This is a stylized reconstruction, not a complete replica of GTA VI.",
+  "reference_urls": [
+    "https://www.rockstargames.com/VI/media/screenshots",
+    "https://www.videogameschronicle.com/news/the-first-official-gta-trilogy-gameplay-footage-compares-the-definitive-editions-and-originals/",
+    "https://www.videogameschronicle.com/files/2021/11/GTA-The-Trilogy-The-Definitive-Edition-Vice-City-Screen-9-1440x810.jpg",
+    "https://s1.cdn.autoevolution.com/images/news/gallery/gta-6-trailer-2-did-you-spot-all-the-major-vehicles_19.jpg",
+    "https://media.gtaboom.com/variants/1920/media/images/9f/8e/Hotel_Dixon.jpg"
+  ],
+  "renderer": "Official Blender 4.3.2 / Cycles / 48 samples / OpenImageDenoise / AgX Medium High Contrast / +0.10 EV",
+  "limits": "Finite 81-cell snapshot: 49 detailed cells and 32 distant cells, with 927 buildings. Live game uses a larger moving horizon and continues generating the same deterministic city as the player travels. Mesh geometry, transforms, vertex colors and finite building arrangement are exported from the game. Facade masks are baked; lighting, materials, atmosphere and tone mapping use offline approximations and differ from browser rendering. This is not a gameplay screenshot. The official GTA VI artwork used in the website intro is not embedded in this editable scene. No extracted game meshes are included.",
+  "rebuild_commands": [
+    "node scripts/export_infinite_preview.mjs --vivid --seed 610 --output /tmp/vivid-city.json",
+    "blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/vivid-city.json --output previews/vivid_city.png --overview-output previews/vivid_city_aerial.png --blend scenes/vivid_city.blend --resolution 1920 --samples 48"
+  ],
+  "artifacts": {
+    "previews/vivid_city.png": {
+      "bytes": 2585800,
+      "sha256": "67f57903e92baabe12bed5aa301efce719ac9a13503fbb73e802dde7d58322f7"
+    },
+    "previews/vivid_city_aerial.png": {
+      "bytes": 3692284,
+      "sha256": "2588a68a63b0b5612f8329921a742f0d2fa002de1686076c38f7b9a74b88f008"
+    },
+    "scenes/vivid_city.blend": {
+      "bytes": 32441805,
+      "sha256": "d4ddf4b1258cfb48e6ea0fc713d7b52780342f15bc66960cd4d544c3282a2fa1"
+    }
+  },
+  "source_sha256": {
+    "web/dist/coast-layout.js": "c45495d3b57541083448d17da00a9c931bd82e2c609c3840f665e7e1ecb7388b",
+    "web/dist/coast-render.js": "621abc831cf87ee89d60635d377d157fa57de36e5549f47d50bf7e7ad3fe76bd",
+    "web/dist/coast-architecture.js": "deaacdc764f47e2ce90ed2d6144e119bcbf92e494acca477b13d1eb1b4074310",
+    "web/dist/urban-architecture.js": "c65a08e0578689c3703b3241de6433ecd660d1c9fb0807727aa5cf5f1d121c6c",
+    "web/dist/world-layout.js": "7ec25c10d51bdc54a656da619b11c81afebdba00093df0813f13305bb6e642cf",
+    "web/dist/infinite-city.js": "6e6df2f5e83d6ecbcdb7570a5b70be788fe90c41b37f69fc280d67f0ee61a461",
+    "web/dist/city-horizon.js": "da3b8a2eafcc7f7cbbc49a8b2fd23fcb5694fc315ce2c9b8f09b39f13234637a",
+    "web/dist/street-signs.js": "5218dcf9578c1bfd0562bd55a579da158c2b47baef37e4e852bac3e988973498",
+    "web/dist/actors.js": "0e7bb58ebcfa0bd53897bc6381b8b4c6dff6c7a96de14b2cc180bebc5ba0bcf5",
+    "web/dist/human-model.js": "4b518a47cadaad10720b01cd056b022787ed100caa9ba74c46d940af93aa52cf",
+    "web/dist/gameplay.js": "e215ad2c947f2472f51d5b1a98ff779a69a97817abe5425c1bb85f8801bee498",
+    "web/dist/assets/car.glb": "0262aa94de3dc1bdfc43f15a119efe28e662bbf926d6dfbe8117ec9b5313ceae"
+  },
+  "script_sha256": {
+    "scripts/export_infinite_preview.mjs": "301b272af128a70a6e5c71d71403522de8f1f31b6e9b368a0f4ca352457ac3ef",
+    "scripts/render_infinite_preview.py": "46ae8c405480b4775ff57507a946d06defd7f588dacc8d9c52eebb414a4cfe64"
+  }
+}

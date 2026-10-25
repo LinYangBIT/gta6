@@ -1,0 +1,14 @@
+/* Settings visibility never controls music playback. */
+.soundtrack-panel{position:fixed;z-index:35}
+.radio-card{width:292px}
+#music-play-toggle{flex:0 0 30px;width:30px;height:34px;border-radius:5px;background:#fff3dd12;font-size:15px;line-height:1;pointer-events:auto}
+#music-play-toggle[aria-pressed=true]{color:#b8f4d7;background:#b8f4d718}
+.music-volume,.music-volume-label{display:flex;align-items:center;gap:9px;margin:10px 2px 1px;font-size:9px;color:var(--muted)}
+#music-volume{min-width:0;flex:1;width:100%;accent-color:#f4c68e;pointer-events:auto}
+#music-volume:disabled{opacity:.4}
+.soundtrack-panel[data-docked=true]{top:8px;left:50%;right:auto;width:300px;max-width:calc(100vw - 100px);padding:4px;transform:translateX(-50%);margin:0}
+.soundtrack-panel[data-docked=true] .soundtrack-panel__header{position:absolute;left:calc(100% + 5px);top:0;margin:0}
+.soundtrack-panel[data-docked=true] #soundtrack-close,.soundtrack-panel[data-docked=true] .music-volume,.soundtrack-panel[data-docked=true] .music-volume-label{display:none}
+.soundtrack-panel[data-docked=true] .spotify-mount,.soundtrack-panel[data-docked=true] .spotify-mount iframe{height:152px;min-height:152px}
+@media(pointer:coarse) and (orientation:landscape){.radio-card{width:211px}.radio-card__track{min-width:0}#music-play-toggle{width:26px;flex-basis:26px;height:29px;font-size:13px}.radio-card>.icon-button{width:25px;flex-shrink:0}.radio-card__play{width:30px;flex-shrink:0}.radio-card__track strong{max-width:95px}.music-volume,.music-volume-label{margin-top:6px}}
+@media(orientation:portrait){.radio-card{width:205px}#music-play-toggle{width:26px;flex-basis:26px;height:30px}.radio-card>.icon-button{width:24px}.radio-card__play{width:29px}.radio-card__track strong{max-width:91px}}

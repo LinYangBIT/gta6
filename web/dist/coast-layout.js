@@ -66,11 +66,11 @@ function segmentHits(a,b,r,pad=0){
 }
 const building=(id,x,z,width,depth,height,floors,landmark,color,accent,style='hotel')=>({id:`coast/${id}`,x,z,width,depth,height,floors,landmark,style,color,accent,orientation:0,detailSeed:hash(id),roof:'terrace'});
 const buildings=[
- building('colony',-36,40,28,36,16,4,'colony','#79c2c0','#b9f0df'),
- building('dominion',-58,-61,28,40,22,5,'dominion','#eee1ce','#cf9b91'),
- building('dixon',-56,-103,28,26,29,7,'dixon','#e4d4bc','#e6a574'),
- building('coral',-36,94,28,34,16,4,'coral','#dda99c','#94c7bc'),
- building('marina-palace',-30,-211,32,44,23,6,'dominion','#dfdbca','#a0b8ba'),
+ building('colony',-36,40,28,36,16,4,'colony','#68cfc8','#b9f0df'),
+ building('dominion',-58,-61,28,40,22,5,'dominion','#f5e5c3','#cf9b91'),
+ building('dixon',-56,-103,28,26,29,7,'dixon','#edc99f','#e6a574'),
+ building('coral',-36,94,28,34,16,4,'coral','#ef9b98','#94c7bc'),
+ building('marina-palace',-30,-211,32,44,23,6,'dominion','#e9dfbd','#a0b8ba'),
 ];
 // Urban parcels line each street first, then the remaining inland block interiors.
 // This replaces isolated buildings in broad empty lots with continuous, varied
@@ -92,7 +92,7 @@ function addInfill(id,x,z,width,depth,frontageRoad=null){
  // Scattered office clusters rise behind the lower seafront, not in front of it.
  if(inland&&z<-190&&n%7===0){floors=18+(n>>>12)%7;style='glass';}
  const floorHeight=style==='glass'?3.65:3.2;
- const palette=style==='glass'?['#70939c','#89a6aa','#9bacad']:['#dbcbb5','#c9b4a8','#b6c6bd','#ddd8c9','#bda59d','#a8bfc0'];
+ const palette=style==='glass'?['#529da8','#72b5bf','#8ebbc1']:['#efd3a8','#e1b2a0','#9ecdbb','#f0dbae','#d999a6','#81c8c9'];
  const b=building(`infill-${id}`,x,z,width,depth,Math.round((floors*floorHeight+.6)*100)/100,floors,null,palette[n%palette.length],['#97b6b1','#b88c78','#91a5ac','#d2ba93'][(n>>>8)%4],style);
  let closest=null;
  for(const s of roadSegments){const p=projectToCoastSegment(x,z,s.a,s.b);if(!closest||p.distance<closest.distance)closest=p;}

@@ -112,8 +112,11 @@ test('landscape controls switch safely between walking, driving, and contextual 
     assert.equal(elements.get('sound-button').attrs.get('aria-pressed'), 'false', 'engine and music have separate switches');
     assert.equal(elements.get('track-label').textContent, 'Sunset Frequencies');
     ui.update({ musicSource: 'spotify', musicPanelOpen: true, musicOn: false, trackLabel: 'GTA V · THE SCORE' });
-    assert.equal(elements.get('radio-state').textContent, 'PLAYER', 'an open Spotify frame is not confirmed playback');
+    assert.equal(elements.get('radio-state').textContent, 'READY', 'an open Spotify frame is not confirmed playback');
     assert.equal(elements.get('music-button').attrs.get('data-playing'), 'false', 'Spotify availability does not animate a playing equalizer');
+    ui.update({musicSource:'spotify',musicOn:true});
+    assert.equal(elements.get('radio-state').textContent,'ON AIR','confirmed player event is reflected');
+    assert.equal(elements.get('music-button').attrs.get('data-playing'),'true');
     ui.update({ distance: 12345, checkpoint: 1234, total: 0, destinationDistance: 128, seed: 734, district: 'DOWNTOWN · 天际线' });
     assert.equal(elements.get('distance-value').textContent, '12.35 km');
     assert.equal(elements.get('checkpoint-count').textContent, '1,234 份委托', 'completed mission count has no finite cap');

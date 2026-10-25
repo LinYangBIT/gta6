@@ -1,7 +1,7 @@
 /** Street-scale coastal scenery. Every object follows the shared road layout. */
-import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=6';
-import { describeCoastBuilding } from './coast-architecture.js?v=6';
-import { describeUrbanBuilding } from './urban-architecture.js?v=6';
+import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=7';
+import { describeCoastBuilding } from './coast-architecture.js?v=7';
+import { describeUrbanBuilding } from './urban-architecture.js?v=7';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -47,16 +47,16 @@ export function describeCoastChunk(data,lod=0){
   }
   // A neutral land foundation makes gaps between paving and planted strips real
   // ground. Road surfaces sit above it; sidewalks remain at the actor's .22m step.
-  box(X+64,-.105,Z+64,S,.20,S,X>=0?'#a5b58b':'#bcb29e','ground');
+  box(X+64,-.105,Z+64,S,.20,S,X>=0?'#a1bd87':'#bcb29e','ground');
   const features=data.features||[];
   for(const f of features){
     const {x,z,width:w=20,depth:d=20}=f;
     if(f.kind==='ocean'||f.kind==='sea'){
-      slab(x,z,w,d,'#338f9a','water',0,.02);
+      slab(x,z,w,d,'#20a8ba','water',0,.02);
     }else if(f.kind==='beach'||f.kind==='sand'){
-      slab(x,z,w,d,'#dbc9a4','sand',.001,.018);
+      slab(x,z,w,d,'#f0d8a5','sand',.001,.018);
     }else if(f.kind==='park'||f.kind==='lawn'){
-      slab(x,z,w,d,'#819360','green',.001,.018);
+      slab(x,z,w,d,'#79a468','green',.001,.018);
     }else if(f.kind==='promenade'||f.kind==='boardwalk'){
       slab(x,z,w,d,f.kind==='boardwalk'?'#af9171':'#d6c5af','paving',.11,.22);
     }else if(f.kind==='plaza'){
@@ -65,7 +65,7 @@ export function describeCoastChunk(data,lod=0){
       const cx=f.sourceX??x,cz=f.sourceZ??z,r=f.radius??Math.min(f.sourceWidth??w,f.sourceDepth??d)/2;
       if(owns(cx,cz)){cylinder(cx,.10,cz,r,.20,'#dfcfb4','round');cylinder(cx,.23,cz,r-.55,.15,'#759068','round');}
     }else if(f.kind==='canal'||f.kind==='water'||f.kind==='marina'){
-      slab(x,z,w,d,'#31858c','water',.013,.02);
+      slab(x,z,w,d,'#279cac','water',.013,.02);
     }
   }
   // The road layout owns the same sampled curves used by collision/surface tests.
@@ -137,7 +137,7 @@ export function describeCoastChunk(data,lod=0){
     const tx=x+Math.sin(angle)*lean,tz=z+Math.cos(angle)*lean;
     cylinder(tx,height+.2,tz,.29,.65,'#6c7244');
     const count=lod===2?7:11;
-    for(let n=0;n<count;n++)add('leaf',tx,height+.36,tz,4.8+(n%3)*.38,3.4+(n%2)*.9,4.8+(n%3)*.38,n%3?'#3c6d46':'#779557',n/count*TAU+(seed%17)*.09);
+    for(let n=0;n<count;n++)add('leaf',tx,height+.36,tz,4.8+(n%3)*.38,3.4+(n%2)*.9,4.8+(n%3)*.38,n%3?'#347950':'#81aa56',n/count*TAU+(seed%17)*.09);
     if(lod===0)for(let n=0;n<3;n++)add('crown',tx+Math.sin(n*2)*.22,height+.1,tz+Math.cos(n*2)*.22,.17,.22,.17,'#756044');
   }
   function bench(x,z,yaw=0){

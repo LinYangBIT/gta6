@@ -1,0 +1,45 @@
+{
+  "source_page": "https://www.rockstargames.com/VI/media/artwork-wallpapers",
+  "retrieved_utc": "2026-10-25",
+  "copyright": "Rockstar Games / Take-Two Interactive Software, Inc.",
+  "usage": "Official published cover artwork and logo, shown unchanged as the requested cover reference for an independent fan-made browser scene. This is not an official Rockstar game or website.",
+  "license": "Third-party copyrighted artwork. Not part of the repository MIT-licensed code or original assets. No ownership or open-source license is claimed.",
+  "files": [
+    {
+      "file": "gta6-cover-landscape.jpg",
+      "title": "Official Cover Art — landscape",
+      "source_url": "https://www.rockstargames.com/VI/_next/static/media/Official_Cover_Art_landscape.12.uu2irr.2_a.jpg",
+      "dimensions": [
+        3840,
+        2160
+      ],
+      "bytes": 2593726,
+      "sha256": "e2e213e7f5163a188cc8430005e02e2b86c397c99b088ae2895e142abcd3ef79",
+      "modifications": "None; original file bytes from the official source."
+    },
+    {
+      "file": "gta6-cover-portrait.jpg",
+      "title": "Official Cover Art — portrait",
+      "source_url": "https://www.rockstargames.com/VI/_next/static/media/Official_Cover_Art_portrait.0_q101pt77mgu.jpg",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "bytes": 911335,
+      "sha256": "452fcad03eeaa5da69c85d373696cc8923e4e59da941a435cbb32e1c4a3e0935",
+      "modifications": "None; original file bytes from the official source."
+    },
+    {
+      "file": "gta6-logo.png",
+      "title": "Grand Theft Auto VI logo",
+      "source_url": "https://www.rockstargames.com/VI/_next/static/media/vi.0hxa9~pf214xe.png",
+      "dimensions": [
+        807,
+        540
+      ],
+      "bytes": 27804,
+      "sha256": "f1a4e777835a98fa0386106ef5a948e8fd590121ee0cd72daa191997ed979616",
+      "modifications": "None; original file bytes from the official source."
+    }
+  ]
+}

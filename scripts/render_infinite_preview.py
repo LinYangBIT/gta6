@@ -242,6 +242,9 @@ scene.render.resolution_x = args.resolution
 scene.render.resolution_y = int(args.resolution / data.get('aspect',1.5))
 scene.render.resolution_percentage = 100
 scene.view_settings.view_transform = 'AgX'
+if data.get('vivid'):
+    scene.view_settings.look = 'AgX - Medium High Contrast'
+    scene.view_settings.exposure = .10
 scene.world.use_nodes = True
 world_nodes = scene.world.node_tree.nodes
 world_nodes.get('Background').inputs['Color'].default_value = (.45, .65, .82, 1) if data.get('street') else (.35,.46,.68,1)
@@ -250,12 +253,12 @@ if data.get('street'):
     sky=world_nodes.new('ShaderNodeTexSky');sky.sky_type='NISHITA';sky.sun_disc=False
     sky.sun_elevation=math.radians(28);sky.sun_rotation=math.radians(135)
     scene.world.node_tree.links.new(sky.outputs['Color'],world_nodes.get('Background').inputs['Color'])
-    world_nodes.get('Background').inputs['Strength'].default_value=.18
+    world_nodes.get('Background').inputs['Strength'].default_value=.20 if data.get('vivid') else .18
     # Keep the same clear cyan-to-warm-horizon art direction as the browser sky;
     # Nishita still supplies ambient illumination to physical surfaces.
     import numpy as np
     rgba=np.ones((256,512,4),dtype=np.float32)
-    bottom=np.array([.55,.73,.91]);top=np.array([.035,.25,.56])
+    bottom=np.array([.51,.78,.95] if data.get('vivid') else [.55,.73,.91]);top=np.array([.025,.31,.67] if data.get('vivid') else [.035,.25,.56])
     for row in range(256):
         elevation=max(0,math.sin((row/255-.5)*math.pi));t=min(1,elevation/.22);t=t*t*(3-2*t)
         rgba[row,:,:3]=bottom*(1-t)+top*t
@@ -270,8 +273,8 @@ if data.get('street'):
     scene.world.node_tree.links.new(camera_background.outputs['Background'],mix.inputs[2])
     scene.world.node_tree.links.new(mix.outputs[0],world_nodes.get('World Output').inputs['Surface'])
 sun_data = bpy.data.lights.new('Sunset key', 'SUN')
-sun_data.energy = 3.0 if data.get('street') else 2.7
-sun_data.color = (1.0,.88,.73) if data.get('street') else (1.0,.77,.53)
+sun_data.energy = 3.3 if data.get('vivid') else 3.0 if data.get('street') else 2.7
+sun_data.color = (1.0,.91,.80) if data.get('vivid') else (1.0,.88,.73) if data.get('street') else (1.0,.77,.53)
 sun_data.angle = math.radians(2 if data.get('street') else 7)
 sun = bpy.data.objects.new('Sunset key', sun_data)
 bpy.context.collection.objects.link(sun)

@@ -330,10 +330,10 @@ export function createUI(handlers = {}) {
       const musicSource = state.musicSource || 'coast';
       const musicOpen = state.musicPanelOpen;
       byId('music-button').setAttribute('aria-pressed', String(musicOpen ?? musicOn));
-      byId('music-button').setAttribute('data-playing', String(musicSource !== 'spotify' && musicOn));
-      byId('music-button').setAttribute('aria-label', musicOpen ? '关闭音乐播放器' : '打开音乐播放器');
+      byId('music-button').setAttribute('data-playing', String(musicOn));
+      byId('music-button').setAttribute('aria-label', musicOpen ? '收起音乐设置，继续播放' : '打开音乐设置');
       text('music-source-label', musicSource === 'spotify' ? 'GTA V 原声' : musicSource === 'local' ? '本地音乐' : 'COAST FM');
-      text('radio-state', musicSource === 'spotify' ? (musicOpen ? 'PLAYER' : 'READY') : musicOn ? 'ON AIR' : 'OFF');
+      text('radio-state', musicOn ? 'ON AIR' : musicSource === 'spotify' ? 'READY' : 'PAUSED');
       if (state.trackLabel) text('track-label', state.trackLabel);
       byId('track-button').setAttribute('aria-label', musicSource === 'coast' ? '切换下一首音乐' : '打开音乐播放器选择曲目');
       byId('cruise-badge').hidden = !state.cruising;
