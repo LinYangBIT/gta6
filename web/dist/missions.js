@@ -1,5 +1,5 @@
-import { CHUNK_SIZE, WORLD_SEED, collidersNear, hashCoordinates, isRoad } from './world-layout.js?v=9';
-import { COAST_MISSION_STOPS } from './coast-layout.js?v=9';
+import { CHUNK_SIZE, WORLD_SEED, collidersNear, hashCoordinates, isRoad } from './world-layout.js?v=10';
+import { COAST_MISSION_STOPS } from './coast-layout.js?v=10';
 
 const INTERACTION_RADIUS = 3;
 const PARKING_RADIUS = 12;

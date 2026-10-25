@@ -26,11 +26,12 @@ function harness(){
   const context=vm.createContext({
     THREE:{Vector3},EntryCinematic,document,window:{addEventListener(name,fn){callbacks.window.set(name,fn);}},
     matchMedia:()=>({matches:false}),performance:{now:()=>now},localStorage:{getItem:()=>null},
-    Gameplay:class{constructor(){this.mode='walk';this.state={x:13,z:30,yaw:Math.PI,speed:0,distance:0};this.vehicles=new Map();this.updates=0;}update(){this.updates++;}nearbyVehicle(){return null;}},
+    Gameplay:class{constructor(){this.sim={};this.mode='walk';this.state={x:13,z:30,yaw:Math.PI,speed:0,distance:0};this.vehicles=new Map();this.updates=0;}update(){this.updates++;}nearbyVehicle(){return null;}},
     MissionSystem:class{snapshot(){return {noticeId:0,target:null,completed:0};}update(){return this.snapshot();}},
     FloatingOrigin:class{constructor(){this.x=0;this.z=0;}update(){return {dx:0,dz:0};}},
     CameraControls:class{constructor(){this.yaw=0;}clear(){}reset(){}},createRadio:()=>({}),createSoundtrack:()=>soundtrack,
     createUI(value){handlers=value;return ui;},QUALITY_MODES:['auto','high','balanced','performance'],
+    createSteeringSettings({simulation}){assert.ok(simulation,'settings bind the current driving simulation');calls.push('settings');},
     coastGroundHeight:()=>.22,districtAt:()=>({label:'Ocean Drive'}),requestAnimationFrame(){},
     console,URL,Set,Map,Math,Number,Promise,
   });
@@ -46,9 +47,9 @@ function harness(){
 
 test('official audio starts synchronously before CG; CG blocks input and retains the selected mode',()=>{
   const h=harness();
-  assert.deepEqual(h.calls,['prepare'],'loading only prepares the official player');
+  assert.deepEqual(h.calls,['prepare','settings'],'loading prepares audio and applies steering preferences without playing');
   h.handlers.start('free');
-  assert.deepEqual(h.calls.slice(1,3),['start','hide'],'trusted click requests audio before changing the screen');
+  assert.deepEqual(h.calls.slice(2,4),['start','hide'],'trusted click requests audio before changing the screen');
   assert.equal(h.read('active'),false);assert.equal(h.read('entry.playing'),true);
   assert.equal(h.read('missionEnabled'),false);assert.equal(h.elements.get('hud').inert,true);
   h.handlers.start('walk');

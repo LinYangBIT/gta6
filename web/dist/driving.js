@@ -3,8 +3,8 @@
  * World coordinates stay in double precision; rendering owns its floating origin.
  * +Z is forward at yaw 0; positive steering turns left. Brake never reverses.
  */
-import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=9';
-import { coastRoadAt, coastRoute } from './coast-layout.js?v=9';
+import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=10';
+import { coastRoadAt, coastRoute } from './coast-layout.js?v=10';
 
 const WHEEL_RADIUS = .43;
 const CAR_RADIUS = 1.10;
@@ -13,6 +13,11 @@ const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 export const wrapAngle = value => ((value + Math.PI) % TAU + TAU) % TAU - Math.PI;
+export const STEERING_DEFAULTS = Object.freeze({ sensitivity: 1.3, response: 1.15 });
+export const STEERING_LIMITS = Object.freeze({
+  sensitivity: Object.freeze({ min: .6, max: 2 }),
+  response: Object.freeze({ min: .6, max: 1.8 }),
+});
 const directions = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
 function routeRandom(seed, index) {
@@ -86,10 +91,26 @@ function roadJoinPath(state, seed) {
 }
 
 export class DrivingSimulation {
-  constructor({ bestTime = 0, seed = 610 } = {}) {
+  constructor({ bestTime = 0, seed = 610, steeringSettings } = {}) {
     this.seed = Math.trunc(finite(seed, 610));
     this.state = { bestTime: Math.max(0, finite(bestTime)) };
+    this._steeringSettings = { ...STEERING_DEFAULTS };
+    this.setSteeringSettings(steeringSettings);
     this.reset();
+  }
+
+  get steeringSettings() { return { ...this._steeringSettings }; }
+
+  /** Manual controls only. Settings survive reset, changing cars and cities. */
+  setSteeringSettings(settings = {}) {
+    if (settings && typeof settings === 'object') {
+      for (const key of Object.keys(STEERING_DEFAULTS)) {
+        if (!Object.prototype.hasOwnProperty.call(settings, key)) continue;
+        const { min, max } = STEERING_LIMITS[key];
+        this._steeringSettings[key] = clamp(finite(settings[key], STEERING_DEFAULTS[key]), min, max);
+      }
+    }
+    return this.steeringSettings;
   }
 
   reset() {
@@ -286,16 +307,17 @@ export class DrivingSimulation {
     // to build steering lock. Keep the route controller's calibrated response.
     const amount = Math.abs(input.steer);
     const progressiveInput = Math.sign(input.steer) * amount * (.4 + .6 * amount);
+    const { sensitivity, response } = this._steeringSettings;
     const steeringLimit = s.cruising
       ? (.62 + .16 * Math.exp(-speed / 8)) / (1 + speed / 32)
-      : .72 / (1 + speed / 18 + speed * speed / 145);
+      : Math.min(.98, .72 * sensitivity / (1 + speed / 18 + speed * speed / 145));
     const steeringTarget = (s.cruising ? input.steer : progressiveInput) * steeringLimit;
     const returning = Math.abs(steeringTarget) < Math.abs(s.steering) || steeringTarget * s.steering < 0;
-    const steeringResponse = s.cruising ? 12 : returning ? 9 : 4.6;
+    const steeringResponse = s.cruising ? 12 : returning ? 9 * Math.max(1, response) : 4.6 * response;
     s.steering += (steeringTarget - s.steering) * (1 - Math.exp(-steeringResponse * dt));
     // High-speed full lock should make a sweeping bend, not whip the car
     // sideways. Reverse keeps the same wheel direction and opposite yaw.
-    const yawLimit = s.cruising ? 1.4 : Math.min(1.05, (input.handbrake ? 9.2 : 7.2) / Math.max(speed, 1));
+    const yawLimit = s.cruising ? 1.4 : Math.min(1.05 * sensitivity, (input.handbrake ? 9.2 : 7.2) * sensitivity / Math.max(speed, 1));
     const yawRate = clamp(s.speed / 2.65 * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -yawLimit, yawLimit);
     s.yaw = wrapAngle(s.yaw + yawRate * dt);
     const grip = input.handbrake && Math.abs(s.speed) > 4 ? 2.1 : wasRoad ? 13 : 8;

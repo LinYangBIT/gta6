@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=9';
+import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=10';
 
 /** A finite moving window onto the same unlimited city, with cheap distant geometry.
  * Far buildings keep the exact footprint/height of their detailed counterparts.

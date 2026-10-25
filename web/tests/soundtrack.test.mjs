@@ -50,19 +50,25 @@ test('official GTA score is prepared silently and the enter gesture requests pla
   assert.equal(embed.playCount,0,'preloading does not start music before entering');assert.equal(h.api.playing,false);
   assert.equal(h.e('soundtrack-panel').hidden,true,'SDK readiness does not reveal the full player');
   const playing=h.api.start();assert.equal(embed.playCount,1,'the ready controller receives play in the click turn');
-  assert.equal(await playing,false,'requesting autoplay does not claim audio is playing');assert.equal(h.radio.startCount,0);
-  embed.emit('playback_started');assert.equal(h.api.playing,true);
+  assert.equal(h.radio.startCount,1,'built-in BGM is unlocked in the same click turn');
+  assert.equal(await playing,true);assert.equal(h.api.usingFallback,true);assert.equal(h.radio.paused,false);assert.match(h.api.label,/COAST FM/);
+  assert.equal(h.e('music-volume').disabled,false);
+  embed.emit('playback_started');assert.equal(h.api.playing,true);assert.equal(h.api.usingFallback,false);assert.equal(h.radio.paused,true);assert.equal(h.api.label,'GTA V · THE SCORE');
+  assert.match(h.notices.at(-1),/已接替入场 BGM/);const notices=h.notices.length;
+  embed.emit('playback_update',{isPaused:false});assert.equal(h.notices.length,notices,'steady playback does not repeat handover notices');
+  assert.equal(h.e('music-volume').disabled,true);
   assert.equal(h.e('soundtrack-panel').hidden,true,'entering and playback events leave the screen clear');
   h.api.open();h.e('soundtrack-close').click();assert.equal(h.api.isOpen,false);assert.equal(h.api.playing,true);assert.equal(embed.pauseCount,0);
   h.api.open();h.e('soundtrack-panel').emit('keydown',{code:'Escape'});assert.equal(h.api.playing,true);assert.equal(h.focus,2);
   assert.equal(h.api.isDocked,true);assert.equal(h.e('spotify-mount').firstChild,embed.frame);h.api.dispose();assert.equal(h.radio.disposed,true);
 });
 
-test('entering before the official controller is ready plays on readiness without starting the original station',async()=>{
+test('entering before the official controller is ready has BGM until actual original playback',async()=>{
   const h=harness();await h.api.start();await flush();const embed=h.controllers[0];
-  assert.equal(embed.playCount,0);assert.equal(h.radio.startCount,0);assert.equal(h.api.playing,false);
-  embed.emit('ready');assert.equal(embed.playCount,1);assert.equal(h.api.playing,false);
-  embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);
+  assert.equal(embed.playCount,0);assert.equal(h.radio.startCount,1);assert.equal(h.api.playing,true);assert.equal(h.api.usingFallback,true);
+  embed.emit('ready');assert.equal(embed.playCount,1);assert.equal(h.api.usingFallback,true,'SDK readiness alone cannot silence BGM');
+  embed.emit('playback_update',{isPaused:true});assert.equal(h.radio.paused,false,'a not-yet-playing original track does not stop BGM');
+  embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);assert.equal(h.radio.paused,true);assert.equal(h.api.usingFallback,false);
   assert.equal(h.e('soundtrack-panel').hidden,true,'late readiness never opens the music settings');
   h.api.close();assert.equal(h.api.playing,true);assert.equal(embed.pauseCount,0);h.api.dispose();
 });
@@ -73,14 +79,14 @@ test('COAST remains an explicit alternative and closing settings keeps it playin
   h.api.open();h.api.close();assert.equal(h.api.playing,true);assert.equal(h.radio.paused,false);assert.equal(h.loads,0);h.api.dispose();
 });
 
-test('blocked Spotify autoplay remains on the official player and can be retried from another gesture',async()=>{
+test('blocked Spotify autoplay keeps entry BGM audible while the original source can be retried',async()=>{
   const h=harness({spotifyPlayReject:true});h.api.prepare();await flush();const embed=h.controllers[0];embed.emit('ready');
-  await h.api.start();assert.equal(h.api.playing,false);assert.equal(h.api.source,'spotify');assert.equal(h.radio.startCount,0);
-  assert.match(h.notices.at(-1),/展开播放器/);assert.equal(h.api.isDocked,true);
+  await h.api.start();assert.equal(h.api.playing,true);assert.equal(h.api.usingFallback,true);assert.equal(h.api.source,'spotify');assert.equal(h.radio.startCount,1);
+  assert.ok(h.notices.some(message=>/展开播放器/.test(message)));assert.equal(h.api.isDocked,true);
   assert.equal(h.e('soundtrack-panel').hidden,true,'autoplay failure does not force an overlay over the controls');
   h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.e('spotify-mount').firstChild,embed.frame);
-  h.options.spotifyPlayReject=false;await h.api.start();assert.equal(embed.playCount,2);assert.equal(h.api.playing,false);
-  embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);h.api.dispose();
+  h.options.spotifyPlayReject=false;await h.api.start();assert.equal(embed.playCount,2);assert.equal(h.api.usingFallback,true);assert.equal(h.radio.startCount,1);
+  embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);assert.equal(h.api.usingFallback,false);assert.equal(h.radio.paused,true);h.api.dispose();
 });
 
 test('a preloaded controller arriving after changing the source cannot autoplay or replace local audio',async()=>{
@@ -101,7 +107,7 @@ test('local file selection autoplays and loops; closing settings leaves playback
 test('Spotify settings collapse and reopen without pausing or recreating the active player',async()=>{
   const h=harness();h.api.open();h.api.select('spotify');await flush();const embed=h.controllers[0];
   assert.equal(embed.config.uri,'spotify:album:5EJAJsaHhQYLwVbynpcGkD');assert.equal(embed.frame.height,'152');assert.equal(embed.playCount,0);embed.emit('ready');assert.equal(embed.playCount,1);
-  assert.equal(h.api.playing,false,'play request is not proof of Spotify audio');
+  assert.equal(h.api.usingFallback,true,'requesting original playback keeps the confirmed entry BGM');
   embed.emit('playback_started');assert.equal(h.api.playing,true);
   h.api.close();assert.equal(h.api.isOpen,false);assert.equal(h.api.isDocked,true);assert.equal(h.e('soundtrack-panel').hidden,true);assert.equal(embed.destroyCount,0);
   assert.equal(embed.pauseCount,0);assert.equal(h.api.playing,true);
@@ -149,18 +155,20 @@ test('blocked local autoplay is reported and a later explicit gesture can retry'
 });
 
 test('late playback completion or Spotify controller cannot revive an abandoned source',async()=>{
-  let resolveRadio;const h=harness({radioStart:()=>new Promise(resolve=>{resolveRadio=resolve;}),lateController:true});
+  const resolveRadio=[];const h=harness({radioStart:()=>new Promise(resolve=>{resolveRadio.push(resolve);}),lateController:true});
   h.api.select('coast');const pending=h.api.start();h.api.select('spotify');await flush();h.api.loadFile({name:'local.mp3',type:'audio/mpeg'});await flush();
-  resolveRadio(true);await pending;h.pendingCallbacks[0]();assert.equal(h.controllers[0].destroyCount,1);
+  resolveRadio.forEach(resolve=>resolve(true));await pending;h.pendingCallbacks[0]();assert.equal(h.controllers[0].destroyCount,1);
   assert.equal(h.api.source,'local');assert.equal(h.api.playing,true);assert.equal(h.radio.paused,true);assert.equal(h.e('spotify-mount').children.length,0);
   h.api.dispose();assert.equal(h.e('local-audio').paused,true);
 });
 
-test('API failure retains a collapsed fallback player that can be opened and closed without replacement',async()=>{
-  const h=harness({spotifyReject:true});h.api.select('spotify');await flush();const frame=h.e('spotify-mount').firstChild;
-  assert.equal(frame.src,GTA_SCORE_EMBED);assert.equal(h.api.playing,false);assert.equal(h.e('soundtrack-panel').hidden,true);
+test('API failure keeps BGM until an explicit native-player choice so two sources never compete',async()=>{
+  const h=harness({spotifyReject:true});h.api.select('spotify');await flush();const gate=h.e('spotify-mount').firstChild;
+  assert.equal(gate.src,undefined);assert.equal(h.api.usingFallback,true);assert.equal(h.e('soundtrack-panel').hidden,true);
   assert.match(h.notices.at(-1),/展开播放器/);
-  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.e('spotify-mount').firstChild,frame);
+  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.e('spotify-mount').firstChild,gate);assert.equal(h.radio.paused,false);
+  gate.click();const frame=h.e('spotify-mount').firstChild;assert.equal(frame.src,GTA_SCORE_EMBED);assert.equal(h.radio.paused,true);assert.equal(h.api.usingFallback,false);
+  const starts=h.radio.startCount;await h.api.start();assert.equal(h.radio.startCount,starts,'re-entering cannot overlap an unobservable native player');
   h.api.close();assert.equal(h.e('soundtrack-panel').hidden,true);assert.equal(frame.removed,undefined);assert.equal(h.api.isDocked,true);
   assert.equal(h.loads,1);assert.equal(h.e('spotify-mount').firstChild,frame);
   await h.api.togglePlayback();assert.equal(frame.removed,true);assert.equal(h.e('spotify-mount').children.length,0);h.api.dispose();
@@ -173,4 +181,36 @@ test('volume, menu playback button, file replacement and disposal release resour
   h.api.loadFile({name:'a.mp3',type:'audio/mpeg'});await flush();h.api.loadFile({name:'b.wav',type:'audio/wav'});await flush();assert.deepEqual(h.revoked,['blob:a.mp3']);
   h.api.dispose();assert.deepEqual(h.revoked,['blob:a.mp3','blob:b.wav']);assert.equal(h.e('soundtrack-panel').hidden,true);
   h.api.open();h.api.select('spotify');await flush();assert.equal(h.api.isOpen,false);assert.equal(h.loads,0);
+});
+
+test('a late BGM unlock cannot overlap an original track that has already started',async()=>{
+  let unlock;const h=harness({radioStart:()=>new Promise(resolve=>{unlock=resolve;})});
+  h.api.prepare();await flush();const embed=h.controllers[0];embed.emit('ready');
+  const pending=h.api.start();assert.equal(h.radio.startCount,1);
+  embed.emit('playback_started');assert.equal(h.radio.paused,true);assert.equal(h.api.usingFallback,false);
+  unlock(true);await pending;assert.equal(h.api.playing,true);assert.equal(h.api.usingFallback,false);assert.equal(h.radio.paused,true);
+  await h.api.start();assert.equal(h.radio.startCount,1);assert.equal(embed.playCount,1,'menu re-entry does not restart an already playing original');h.api.dispose();
+});
+
+test('repeated enter clicks share one BGM unlock and explicit pause survives its late completion',async()=>{
+  let unlock;const h=harness({radioStart:()=>new Promise(resolve=>{unlock=resolve;})});
+  const first=h.api.start(),second=h.api.start();assert.equal(h.radio.startCount,1);
+  await h.api.togglePlayback();assert.equal(h.radio.paused,true);assert.equal(h.api.playing,false);
+  unlock(true);assert.equal(await first,false);assert.equal(await second,false);
+  await h.api.start();assert.equal(h.radio.startCount,1,'a manual stop survives returning to the city');assert.equal(h.api.playing,false);h.api.dispose();
+});
+
+test('suspending fallback pauses it and restoration resumes only the previously desired music',async()=>{
+  const h=harness();await h.api.start();await flush();const embed=h.controllers[0];
+  assert.equal(h.api.usingFallback,true);h.api.setSuspended(true);assert.equal(h.api.playing,false);assert.equal(h.radio.paused,true);
+  embed.emit('ready');assert.equal(embed.playCount,0);h.api.setSuspended(false);await flush();
+  assert.equal(h.api.usingFallback,true);assert.equal(h.radio.paused,false);
+  await h.api.togglePlayback();h.api.setSuspended(true);h.api.setSuspended(false);await flush();
+  assert.equal(h.api.playing,false);assert.equal(h.radio.paused,true);h.api.dispose();
+});
+
+test('a browser rejecting both audio paths is never reported as audible BGM',async()=>{
+  const h=harness({radioStart:()=>Promise.resolve(false),spotifyPlayReject:true});
+  h.api.prepare();await flush();h.controllers[0].emit('ready');await h.api.start();
+  assert.equal(h.api.playing,false);assert.equal(h.api.usingFallback,false);assert.match(h.notices.at(-1),/开启 BGM/);h.api.dispose();
 });

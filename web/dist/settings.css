@@ -1,0 +1,11 @@
+.steering-settings{margin:18px 0;padding:16px;border:1px solid #fff3dd30;border-radius:8px;background:#fff3dd06;min-width:0}
+.steering-settings legend{padding:0 8px;font-size:13px;color:var(--gold)}
+.steering-settings label{display:flex;justify-content:space-between;align-items:center;gap:16px;font-size:13px;margin:5px 0}
+.steering-settings output{font-variant-numeric:tabular-nums;color:var(--gold);min-width:4ch;text-align:right}
+.steering-settings input{display:block;width:100%;height:36px;accent-color:var(--coral);cursor:pointer;margin:0}
+.steering-settings input:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:5px}
+.steering-settings__scale{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin:0 0 17px}
+.steering-settings__footer{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.steering-settings__footer p{font-size:10px;line-height:1.65;color:var(--muted);margin:0;max-width:34em}
+.steering-settings__footer button{white-space:nowrap;min-height:44px;border:1px solid #fff3dd40;border-radius:5px;color:var(--cream)}
+@media(orientation:landscape) and (max-height:600px){.steering-settings{margin:12px 0;padding:10px 14px}.steering-settings__scale{margin-bottom:9px}}

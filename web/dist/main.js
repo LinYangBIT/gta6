@@ -1,20 +1,21 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Gameplay } from './gameplay.js?v=9';
-import { MissionSystem } from './missions.js?v=9';
-import { ActorVisuals } from './actors.js?v=9';
-import { createUI } from './ui.js?v=9';
-import { CameraControls } from './camera-controls.js?v=9';
-import { createRadio } from './radio.js?v=9';
-import { createSoundtrack } from './soundtrack.js?v=9';
-import { EntryCinematic } from './entry-cinematic.js?v=9';
-import { coastRoute, coastGroundHeight } from './coast-layout.js?v=9';
-import { refineMaterials } from './surface-detail.js?v=9';
-import { InfiniteCity } from './infinite-city.js?v=9';
-import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=9';
-import { FloatingOrigin } from './world-origin.js?v=9';
-import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=9';
+import { Gameplay } from './gameplay.js?v=10';
+import { MissionSystem } from './missions.js?v=10';
+import { ActorVisuals } from './actors.js?v=10';
+import { createUI } from './ui.js?v=10';
+import { CameraControls } from './camera-controls.js?v=10';
+import { createRadio } from './radio.js?v=10';
+import { createSoundtrack } from './soundtrack.js?v=10';
+import { createSteeringSettings } from './steering-settings.js?v=10';
+import { EntryCinematic } from './entry-cinematic.js?v=10';
+import { coastRoute, coastGroundHeight } from './coast-layout.js?v=10';
+import { refineMaterials } from './surface-detail.js?v=10';
+import { InfiniteCity } from './infinite-city.js?v=10';
+import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=10';
+import { FloatingOrigin } from './world-origin.js?v=10';
+import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=10';
 
 const canvas = document.querySelector('#world');
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -86,6 +87,7 @@ ui = createUI({
   touch(control,pressed){if(control in touch)touch[control]=pressed;}
 });
 soundtrack.prepare();
+createSteeringSettings({simulation:game.sim,onStatus:message=>ui.toast(message)});
 cinematicSkip?.addEventListener('click',()=>entry.skip());
 function paintCinematic(){
   if(!cinematicFrame)return;
@@ -205,7 +207,7 @@ function createCourse(){
 async function downloadAsset(file,totalHint,onChunk){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),120000);
   try{
-    const response=await fetch(new URL(`./assets/${file}?v=9`,import.meta.url),{signal:controller.signal});
+    const response=await fetch(new URL(`./assets/${file}?v=10`,import.meta.url),{signal:controller.signal});
     if(!response.ok)throw new Error(`素材加载失败 (${response.status})`);
     if(!response.body){const data=await response.arrayBuffer();onChunk(data.byteLength,totalHint);return data;}
     const reader=response.body.getReader();const chunks=[];let loaded=0;

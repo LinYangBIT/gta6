@@ -1,7 +1,7 @@
 /** Street-scale coastal scenery. Every object follows the shared road layout. */
-import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=9';
-import { describeCoastBuilding } from './coast-architecture.js?v=9';
-import { describeUrbanBuilding } from './urban-architecture.js?v=9';
+import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=10';
+import { describeCoastBuilding } from './coast-architecture.js?v=10';
+import { describeUrbanBuilding } from './urban-architecture.js?v=10';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));

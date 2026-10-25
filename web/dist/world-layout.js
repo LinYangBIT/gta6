@@ -1,4 +1,4 @@
-import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=9';
+import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=10';
 /**
  * Seeded city planning shared by the renderer, collisions and navigation.
  * Coordinates are metres. A curved coastal quarter connects to the infinite street grid.

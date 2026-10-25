@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { createHuman, animateHuman } from './human-model.js?v=9';
-import { CHUNK_SIZE, isRoad } from './world-layout.js?v=9';
-import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=9';
+import { createHuman, animateHuman } from './human-model.js?v=10';
+import { CHUNK_SIZE, isRoad } from './world-layout.js?v=10';
+import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=10';
 
 // Gameplay holds 36 streamed vehicles plus at most 64 remembered relocations.
 // Capacity covers the entire bounded map, including a crowded parked-car block.

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DrivingSimulation, wrapAngle } from '../dist/driving.js';
+import { DrivingSimulation, wrapAngle, STEERING_DEFAULTS, STEERING_LIMITS } from '../dist/driving.js';
 import { CHUNK_SIZE, generateChunk, isRoad, worldCacheSize, COLLISION_CACHE_LIMIT } from '../dist/world-layout.js';
 
 function run(simulation, seconds, input, step = 1 / 60) {
@@ -83,9 +83,70 @@ test('high-speed steering makes a controlled sweep instead of a sudden sideways 
   assert.ok(Math.abs(wrapAngle(car.state.yaw - initialYaw)) < .025, 'quick tap at highway speed must stay below 1.5 degrees');
   run(car, .4, { steer: 1, throttle: 1 });
   const yawChange = Math.abs(wrapAngle(car.state.yaw - initialYaw));
-  assert.ok(yawChange > .035 && yawChange < .12, 'held full input should remain useful without whipping around');
+  assert.ok(yawChange > .08 && yawChange < .16, 'the more agile default remains below ten degrees in a half-second highway turn');
   assert.ok(car.state.speed > 30 && !car.state.collision);
   assert.ok(isRoad(car.state.x, car.state.z), 'a half-second correction must stay on the broad street');
+});
+
+test('the default turns more readily than the previous setup at town and highway speeds', () => {
+  for (const speed of [8, 18, 36]) {
+    const previous = new DrivingSimulation({ steeringSettings: { sensitivity: 1, response: 1 } });
+    const updated = new DrivingSimulation();
+    for (const car of [previous, updated]) {
+      Object.assign(car.state, { x: 3, z: -768, speed });
+      run(car, .5, { steer: 1 });
+    }
+    const previousTurn = Math.abs(wrapAngle(previous.state.yaw - Math.PI));
+    const updatedTurn = Math.abs(wrapAngle(updated.state.yaw - Math.PI));
+    assert.ok(updatedTurn > previousTurn * 1.25, `default should respond more readily at ${speed} m/s`);
+    assert.ok(updatedTurn < previousTurn * 1.6, 'default change remains a measured increase');
+  }
+});
+
+test('sensitivity affects real turning at both low and high speed, not just wheel visuals', () => {
+  for (const speed of [8, 36]) {
+    const low = new DrivingSimulation({ steeringSettings: { sensitivity: STEERING_LIMITS.sensitivity.min } });
+    const high = new DrivingSimulation({ steeringSettings: { sensitivity: STEERING_LIMITS.sensitivity.max } });
+    for (const car of [low, high]) {
+      Object.assign(car.state, { x: 3, z: -768, speed });
+      run(car, .5, { steer: 1 });
+    }
+    assert.ok(Math.abs(wrapAngle(high.state.yaw - Math.PI)) > Math.abs(wrapAngle(low.state.yaw - Math.PI)) * 2.5);
+    assert.ok(high.state.x < low.state.x, 'higher setting should visibly tighten the turn');
+    assert.ok(!low.state.collision && !high.state.collision);
+  }
+});
+
+test('response controls steering buildup while keeping quick release to centre', () => {
+  const smooth = new DrivingSimulation({ steeringSettings: { response: .6 } });
+  const quick = new DrivingSimulation({ steeringSettings: { response: 1.8 } });
+  run(smooth, .1, { steer: 1 });run(quick, .1, { steer: 1 });
+  assert.ok(quick.state.steering > smooth.state.steering * 2, 'response changes are apparent on a short input');
+  for (const car of [smooth, quick]) {
+    run(car, 1, { steer: 1 });const angle = car.state.steering;
+    run(car, .3, {});assert.ok(car.state.steering < angle * .08, 'even a smooth response centres quickly');
+  }
+});
+
+test('steering settings clamp invalid values, support partial updates and survive reset', () => {
+  const car = new DrivingSimulation();assert.deepEqual(car.steeringSettings, STEERING_DEFAULTS);
+  const changed = car.setSteeringSettings({ sensitivity: 99, response: -2 });
+  assert.deepEqual(changed, { sensitivity: 2, response: .6 });
+  changed.sensitivity = -50;assert.equal(car.steeringSettings.sensitivity, 2, 'a returned object cannot mutate physics');
+  car.setSteeringSettings({ sensitivity: 1.7 });assert.equal(car.steeringSettings.response, .6);
+  car.reset();car.setSeed(301);assert.deepEqual(car.steeringSettings, { sensitivity: 1.7, response: .6 });
+  car.setSteeringSettings({ sensitivity: NaN, response: Infinity });assert.deepEqual(car.steeringSettings, STEERING_DEFAULTS);
+  assert.doesNotThrow(() => car.setSteeringSettings(null));
+  car.setSteeringSettings({ sensitivity: .6 });car.setSteeringSettings(STEERING_DEFAULTS);
+  assert.deepEqual(car.steeringSettings, STEERING_DEFAULTS, 'restore defaults is explicit and repeatable');
+});
+
+test('manual steering settings do not change calibrated cruise routes', () => {
+  const smooth = new DrivingSimulation({ steeringSettings: { sensitivity: .6, response: .6 } });
+  const quick = new DrivingSimulation({ steeringSettings: { sensitivity: 2, response: 1.8 } });
+  smooth.setCruise(true);quick.setCruise(true);
+  run(smooth, 60, {});run(quick, 60, {});
+  assert.deepEqual(quick.state, smooth.state);
 });
 
 test('alternating steering and releasing behaves consistently at 30 and 60 Hz', () => {
