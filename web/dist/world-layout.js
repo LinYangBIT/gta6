@@ -1,4 +1,4 @@
-import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=5';
+import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=6';
 /**
  * Seeded city planning shared by the renderer, collisions and navigation.
  * Coordinates are metres. A curved coastal quarter connects to the infinite street grid.
@@ -86,7 +86,7 @@ export function generateChunk(cx, cz, seed = WORLD_SEED) {
   if (district.id === 'garden' && random() < .6) layout = 3;
   if (district.id === 'marina' && random() < .65) layout = 3;
 
-  function addBuilding(localX, localZ, width, depth, size = 1, forcedStyle) {
+  function addBuilding(localX, localZ, width, depth, size = 1, forcedStyle, orientation = 0) {
     const style = forcedStyle || choose(random, district.styles);
     const [low, high] = district.floors;
     const floors = Math.max(2, Math.round(between(random, low, high) * size));
@@ -97,7 +97,7 @@ export function generateChunk(cx, cz, seed = WORLD_SEED) {
       floors, style, color: choose(random, district.colors), accent: district.accent,
       detailSeed: hashCoordinates(detailSeed, buildings.length, 'building'),
       roof: style === 'deco' ? 'stepped' : style === 'residential' ? 'terrace' : choose(random, ['flat', 'terrace', 'stepped']),
-      orientation: Math.floor(random() * 4) * Math.PI / 2,
+      orientation, infill: true,
     };
     buildings.push(building);
     colliders.push({ id: building.id, kind: 'building', minX: building.x - width / 2, maxX: building.x + width / 2, minZ: building.z - depth / 2, maxZ: building.z + depth / 2 });
@@ -109,34 +109,64 @@ export function generateChunk(cx, cz, seed = WORLD_SEED) {
     if (kind === 'canal' || kind === 'fountain') colliders.push({ id: `${key}/${kind}/${features.length}`, kind: kind === 'canal' ? 'water' : 'fountain', minX: feature.x - width / 2, maxX: feature.x + width / 2, minZ: feature.z - depth / 2, maxZ: feature.z + depth / 2 });
   }
 
-  if (layout === 0) {
-    // Four substantial street-front buildings around an open planted courtyard.
-    for (const localX of [37, 91]) for (const localZ of [37, 91]) {
-      addBuilding(localX, localZ, between(random, 27, 36), between(random, 27, 36));
+  // Small parcels share an outward street edge. Each block keeps service passages
+  // and a courtyard, rather than scattering detached buildings across a plaza.
+  // The 18.5m inset preserves sidewalks, trees, parked cars and mission contacts.
+  const edge = 18.5, farEdge = CHUNK_SIZE - edge;
+  function frontage(axis, face, from, to, count, minDepth, maxDepth, size = 1) {
+    const gap = 1.35, serviceGap = face === 'east' ? 6.8 : gap;
+    const serviceAfter = Math.floor((count - 1) / 2);
+    const weights = Array.from({ length: count }, () => between(random, .86, 1.14));
+    const scale = (to - from - gap * (count - 2) - serviceGap) / weights.reduce((sum, n) => sum + n, 0);
+    let at = from;
+    for (const [index, weight] of weights.entries()) {
+      const span = weight * scale, depth = between(random, minDepth, maxDepth);
+      const center = at + span / 2;
+      if (axis === 'x') {
+        const z = face === 'north' ? edge + depth / 2 : farEdge - depth / 2;
+        addBuilding(center, z, span, depth, size, undefined, face === 'north' ? 0 : Math.PI);
+      } else {
+        const x = face === 'west' ? edge + depth / 2 : farEdge - depth / 2;
+        addBuilding(x, center, depth, span, size, undefined, face === 'west' ? Math.PI / 2 : -Math.PI / 2);
+      }
+      // One east-side vehicle-width passage connects the court to the street;
+      // the remaining narrow gaps remain pedestrian access between parcels.
+      at += span + (index === serviceAfter ? serviceGap : gap);
     }
-    addFeature(district.id === 'garden' ? 'park' : 'plaza', 64, 64, 31, 15);
+  }
+  if (layout === 0) {
+    // Sixteen connected-looking frontages surround a compact shared court.
+    for (const face of ['north', 'south']) frontage('x', face, edge, farEdge, 5, 21, 24);
+    for (const face of ['west', 'east']) frontage('z', face, 44.5, 83.5, 3, 21, 24, .9);
+    addFeature(district.id === 'garden' ? 'park' : 'plaza', 64, 64, 36, 36);
     if (district.id !== 'garden') addFeature('fountain', 64, 64, 5, 5);
   } else if (layout === 1) {
-    // Smaller shop houses form six independent, differently proportioned facades.
-    for (const localX of [32, 64, 96]) for (const localZ of [38, 90]) {
-      addBuilding(localX, localZ, between(random, 20, 26), between(random, 29, 38), .83);
+    // Narrow shop houses line every street; four rear buildings enclose small
+    // service lanes. Shallow staggered roofs keep long streets visually varied.
+    for (const face of ['north', 'south']) frontage('x', face, edge, farEdge, 6, 20, 23, .8);
+    for (const face of ['west', 'east']) frontage('z', face, 43.5, 84.5, 3, 20, 23, .75);
+    for (const localX of [54.5, 73.5]) for (const localZ of [54.5, 73.5]) {
+      addBuilding(localX, localZ, between(random, 13, 15), between(random, 13, 15), .65,
+        district.id === 'oldtown' ? 'brick' : undefined, localZ < 64 ? Math.PI : 0);
     }
-    addFeature('plaza', 64, 64, 88, 10);
   } else if (layout === 2) {
-    // A stepped landmark tower and four low pavilions create a distinct skyline.
-    addBuilding(64, 64, between(random, 34, 44), between(random, 34, 44), 1.45,
-      district.id === 'downtown' ? 'glass' : district.id === 'garden' ? 'residential' : 'hotel');
-    for (const localX of [30, 98]) for (const localZ of [30, 98]) {
-      addBuilding(localX, localZ, between(random, 18, 22), between(random, 18, 22), .48);
+    // Urban towers stand behind a continuous lower street frontage. Four compact
+    // cores, not a single isolated skyscraper, form the district skyline.
+    for (const face of ['north', 'south']) frontage('x', face, edge, farEdge, 4, 18, 20, .68);
+    for (const face of ['west', 'east']) frontage('z', face, 41, 87, 2, 18, 20, .72);
+    for (const localX of [54, 74]) for (const localZ of [54, 74]) {
+      addBuilding(localX, localZ, between(random, 16.5, 18), between(random, 16.5, 18),
+        district.id === 'downtown' ? between(random, 1.15, 1.55) : 1.1,
+        district.id === 'downtown' ? 'glass' : district.id === 'garden' ? 'residential' : 'hotel',
+        localX < 64 ? Math.PI / 2 : -Math.PI / 2);
     }
-    addFeature('plaza', 64, 27, 22, 14);
-    addFeature('park', 64, 101, 22, 14);
+    addFeature('plaza', 64, 86.5, 26, 3);
   } else {
-    // Two rows wrap a garden, market court, or enclosed marina basin.
-    for (const localX of [31, 97]) for (const localZ of [32, 64, 96]) {
-      addBuilding(localX, localZ, between(random, 20, 25), between(random, 22, 27), .78);
-    }
-    addFeature(district.id === 'marina' ? 'canal' : district.id === 'oldtown' ? 'plaza' : 'park', 64, 64, 31, 88);
+    // Apartment and marina rows remain dense while retaining one usable interior
+    // garden/canal. The basin occupies a fifth of the buildable block, not most.
+    for (const face of ['west', 'east']) frontage('z', face, edge, farEdge, 6, 20.5, 23.5, .82);
+    for (const face of ['north', 'south']) frontage('x', face, 43.5, 84.5, 3, 19, 22, .8);
+    addFeature(district.id === 'marina' ? 'canal' : district.id === 'oldtown' ? 'plaza' : 'park', 64, 64, 24, 42);
   }
 
   return { key, cx, cz, x, z, seed, detailSeed, layout, district, buildings, features, colliders };

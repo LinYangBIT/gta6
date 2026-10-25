@@ -1,7 +1,9 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=5';
-import { createStreetSignMaterial } from './street-signs.js?v=5';
-import { describeCoastChunk } from './coast-render.js?v=5';
+import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=6';
+import { createStreetSignMaterial } from './street-signs.js?v=6';
+import { describeCoastChunk } from './coast-render.js?v=6';
+import { describeUrbanBuilding } from './urban-architecture.js?v=6';
+import { CityHorizon } from './city-horizon.js?v=6';
 
 const WHITE = '#eee7d8';
 const DARK = '#20303b';
@@ -135,7 +137,10 @@ function describeChunk(data, lod = 0) {
       for(let k=-2;k<=2;k++)box(X+9.1,.04,Z+t+k*.22,.6,.012,.055,'#232c2c','metal');
     }
   }
-  for(const building of data.buildings) buildingParts(building);
+  for(const building of data.buildings) {
+    if(building.infill)records.push(...describeUrbanBuilding(building,lod));
+    else buildingParts(building);
+  }
   for(const feature of data.features || []) featureParts(feature);
 
   function lamp(x,z,angle) {
@@ -344,7 +349,7 @@ function trianglePrismGeometry(){
 }
 
 export class InfiniteCity {
-  constructor(scene, {mobile=false, seed=610, radius}={}) {
+  constructor(scene, {mobile=false, seed=610, radius, horizon=true, horizonRadius}={}) {
     this.mobile=mobile;this.seed=seed;this.radius=radius??(mobile?2:3);
     this.group=new THREE.Group();this.group.name='Infinite city / streamed districts';scene.add(this.group);
     this.chunks=new Map();this.pools=new Map();this.colors=new Map();this.pending=[];
@@ -358,10 +363,12 @@ export class InfiniteCity {
     this.materials.leaf.side=THREE.DoubleSide;
     for(const material of Object.values(this.materials))material.envMapIntensity=.58;
     this._matrix=new THREE.Matrix4();this._rotation=new THREE.Euler();this._quaternion=new THREE.Quaternion();this._position=new THREE.Vector3();this._scale=new THREE.Vector3();
+    this.horizon=horizon?new CityHorizon(scene,{seed,radius:horizonRadius??(mobile?8:11),materials:this.materials}):null;
   }
   updateTime(time){if(Number.isFinite(time))this._coastTime.value=time;}
   setSeed(seed) {
     this.seed=seed;this.chunks.clear();this.pending=[];this.centerKey=null;
+    this.horizon?.setSeed(seed);
     for(const pool of this.pools.values())pool.count=0;
   }
   update(x,z,originX=0,originZ=0) {
@@ -394,6 +401,10 @@ export class InfiniteCity {
     if(this.originX!==originX||this.originZ!==originZ){this.originX=originX;this.originZ=originZ;dirty=true;}
     if(dirty)this._rebuild();
     this.stats.loaded=this.chunks.size;this.stats.pending=this.pending.length;
+    if(this.horizon) {
+      const far=this.horizon.update(x,z,originX,originZ,this.chunks);
+      Object.assign(this.stats,{farLoaded:far.loaded,farBuildings:far.buildings,farInstances:far.instances,farDrawCalls:far.drawCalls,totalBuildings:this.stats.buildings+far.buildings});
+    }
     return this.stats;
   }
   _rebuild() {
@@ -441,6 +452,7 @@ export class InfiniteCity {
   }
   dispose() {
     if(this.disposed)return;this.disposed=true;
+    this.horizon?.dispose();
     for(const pool of this.pools.values()){pool.geometry.dispose();pool.dispose();}
     for(const geo of Object.values(this.geometry))geo.dispose();
     for(const material of new Set(Object.values(this.materials))){material.map?.dispose();material.dispose();}

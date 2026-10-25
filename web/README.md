@@ -1,4 +1,4 @@
-# Sunset Coast — 海洋大道
+# Sunset Coast — 连续都市
 
 [公开体验](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site) · [Blender 与 GitHub 工程](https://github.com/LinYangBIT/gta6)
 
@@ -20,7 +20,7 @@
 
 Colony、Dominion、Dixon 和 Coral 酒店采用分别制作的外观，加入圆角墙体、立体窗框与窗台、玻璃分格、阳台栏杆、入口、咖啡座、竖向招牌及屋顶设备。海边有棕榈公园、步道、沙滩遮阳伞和救生亭。车辆包含跑车、轿车、SUV；所有显示的汽车均可驾驶。角色有步行 / 奔跑动作，任务联系人和街边行人。
 
-本轮在网络找到并实际查看了这些参考图：
+海洋大道重建使用的街景参考图：
 
 - [Vice City 海洋大道官方公开画面（VGC 收录）](https://www.videogameschronicle.com/files/2021/11/GTA-The-Trilogy-The-Definitive-Edition-Vice-City-Screen-9-1440x810.jpg)：酒店连续立面、道路曲线与海滨公园。
 - [GTA VI Dominion 酒店画面（Autoevolution 收录）](https://s1.cdn.autoevolution.com/images/news/gallery/gta-6-trailer-2-did-you-spot-all-the-major-vehicles_19.jpg)：圆角外墙、奶油色装饰与咖啡座。
@@ -35,7 +35,9 @@ Colony、Dominion、Dixon 和 Coral 酒店采用分别制作的外观，加入�
 
 也可选择两首原创 Web Audio 合成音乐的 COAST FM，或选择本机音频。所选文件只在本机播放，不上传；替换文件或退出时释放媒体资源。
 
-城市以128米区块加载；手机最多25块、桌面49块，碰撞缓存48块。建筑按距离减少细节，使用实例批量绘制；浮动原点保持远距离精度。汽车保留附近3×3街区，最多记忆64辆改动过的车辆，超出历史上限的久远车辆可重新生成。没有固定地图边界，也不会一次创建无限物体。
+本轮把海滨陆侧建筑从 19 栋增加到 133 栋，保留五座地标；外围每个 128 米街区从 4–6 栋增加到 16–22 栋。楼房组成沿街商铺、围合庭院、住宅区和办公楼群，内部留出服务通道。
+
+城市按位置持续生成，近景手机最多 25 块、桌面 49 块；远景窗口分别覆盖 17×17、23×23 块区域（扣除已加载近景）。远处建筑与近处使用同一布局、位置和主体尺寸，靠近时补充细节，并非不可到达的背景图。手机雾化距离延伸至约 930 米，桌面约 1400 米。远景只使用四组实例绘制，不参与远距离阴影；离开的街区会回收，碰撞缓存仍为 48 块。浮动原点保持远距离精度。汽车保留附近3×3街区，最多记忆64辆改动过的车辆，超出历史上限的久远车辆可重新生成。没有固定地图边界，也不会一次创建无限物体。
 
 ## 本地运行与检查
 
@@ -45,7 +47,7 @@ python -m http.server 8080 --directory dist
 node --test tests/*.test.mjs
 ```
 
-检查覆盖实际 GLB 加载、走路与驾驶碰撞、所有车型上车、停车安全下车、车辆回收和位置保留、任务顺序与奖励、完整首单流程、海滨道路连通与跨块接缝、地图生成与内存上限、镜头手势、多点触控、原声播放器生命周期、电台调度和 JS 语法。当前执行环境没有浏览器自动化工具；没有进行手机实机或浏览器画面验收。Blender 离线预览用于检查几何和构图，光照与网页实时渲染会有差异。
+检查覆盖实际 GLB 加载、走路与驾驶碰撞、所有车型上车、停车安全下车、车辆回收和位置保留、任务顺序与奖励、完整首单流程、海滨道路连通与跨块接缝、密集建筑间距和服务通道、远近景交接及远景内存上限、镜头手势、多点触控、原声播放器生命周期、电台调度和 JS 语法。当前执行环境没有浏览器自动化工具；没有进行手机实机或浏览器画面验收。Blender 离线预览用于检查几何和构图，光照与网页实时渲染会有差异。
 
 ## 源码与许可
 
@@ -54,10 +56,12 @@ node --test tests/*.test.mjs
 - `dist/actors.js` / `human-model.js`：角色动画与多车型渲染。
 - `dist/coast-layout.js`：共享海岸路网、地形、碰撞和路线导航。
 - `dist/coast-architecture.js` / `coast-render.js`：细化酒店和海滨街景。
+- `dist/urban-architecture.js`：密集商铺、住宅和办公楼的分级细节。
+- `dist/city-horizon.js`：与近景同源的有界远景窗口。
 - `dist/world-layout.js` / `infinite-city.js`：确定性布局与流式城市。
 - `dist/soundtrack.js`：Spotify、本地音频和原创电台来源选择。
 - `dist/street-signs.js`：本地生成原创店招图集。
-- Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑海洋大道快照为 `scenes/coastal_district.blend`，人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
+- Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑密集城区快照为 `scenes/dense_city.blend`，海洋大道旧版快照为 `scenes/coastal_district.blend`，人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
 - Three.js 0.173.0 使用 MIT，许可在 `dist/vendor/LICENSE.three.txt`。原创代码和资产沿用主仓库 MIT 许可。
 - COAST FM 为 Web Audio 实时合成原创双曲目电台；GTA V 商业原声仅通过官方 Spotify 播放器播放，不属于项目 MIT 资产。
 

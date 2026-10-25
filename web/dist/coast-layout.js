@@ -72,17 +72,62 @@ const buildings=[
  building('coral',-36,94,28,34,16,4,'coral','#dda99c','#94c7bc'),
  building('marina-palace',-30,-211,32,44,23,6,'dominion','#dfdbca','#a0b8ba'),
 ];
-for(const x of[-213,-175,-84,-42])for(const z of[34,86,-55,-106,-212,-306,-442]){
- const n=hash(x,z),width=22+n%7,depth=25+(n>>>4)%10;
- const b=building(`block-${x}-${z}`,x,z,width,depth,12+(n>>>8)%18,4+(n>>>12)%4,'generic',['#e8d9c2','#d5b6ac','#acc8ba','#c9cbd1'][n%4],'#8aada9',n%4===0?'residential':'deco');
- const r=bounds(b);
- if(overlap(r,{minX:-244,maxX:-176,minZ:-123,maxZ:-85}))continue;
- if(buildings.some(other=>overlap(r,bounds(other),4)))continue;
- if(roadSegments.some(s=>segmentHits(s.a,s.b,r,s.road.width/2+4)))continue;
- buildings.push(b);
+// Urban parcels line each street first, then the remaining inland block interiors.
+// This replaces isolated buildings in broad empty lots with continuous, varied
+// frontage while preserving the hand-modelled hotels, their lanes and the beach.
+const protectedPlots=[
+ {minX:-244,maxX:-176,minZ:-123,maxZ:-85}, // Market court and its planted edges.
+ {minX:-145,maxX:-111,minZ:-177,maxZ:-143}, // Roundabout green island.
+];
+function addInfill(id,x,z,width,depth,frontageRoad=null){
+ const r={minX:x-width/2,maxX:x+width/2,minZ:z-depth/2,maxZ:z+depth/2};
+ // Keep a full street/sidewalk setback at the portals and leave the coast open.
+ if(r.minX<-242||r.maxX>12||r.minZ<-498||r.maxZ>242)return false;
+ if(protectedPlots.some(plot=>overlap(r,plot,2)))return false;
+ if(buildings.some(other=>overlap(r,bounds(other),2)))return false;
+ if(roadSegments.some(s=>segmentHits(s.a,s.b,r,s.road.width/2+4.5)))return false;
+ const n=hash('infill',id),inland=x<-145;
+ let floors=inland?6+(n>>>5)%9:3+(n>>>5)%6;
+ let style=inland&&n%5===0?'glass':n%4===0?'brick':n%3===0?'residential':'deco';
+ // Scattered office clusters rise behind the lower seafront, not in front of it.
+ if(inland&&z<-190&&n%7===0){floors=18+(n>>>12)%7;style='glass';}
+ const floorHeight=style==='glass'?3.65:3.2;
+ const palette=style==='glass'?['#70939c','#89a6aa','#9bacad']:['#dbcbb5','#c9b4a8','#b6c6bd','#ddd8c9','#bda59d','#a8bfc0'];
+ const b=building(`infill-${id}`,x,z,width,depth,Math.round((floors*floorHeight+.6)*100)/100,floors,null,palette[n%palette.length],['#97b6b1','#b88c78','#91a5ac','#d2ba93'][(n>>>8)%4],style);
+ let closest=null;
+ for(const s of roadSegments){const p=projectToCoastSegment(x,z,s.a,s.b);if(!closest||p.distance<closest.distance)closest=p;}
+ const dx=closest.x-x,dz=closest.z-z;
+ b.infill=true;b.frontageRoad=frontageRoad;
+ b.frontage=Math.abs(dx)>Math.abs(dz)?dx>0?'east':'west':dz>0?'south':'north';
+ // Footprints are axis-aligned. The frontage flag gives renderers the entrance
+ // direction without rotating rectangular plots into a neighbouring building.
+ b.orientation={north:0,west:Math.PI/2,south:Math.PI,east:-Math.PI/2}[b.frontage];
+ buildings.push(b);return true;
 }
-// Deliberately different silhouettes beyond the low hotel frontage.
-for(const b of buildings)if(b.x<-160&&b.z<-400){b.height+=34;b.floors+=10;b.style='glass';}
+for(const road of COAST_ROADS){
+ if(['bridge','roundabout'].includes(road.kind))continue;
+ let travelled=0,next=19,parcel=0;
+ for(let i=1;i<road.points.length;i++){
+  const a=road.points[i-1],b=road.points[i],length=Math.hypot(b.x-a.x,b.z-a.z);
+  while(travelled+length>=next){
+   const t=(next-travelled)/length,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t,nx=(b.z-a.z)/length,nz=-(b.x-a.x)/length;
+   for(const side of[-1,1]){
+    const n=hash(road.id,parcel,side),vertical=Math.abs(nx)>.6;
+    const width=vertical?19+n%5:17+n%4,depth=vertical?17+(n>>>4)%4:19+(n>>>4)%5;
+    const setback=road.width/2+5+Math.abs(nx)*width/2+Math.abs(nz)*depth/2;
+    addInfill(`${road.id}-${parcel}-${side}`,x+side*nx*setback,z+side*nz*setback,width,depth,road.id);
+   }
+   next+=23;parcel++;
+  }
+  travelled+=length;
+ }
+}
+// Smaller courtyard wings and apartment blocks occupy deep parcels. Exact
+// rectangle/segment checks keep diagonal roads and every alley fully usable.
+for(let z=-480;z<240;z+=22)for(let x=-228;x<6;x+=22){
+ const n=hash('courtyard',x,z);
+ addInfill(`courtyard-${x}-${z}`,x,z,16+n%4,16+(n>>>4)%4);
+}
 export const COAST_BUILDINGS=Object.freeze(buildings);
 export const COAST_FEATURES=Object.freeze([
  {id:'coastal-park',kind:'park',x:43,z:-128,width:46,depth:768,coastalPark:true},

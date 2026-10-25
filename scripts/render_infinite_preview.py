@@ -15,6 +15,12 @@ blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
 # blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
 #   --input /tmp/coastal-district.json --output previews/coastal_district.png \
 #   --overview-output previews/coast_network.png --blend scenes/coastal_district.blend
+# Dense city, with a bounded 81-cell near/far snapshot:
+# node scripts/export_infinite_preview.mjs --dense --seed 610 --output /tmp/dense-city.json
+# blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
+#   --input /tmp/dense-city.json --output previews/dense_city.png \
+#   --overview-output previews/dense_city_aerial.png --blend scenes/dense_city.blend \
+#   --resolution 1280 --samples 32
 
 The live city is infinite; this preview contains only its bounded nearby cells.
 Facade window masks are baked offline from the browser shader; GPU precision,
@@ -223,6 +229,10 @@ scene['streamed_chunk_count'] = data['stats']['loaded']
 if data.get('coastal'):
     scene['source'] = 'Actual coast-layout/coast-render/coast-architecture + infinite-city/actors/gameplay geometry; original car.glb; offline Blender lighting'
     scene['reference_direction'] = 'Manually authored from viewed public Vice City Ocean Drive / GTA VI Dominion and Dixon screenshots. No extracted game geometry or textures.'
+if data.get('dense'):
+    scene['source'] = 'Actual coast-layout/urban-architecture/world-layout/infinite-city/city-horizon/actors browser geometry; finite streamed neighborhood; offline Blender lighting'
+    scene['distant_chunk_count'] = data['stats'].get('farLoaded',0)
+    scene['visible_building_count'] = data['stats'].get('totalBuildings',data['stats']['buildings'])
 scene['preview_limits'] = 'Finite snapshot of the live infinite world. Offline materials, lighting and tone mapping differ from the browser. This is not a gameplay screenshot.'
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = args.samples if data.get('street') else min(args.samples,16)
@@ -280,10 +290,10 @@ camera_data.clip_end = 3000
 scene.camera = camera
 overview=None
 if args.overview_output:
-    overview_data=bpy.data.cameras.new('Coastal district / aerial camera');overview_data.lens=38;overview_data.clip_end=3000
+    overview_data=bpy.data.cameras.new('Coastal district / aerial camera');overview_data.lens=data.get('overviewLens',38);overview_data.clip_end=3000
     overview=bpy.data.objects.new('Coastal district / aerial camera',overview_data);bpy.context.collection.objects.link(overview)
-    overview.location=(330,-330,340)
-    overview_target=Vector((-15,150,0))
+    ox,oy,oz=data.get('overviewCamera',[330,340,330]);overview.location=(ox,-oz,oy)
+    tx,ty,tz=data.get('overviewTarget',[-15,0,-150]);overview_target=Vector((tx,-tz,ty))
     overview.rotation_euler=(overview_target-overview.location).to_track_quat('-Z','Y').to_euler()
 args.output.parent.mkdir(parents=True, exist_ok=True)
 scene.render.image_settings.file_format = 'PNG'

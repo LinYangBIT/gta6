@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#252334">
-  <meta name="description" content="沿着弯曲的滨海大道步行与驾驶，探索海滩、酒店街、广场和巷道，接取委托并选择 GTA V 原声播放器。">
+  <meta name="description" content="探索连续延伸的海滨都市：密集商铺、住宅庭院、办公楼群与远处天际线，可步行、驾驶和接取委托。">
   <title>Sunset Coast — 日落海岸</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./style.css?v=5">
+  <link rel="stylesheet" href="./style.css?v=6">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body class="is-intro">
@@ -36,9 +36,9 @@
       <a class="source-link" href="https://github.com/LinYangBIT/gta6" target="_blank" rel="noopener noreferrer">探索源代码 <span aria-hidden="true">↗</span></a>
     </header>
     <div class="intro__content">
-      <p class="eyebrow"><span class="live-dot"></span> OCEAN DRIVE, REVISITED <span class="eyebrow__line"></span> WALK · DRIVE · LIVE</p>
+      <p class="eyebrow"><span class="live-dot"></span> A CITY WITHOUT END <span class="eyebrow__line"></span> WALK · DRIVE · LIVE</p>
       <h1 id="intro-title"><span>SUNSET</span><span class="intro__coast">COAST<span class="title-period">.</span></span></h1>
-      <p class="intro__description">沿着海岸，把故事开下去。<br><span>霓虹酒店、滨海弯道与街头委托。选好音乐，走进海风里。</span></p>
+      <p class="intro__description">沿着海岸，把故事开下去。<br><span>穿过酒店街和住宅巷道，驶向远处高楼。城市随你不断延伸。</span></p>
       <div class="intro__actions">
         <button id="start-drive" class="button button--primary" disabled>进入城市 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
         <button id="start-cruise" class="button button--outline" disabled>自由探索</button>
@@ -55,7 +55,7 @@
         <div><button id="retry-load" class="text-button">重新加载 ↻</button><button id="error-video" class="text-button">先看巡游短片 ↗</button></div>
       </div>
     </div>
-    <footer class="intro__footer"><span>05 / OCEAN DRIVE</span><span>GTA 街景参考重建 · 可玩原型</span><button id="intro-help" class="text-button">操作指南 <span aria-hidden="true">↗</span></button></footer>
+    <footer class="intro__footer"><span>06 / ENDLESS CITY</span><span>GTA 街景参考重建 · 可玩原型</span><button id="intro-help" class="text-button">操作指南 <span aria-hidden="true">↗</span></button></footer>
     <div class="intro__vertical" aria-hidden="true">A NEW CITY. YOUR OWN STORY.</div>
   </section>
 
@@ -122,6 +122,6 @@
     <button class="button button--primary" data-close="help-dialog">知道了 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </dialog>
   <dialog id="video-dialog" class="dialog video-dialog" aria-labelledby="video-title"><button class="dialog__close icon-button" data-close="video-dialog" aria-label="关闭短片"><svg aria-hidden="true"><use href="#i-close"/></svg></button><p id="video-title" class="eyebrow">ORIGINAL COAST / BLENDER SHORT</p><video id="cruise-video" controls playsinline preload="none"><source src="./assets/sunset_cruise.mp4" type="video/mp4">你的浏览器无法播放此视频，可<a href="./assets/sunset_cruise.mp4">下载短片</a>。</video></dialog>
-  <script type="module" src="./main.js?v=5"></script>
+  <script type="module" src="./main.js?v=6"></script>
 </body>
 </html>

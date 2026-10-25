@@ -1,18 +1,18 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Gameplay } from './gameplay.js?v=5';
-import { MissionSystem } from './missions.js?v=5';
-import { ActorVisuals } from './actors.js?v=5';
-import { createUI } from './ui.js?v=5';
-import { CameraControls } from './camera-controls.js?v=5';
-import { createRadio } from './radio.js?v=5';
-import { createSoundtrack } from './soundtrack.js?v=5';
-import { coastRoute, coastGroundHeight } from './coast-layout.js?v=5';
-import { refineMaterials } from './surface-detail.js?v=5';
-import { InfiniteCity } from './infinite-city.js?v=5';
-import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=5';
-import { FloatingOrigin } from './world-origin.js?v=5';
+import { Gameplay } from './gameplay.js?v=6';
+import { MissionSystem } from './missions.js?v=6';
+import { ActorVisuals } from './actors.js?v=6';
+import { createUI } from './ui.js?v=6';
+import { CameraControls } from './camera-controls.js?v=6';
+import { createRadio } from './radio.js?v=6';
+import { createSoundtrack } from './soundtrack.js?v=6';
+import { coastRoute, coastGroundHeight } from './coast-layout.js?v=6';
+import { refineMaterials } from './surface-detail.js?v=6';
+import { InfiniteCity } from './infinite-city.js?v=6';
+import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=6';
+import { FloatingOrigin } from './world-origin.js?v=6';
 
 const canvas = document.querySelector('#world');
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -124,7 +124,9 @@ function setupRenderer(){
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   scene=new THREE.Scene();scene.background=new THREE.Color('#bad0d2');
-  scene.fog=new THREE.Fog('#bad0d2',mobile?140:210,mobile?250:380);
+  // The skyline uses the same streamed plots as the streets below. Atmospheric
+  // depth now reaches across several neighborhoods rather than hiding the next block.
+  scene.fog=new THREE.Fog('#bad0d2',mobile?320:500,mobile?930:1400);
   camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.15,2600);
   camera.position.set(43,22,48);cameraTarget.set(-2,4,-25);
   camera.lookAt(cameraTarget);
@@ -175,7 +177,7 @@ function createCourse(){
 async function downloadAsset(file,totalHint,onChunk){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),120000);
   try{
-    const response=await fetch(new URL(`./assets/${file}?v=5`,import.meta.url),{signal:controller.signal});
+    const response=await fetch(new URL(`./assets/${file}?v=6`,import.meta.url),{signal:controller.signal});
     if(!response.ok)throw new Error(`素材加载失败 (${response.status})`);
     if(!response.body){const data=await response.arrayBuffer();onChunk(data.byteLength,totalHint);return data;}
     const reader=response.body.getReader();const chunks=[];let loaded=0;

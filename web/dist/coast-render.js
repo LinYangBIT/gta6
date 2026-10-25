@@ -1,6 +1,7 @@
 /** Street-scale coastal scenery. Every object follows the shared road layout. */
-import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=5';
-import { describeCoastBuilding } from './coast-architecture.js?v=5';
+import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=6';
+import { describeCoastBuilding } from './coast-architecture.js?v=6';
+import { describeUrbanBuilding } from './urban-architecture.js?v=6';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -109,7 +110,7 @@ export function describeCoastChunk(data,lod=0){
     }
   }
   // Refined hotels are hand placed rather than randomly repeated street boxes.
-  for(const building of data.buildings||[])records.push(...describeCoastBuilding(building,lod));
+  for(const building of data.buildings||[])records.push(...(building.infill?describeUrbanBuilding(building,lod):describeCoastBuilding(building,lod)));
   for(const f of features)featureProps(f);
   // Thin bands of shore foam, sampled in cells, add a readable waterline and
   // never extend into the playable street. They share the animated ocean shader.
