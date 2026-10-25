@@ -2,14 +2,14 @@
 
 [公开体验](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site) · [Blender 与 GitHub 工程](https://github.com/LinYangBIT/gta6)
 
-横屏优先的原创开放城市原型。从人物步行开始，可领取委托、驾驶场景中的任意车辆、下车交付包裹，或自由探索持续生成的街区。城市、角色和车辆在浏览器中本地运行；游戏资源本地托管，GTA V 原声通过可见的 Spotify 播放器加载。
+横屏优先的原创开放城市原型。从人物步行开始，可领取委托、驾驶场景中的任意车辆、下车交付包裹，或自由探索持续生成的街区。城市、角色和车辆在浏览器中本地运行；游戏资源本地托管，GTA V 原声通过 Spotify 官方播放器加载。
 
 ## 操作
 
 - 步行：WASD / 方向键移动，Shift 奔跑，E 与联络人交谈或上下车。
 - 驾驶：W 加速，S 减速与倒车，A / D 转向，空格手刹；停稳后 E 下车。
 - 镜头：拖动画面自由环视，C 切换跟随、侧面、第一人称和俯瞰，V 回正；滚轮 / 双指缩放。
-- 音乐：点击“进入城市”时自动请求播放 GTA V 原声；M 打开 / 收起设置，电台旁的播放 / 暂停键控制音乐，N 切歌。收起设置或返回菜单不会停止音乐。封面右上也可播放 / 暂停。引擎声独立控制。Esc 打开菜单，R 回到起点并重新开始委托。
+- 音乐：点击“进入城市”时自动请求播放 GTA V 原声；M 打开 / 收起设置，顶部播放 / 暂停键控制音乐，N 切歌。收起设置或返回菜单不会停止音乐。封面上方同样保留这两个音乐按钮。引擎声独立控制。Esc 打开菜单，R 回到起点并重新开始委托。
 - 清晰度：操作指南中可选自动、高清、均衡和流畅。自动模式优先高清；显式选择高清会保留该设置。
 - 手机横屏：左侧摇杆移动或转向，右侧奔跑 / 油门等动作键，中间右侧交互按钮上下车和领取任务。右侧空白画面可拖动环视。竖屏提供旋转提示，也可选择继续。
 
@@ -17,7 +17,7 @@
 
 首次进入有约 8 秒的实时 CG：掠过海滨、经过酒店街景，再落到步行角色身后。可点击“跳过 CG”或按 Esc 跳过；动画期间冻结移动，返回菜单后继续仅作短过渡，开启“减少动态效果”时不播放飞行镜头。
 
-转向加入渐进响应、随速度减小转角与快速回正：轻推摇杆适合修正方向，持续推转向仍可完成低速街口转弯，高速急打轮不再瞬间大幅甩向。巡航中任意手动操控会接管。横屏摇杆扩大至 128px，油门至 72×150px，镜头按钮 44px；原声播放器预留独立区域。
+转向加入渐进响应、随速度减小转角与快速回正：轻推摇杆适合修正方向，持续推转向仍可完成低速街口转弯，高速急打轮不再瞬间大幅甩向。巡航中任意手动操控会接管。横屏摇杆扩大至 128px，油门至 72×150px，镜头按钮 44px；音乐默认收起为顶部 98×52px 的按钮条，内含两个 44px 按钮，释放任务和操控区域。
 
 ## 城市与视觉
 
@@ -40,7 +40,7 @@ Colony、Dominion、Dixon 和 Coral 酒店采用分别制作的外观，加入�
 
 也可选择两首原创合成器曲目的 COAST FM，或选择本机音频；本机音频选择后尝试自动播放并循环；文件只在本机使用，不上传，收起设置仍继续播放。浏览器拒绝自动播放时会显示播放提示；操作系统可能限制后台标签页或锁屏时的音频，本站不保证锁屏播放。
 
-GTA V 原声通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 播放。默认使用 [Spotify 官方 iFrame API](https://developer.spotify.com/documentation/embeds/references/iframe-api) 尝试启动，实际状态来自播放器事件；不把“播放器已加载”当成正在播放。收起设置后保留可见的小播放器和同一个 iframe，不重建或中断。自动播放、可播放范围受浏览器、Spotify 账号和地区限制；失败时可在播放器中点击播放。网页不保存、下载或分发商业音轨。
+GTA V 原声通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 播放。默认使用 [Spotify 官方 iFrame API](https://developer.spotify.com/documentation/embeds/references/iframe-api) 尝试启动，实际状态来自播放器事件；不把“播放器已加载”当成正在播放。默认只显示顶部音乐设置与播放 / 暂停两个按钮；点击音符或 M 才展开完整播放器。收起设置仅隐藏面板，保留同一个 iframe 和控制器，不调用暂停或销毁。自动播放、可播放范围受浏览器、Spotify 账号和地区限制；失败时点击顶部音符展开播放器，再点击播放。网页不保存、下载或分发商业音轨。
 
 ## 高清封面与细节
 
@@ -77,7 +77,7 @@ node --test tests/*.test.mjs
 - `dist/soundtrack.js`：独立于设置面板的音乐生命周期、Spotify 官方 API、本地音频与电台。
 - `dist/entry-cinematic.js` / `cinematic.css`：实时入场镜头、跳过和减少动态效果。
 - `dist/render-quality.js`：分辨率、像素预算与自动画质。
-- `dist/cover.css` / `music.css`：官方封面展示与持续可见的原声小播放器。
+- `dist/cover.css` / `music.css`：官方封面展示与可收起的原声设置与紧凑音乐按钮。
 - `dist/street-signs.js`：本地生成原创店招图集。
 - Blender 原创跑车来自主仓库 `scenes/sunset_coast.blend`；最新可编辑细化城区快照为 `scenes/vivid_city.blend`，密集城区旧版快照为 `scenes/dense_city.blend`，海洋大道旧版快照为 `scenes/coastal_district.blend`，人物街景快照为 `scenes/street_life.blend`，旧固定海岸场景仍保留。
 - Three.js 0.173.0 使用 MIT，许可在 `dist/vendor/LICENSE.three.txt`。原创代码和资产沿用主仓库 MIT 许可。

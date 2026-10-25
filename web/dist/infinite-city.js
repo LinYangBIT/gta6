@@ -1,9 +1,9 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=8';
-import { createStreetSignMaterial } from './street-signs.js?v=8';
-import { describeCoastChunk } from './coast-render.js?v=8';
-import { describeUrbanBuilding } from './urban-architecture.js?v=8';
-import { CityHorizon } from './city-horizon.js?v=8';
+import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=9';
+import { createStreetSignMaterial } from './street-signs.js?v=9';
+import { describeCoastChunk } from './coast-render.js?v=9';
+import { describeUrbanBuilding } from './urban-architecture.js?v=9';
+import { CityHorizon } from './city-horizon.js?v=9';
 
 const WHITE = '#eee7d8';
 const DARK = '#20303b';

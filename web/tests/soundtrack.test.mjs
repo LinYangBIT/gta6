@@ -44,12 +44,15 @@ function harness(options={}){
 
 test('official GTA score is prepared silently and the enter gesture requests playback synchronously',async()=>{
   const h=harness();assert.equal(h.api.source,'spotify');assert.equal(h.api.playing,false);assert.equal(h.loads,0);
+  assert.equal(h.e('soundtrack-panel').hidden,true,'the full player starts collapsed');
   h.api.prepare();h.api.prepare();await flush();const embed=h.controllers[0];
   assert.equal(h.loads,1,'preparing twice shares the same controller');embed.emit('ready');
   assert.equal(embed.playCount,0,'preloading does not start music before entering');assert.equal(h.api.playing,false);
+  assert.equal(h.e('soundtrack-panel').hidden,true,'SDK readiness does not reveal the full player');
   const playing=h.api.start();assert.equal(embed.playCount,1,'the ready controller receives play in the click turn');
   assert.equal(await playing,false,'requesting autoplay does not claim audio is playing');assert.equal(h.radio.startCount,0);
   embed.emit('playback_started');assert.equal(h.api.playing,true);
+  assert.equal(h.e('soundtrack-panel').hidden,true,'entering and playback events leave the screen clear');
   h.api.open();h.e('soundtrack-close').click();assert.equal(h.api.isOpen,false);assert.equal(h.api.playing,true);assert.equal(embed.pauseCount,0);
   h.api.open();h.e('soundtrack-panel').emit('keydown',{code:'Escape'});assert.equal(h.api.playing,true);assert.equal(h.focus,2);
   assert.equal(h.api.isDocked,true);assert.equal(h.e('spotify-mount').firstChild,embed.frame);h.api.dispose();assert.equal(h.radio.disposed,true);
@@ -60,6 +63,7 @@ test('entering before the official controller is ready plays on readiness withou
   assert.equal(embed.playCount,0);assert.equal(h.radio.startCount,0);assert.equal(h.api.playing,false);
   embed.emit('ready');assert.equal(embed.playCount,1);assert.equal(h.api.playing,false);
   embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);
+  assert.equal(h.e('soundtrack-panel').hidden,true,'late readiness never opens the music settings');
   h.api.close();assert.equal(h.api.playing,true);assert.equal(embed.pauseCount,0);h.api.dispose();
 });
 
@@ -72,7 +76,9 @@ test('COAST remains an explicit alternative and closing settings keeps it playin
 test('blocked Spotify autoplay remains on the official player and can be retried from another gesture',async()=>{
   const h=harness({spotifyPlayReject:true});h.api.prepare();await flush();const embed=h.controllers[0];embed.emit('ready');
   await h.api.start();assert.equal(h.api.playing,false);assert.equal(h.api.source,'spotify');assert.equal(h.radio.startCount,0);
-  assert.match(h.notices.at(-1),/播放器中点击播放/);assert.equal(h.api.isDocked,true);
+  assert.match(h.notices.at(-1),/展开播放器/);assert.equal(h.api.isDocked,true);
+  assert.equal(h.e('soundtrack-panel').hidden,true,'autoplay failure does not force an overlay over the controls');
+  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.e('spotify-mount').firstChild,embed.frame);
   h.options.spotifyPlayReject=false;await h.api.start();assert.equal(embed.playCount,2);assert.equal(h.api.playing,false);
   embed.emit('playback_update',{isPaused:false});assert.equal(h.api.playing,true);h.api.dispose();
 });
@@ -92,14 +98,19 @@ test('local file selection autoplays and loops; closing settings leaves playback
   await h.api.togglePlayback();assert.equal(h.api.playing,true);h.api.dispose();assert.deepEqual(h.revoked,['blob:my-score.mp3']);
 });
 
-test('Spotify uses official controller and retains the same visible dock when settings close',async()=>{
+test('Spotify settings collapse and reopen without pausing or recreating the active player',async()=>{
   const h=harness();h.api.open();h.api.select('spotify');await flush();const embed=h.controllers[0];
   assert.equal(embed.config.uri,'spotify:album:5EJAJsaHhQYLwVbynpcGkD');assert.equal(embed.frame.height,'152');assert.equal(embed.playCount,0);embed.emit('ready');assert.equal(embed.playCount,1);
   assert.equal(h.api.playing,false,'play request is not proof of Spotify audio');
   embed.emit('playback_started');assert.equal(h.api.playing,true);
-  h.api.close();assert.equal(h.api.isOpen,false);assert.equal(h.api.isDocked,true);assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(embed.destroyCount,0);
+  h.api.close();assert.equal(h.api.isOpen,false);assert.equal(h.api.isDocked,true);assert.equal(h.e('soundtrack-panel').hidden,true);assert.equal(embed.destroyCount,0);
+  assert.equal(embed.pauseCount,0);assert.equal(h.api.playing,true);
   assert.equal(h.e('spotify-mount').children[0],embed.frame);assert.equal(h.e('soundtrack-panel').attrs.get('data-docked'),'true');
-  h.api.open();h.e('soundtrack-compact').click();assert.equal(h.api.isDocked,true);assert.equal(h.controllers.length,1);
+  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.api.isOpen,true);
+  assert.equal(h.e('spotify-mount').firstChild,embed.frame);assert.equal(h.e('soundtrack-compact').hidden,true);
+  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,true);assert.equal(h.controllers.length,1);
+  assert.equal(embed.playCount,1,'expanding or collapsing never restarts playback');
+  assert.equal(embed.pauseCount,0);assert.equal(embed.destroyCount,0);
   await h.api.togglePlayback();assert.ok(embed.pauseCount>0);assert.equal(h.api.playing,false);assert.equal(embed.destroyCount,0);
   await h.api.start();assert.equal(h.api.playing,false,'re-entering does not override explicit pause');
   assert.ok(html.includes(GTA_SCORE_URL));h.api.dispose();assert.equal(embed.destroyCount,1);
@@ -145,9 +156,13 @@ test('late playback completion or Spotify controller cannot revive an abandoned 
   h.api.dispose();assert.equal(h.e('local-audio').paused,true);
 });
 
-test('API failure keeps a normal visible Spotify player and explicit stop removes it',async()=>{
+test('API failure retains a collapsed fallback player that can be opened and closed without replacement',async()=>{
   const h=harness({spotifyReject:true});h.api.select('spotify');await flush();const frame=h.e('spotify-mount').firstChild;
-  assert.equal(frame.src,GTA_SCORE_EMBED);assert.equal(h.api.playing,false);h.api.close();assert.equal(frame.removed,undefined);assert.equal(h.api.isDocked,true);
+  assert.equal(frame.src,GTA_SCORE_EMBED);assert.equal(h.api.playing,false);assert.equal(h.e('soundtrack-panel').hidden,true);
+  assert.match(h.notices.at(-1),/展开播放器/);
+  h.api.togglePanel();assert.equal(h.e('soundtrack-panel').hidden,false);assert.equal(h.e('spotify-mount').firstChild,frame);
+  h.api.close();assert.equal(h.e('soundtrack-panel').hidden,true);assert.equal(frame.removed,undefined);assert.equal(h.api.isDocked,true);
+  assert.equal(h.loads,1);assert.equal(h.e('spotify-mount').firstChild,frame);
   await h.api.togglePlayback();assert.equal(frame.removed,true);assert.equal(h.e('spotify-mount').children.length,0);h.api.dispose();
 });
 

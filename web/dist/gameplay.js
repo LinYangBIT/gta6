@@ -1,6 +1,6 @@
 /** On-foot exploration and transferable cars; no rendering or browser dependency. */
-import { DrivingSimulation, wrapAngle } from './driving.js?v=8';
-import { CHUNK_SIZE, collidersNear, generateChunk, hashCoordinates, isRoad } from './world-layout.js?v=8';
+import { DrivingSimulation, wrapAngle } from './driving.js?v=9';
+import { CHUNK_SIZE, collidersNear, generateChunk, hashCoordinates, isRoad } from './world-layout.js?v=9';
 
 export const VEHICLE_HISTORY_LIMIT = 64;
 export const VEHICLE_INTERACT_RADIUS = 6.5;

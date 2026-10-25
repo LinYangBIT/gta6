@@ -96,10 +96,14 @@ test('Escape skips CG while the skip button has keyboard focus',()=>{
   assert.equal(prevented,true);h.advance(.4);assert.equal(h.read('active'),true);
 });
 
-test('a playing Spotify dock is outside the HUD and CG that gameplay hides',()=>{
+test('the compact music buttons and persistent player remain outside the HUD and CG',()=>{
   const hud=html.indexOf('<main id="hud"'),hudEnd=html.indexOf('</main>',hud),panel=html.indexOf('<section id="soundtrack-panel"');
   const cg=html.indexOf('<section id="entry-cinematic"'),cgEnd=html.indexOf('</section>',cg);
   assert.ok(hud>=0&&hudEnd>hud&&panel>hudEnd,'persistent music panel lives outside the hideable gameplay HUD');
   assert.ok(cg>=0&&cgEnd<panel,'persistent music panel lives outside the transient CG overlay');
+  for(const id of ['music-button','music-play-toggle']){
+    const button=html.indexOf(`id="${id}"`);
+    assert.ok(button>hudEnd&&button<panel,`${id} stays accessible when the menu hides the HUD or the full player is collapsed`);
+  }
   assert.match(html,/id="intro-music-toggle"/);assert.match(html,/id="music-play-toggle"/);
 });

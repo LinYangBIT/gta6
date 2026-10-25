@@ -28,10 +28,9 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   const isPlaying=()=>!suspended&&(source==='coast'?coastPlaying:source==='local'?localPlaying:spotifyPlaying);
   const isDocked=()=>source==='spotify'&&!opened&&Boolean(spotifyNode||spotifyLoading);
   function sync(){
-    dom.body?.classList.toggle('has-spotify-player',source==='spotify'&&Boolean(spotifyNode||spotifyLoading)&&!disposed);
-    panel.hidden=!(opened||isDocked());panel.setAttribute('data-compact',String(isDocked()));panel.setAttribute('data-docked',String(isDocked()));
+    panel.hidden=!opened;panel.setAttribute('data-compact','false');panel.setAttribute('data-docked',String(isDocked()));
     const compact=byId('soundtrack-compact');
-    if(compact){compact.hidden=source!=='spotify';compact.textContent=isDocked()?'展开':'只显示播放器';compact.setAttribute('aria-pressed',String(isDocked()));compact.setAttribute('aria-label',isDocked()?'展开音乐设置':'收起设置，音乐继续播放');}
+    if(compact){compact.hidden=true;compact.textContent='收起';compact.setAttribute('aria-pressed','false');compact.setAttribute('aria-label','收起设置，音乐继续播放');}
     byId('music-button')?.setAttribute('aria-expanded',String(opened));
     for(const name of ['spotify','coast','local']){byId(`music-source-${name}`)?.setAttribute('aria-pressed',String(name===source));const node=byId(`soundtrack-${name}`);if(node)node.hidden=name!==source;}
     const waiting=desired&&source==='spotify'&&!spotifyKnown;
@@ -48,13 +47,13 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   }
   function pauseSpotify(){if(controller){try{controller.pause();}catch{unloadSpotify();}}else if(spotifyNode)unloadSpotify();spotifyPlaying=false;}
   function stopCurrent(){epoch++;pendingPlayback=false;radio?.setPaused(true);coastPlaying=false;pauseLocal();pauseSpotify();sync();}
-  function attemptSpotify(){if(!desired||suspended||source!=='spotify'||disposed||!controllerReady)return;if(controller){try{controller.play();status('已请求播放 GTA V 原声；若未响起，请点击播放器的播放键');}catch{status('请在 Spotify 播放器中点击播放');}}}
+  function attemptSpotify(){if(!desired||suspended||source!=='spotify'||disposed||!controllerReady)return;if(controller){try{controller.play();status('已请求 GTA V 原声；若未响起，点顶部音乐按钮展开播放器');}catch{status('点顶部音乐按钮展开播放器，再点击播放');}}}
   function fallbackSpotify(ticket){
     if(ticket!==spotifyEpoch||disposed||source!=='spotify')return;
     spotifyNode?.remove();const frame=dom.createElement('iframe');frame.title='GTA V 原声 · Spotify 官方播放器';frame.src=GTA_SCORE_EMBED;
     frame.width='100%';frame.height='152';frame.setAttribute('allow','autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture');
     frame.setAttribute('allowfullscreen','');frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
-    mount.appendChild(frame);spotifyNode=frame;spotifyLoading=false;status('请在 Spotify 播放器中点击播放；收起设置不会打断音乐');sync();
+    mount.appendChild(frame);spotifyNode=frame;spotifyLoading=false;status('点顶部音乐按钮展开播放器并播放；收起设置继续听');sync();
   }
   function ensureSpotify(){
     if(spotifyNode||spotifyLoading||disposed||source!=='spotify')return;
