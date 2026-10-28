@@ -1,11 +1,11 @@
 /** On-foot exploration and transferable cars; no rendering or browser dependency. */
-import { DrivingSimulation, wrapAngle } from './driving.js?v=10';
-import { CHUNK_SIZE, collidersNear, generateChunk, hashCoordinates, isRoad } from './world-layout.js?v=10';
+import { DrivingSimulation, wrapAngle } from './driving.js?v=11';
+import { CHUNK_SIZE, collidersNear, generateChunk, hashCoordinates, isRoad } from './world-layout.js?v=11';
 
 export const VEHICLE_HISTORY_LIMIT = 64;
 export const VEHICLE_INTERACT_RADIUS = 6.5;
 export const WALK_RADIUS = .34;
-const PALETTE = ['#48b9b1', '#b33b40', '#d8cdb4', '#303943', '#47728b', '#e6c95b', '#898ba0', '#f2eee3'];
+const PALETTE = ['#246f87', '#772c63', '#526783', '#202b43', '#31538e', '#c68545', '#67538b', '#b6c5cf'];
 const KINDS = ['coupe', 'sedan', 'suv'];
 const LABELS = { coupe: 'COASTAL GT · 跑车', sedan: 'SUNDOWN · 轿车', suv: 'TRAILWAY · SUV' };
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;

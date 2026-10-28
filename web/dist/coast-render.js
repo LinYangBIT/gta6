@@ -1,7 +1,7 @@
 /** Street-scale coastal scenery. Every object follows the shared road layout. */
-import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=10';
-import { describeCoastBuilding } from './coast-architecture.js?v=10';
-import { describeUrbanBuilding } from './urban-architecture.js?v=10';
+import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=11';
+import { describeCoastBuilding } from './coast-architecture.js?v=11';
+import { describeUrbanBuilding } from './urban-architecture.js?v=11';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -47,12 +47,12 @@ export function describeCoastChunk(data,lod=0){
   }
   // A neutral land foundation makes gaps between paving and planted strips real
   // ground. Road surfaces sit above it; sidewalks remain at the actor's .22m step.
-  box(X+64,-.105,Z+64,S,.20,S,X>=0?'#a1bd87':'#bcb29e','ground');
+  box(X+64,-.105,Z+64,S,.20,S,X>=0?'#49656a':'#626b80','ground');
   const features=data.features||[];
   for(const f of features){
     const {x,z,width:w=20,depth:d=20}=f;
     if(f.kind==='ocean'||f.kind==='sea'){
-      slab(x,z,w,d,'#20a8ba','water',0,.02);
+      slab(x,z,w,d,'#165e7c','water',0,.02);
     }else if(f.kind==='beach'||f.kind==='sand'){
       slab(x,z,w,d,'#f0d8a5','sand',.001,.018);
     }else if(f.kind==='park'||f.kind==='lawn'){
@@ -65,7 +65,7 @@ export function describeCoastChunk(data,lod=0){
       const cx=f.sourceX??x,cz=f.sourceZ??z,r=f.radius??Math.min(f.sourceWidth??w,f.sourceDepth??d)/2;
       if(owns(cx,cz)){cylinder(cx,.10,cz,r,.20,'#dfcfb4','round');cylinder(cx,.23,cz,r-.55,.15,'#759068','round');}
     }else if(f.kind==='canal'||f.kind==='water'||f.kind==='marina'){
-      slab(x,z,w,d,'#279cac','water',.013,.02);
+      slab(x,z,w,d,'#185b76','water',.013,.02);
     }
   }
   // The road layout owns the same sampled curves used by collision/surface tests.
@@ -76,26 +76,26 @@ export function describeCoastChunk(data,lod=0){
       const {a,b}=segment,dx=b.x-a.x,dz=b.z-a.z,length=Math.hypot(dx,dz);if(length<.01)continue;
       const x=(a.x+b.x)/2,z=(a.z+b.z)/2,yaw=Math.atan2(dx,dz),nx=Math.cos(yaw),nz=-Math.sin(yaw);
       const bridge=(road.kind==='bridge'||road.kind==='causeway')&&x>80;
-      strip(road,segment.index,-half,half,.008+layer,.035,'#465051','roadTri');
+      strip(road,segment.index,-half,half,.008+layer,.035,'#293647','roadTri');
       if(!bridge)for(const side of [-1,1]){
         const cx=x+nx*side*(half+sidewalk/2),cz=z+nz*side*(half+sidewalk/2);
-        if(distanceFromRoad(cx,cz,road.id)>-.1)strip(road,segment.index,side*half,side*(half+sidewalk),.11+layer,.22,'#d3bcae','pavingTri');
+        if(distanceFromRoad(cx,cz,road.id)>-.1)strip(road,segment.index,side*half,side*(half+sidewalk),.11+layer,.22,'#72758e','pavingTri');
         const ex=x+nx*side*(half+.11),ez=z+nz*side*(half+.11);
-        if(distanceFromRoad(ex,ez,road.id)>1)strip(road,segment.index,side*(half-.015),side*(half+.235),.14+layer,.26,'#e3d5bb','curbTri');
+        if(distanceFromRoad(ex,ez,road.id)>1)strip(road,segment.index,side*(half-.015),side*(half+.235),.14+layer,.26,'#a3b6d0','curbTri');
       }
       const open=distanceFromRoad(x,z,road.id)>half+1;
       if(open&&road.kind!=='alley'&&road.kind!=='roundabout'){
-        for(const side of [-1,1])strip(road,segment.index,side*.14-.0525,side*.14+.0525,.033+layer,.012,'#ecc975','paintTri');
+        for(const side of [-1,1])strip(road,segment.index,side*.14-.0525,side*.14+.0525,.033+layer,.012,'#ecc17c','paintTri');
         if(road.width>=15)for(const side of [-1,1]){
-          strip(road,segment.index,side*(half-2.9)-.0475,side*(half-2.9)+.0475,.034+layer,.012,'#d8d5c2','paintTri');
-          if(!bridge&&(segment.index??0)%3===0)box(x+nx*side*(half-1.55),.035,z+nz*side*(half-1.55),2.7,.012,.12,'#d8d5c2','paint',yaw);
+          strip(road,segment.index,side*(half-2.9)-.0475,side*(half-2.9)+.0475,.034+layer,.012,'#bfd6e7','paintTri');
+          if(!bridge&&(segment.index??0)%3===0)box(x+nx*side*(half-1.55),.035,z+nz*side*(half-1.55),2.7,.012,.12,'#bfd6e7','paint',yaw);
         }
       }
       if(bridge){
-        strip(road,segment.index,-half-.6,half+.6,-.07,.14,'#b3aba0','curbTri');
+        strip(road,segment.index,-half-.6,half+.6,-.07,.14,'#63738e','curbTri');
         for(const side of [-1,1]){
-          strip(road,segment.index,side*(half+.325),side*(half+.575),.5,1,'#d8c9b0','curbTri');
-          strip(road,segment.index,side*(half+.25),side*(half+.65),1.03,.12,'#e8dcc6','curbTri');
+          strip(road,segment.index,side*(half+.325),side*(half+.575),.5,1,'#929db7','curbTri');
+          strip(road,segment.index,side*(half+.25),side*(half+.65),1.03,.12,'#b1d0e0','curbTri');
         }
       }
       // Alternating segment groups place furniture at a human rhythm, without
@@ -117,15 +117,16 @@ export function describeCoastChunk(data,lod=0){
   for(let z=Math.ceil(Z/12)*12;z<Z+S;z+=12){
     for(const f of features)if((f.kind==='ocean'||f.kind==='sea')&&owns(f.x-f.width/2,z)){
       const shore=(f.sourceX??f.x)-(f.sourceWidth??f.width)/2;
-      if(owns(shore,z)&&Math.abs(shore-110)<.1&&distanceFromRoad(shore+1,z)>5)box(shore+1.5,.025,z,2.2,.018,10,'#c4ded2','foam');
+      if(owns(shore,z)&&Math.abs(shore-110)<.1&&distanceFromRoad(shore+1,z)>5)box(shore+1.5,.025,z,2.2,.018,10,'#86c5d5','foam');
     }
   }
   return records;
 
   function lamp(x,z,yaw){
-    cylinder(x,.25,z,.2,.48,'#4a514c');cylinder(x,3.65,z,.072,7.2,'#6b716a');
-    box(x+Math.sin(yaw)*.72,7.12,z+Math.cos(yaw)*.72,.12,.12,1.6,'#5a625e','metal',yaw);
-    box(x+Math.sin(yaw)*1.42,7.05,z+Math.cos(yaw)*1.42,.48,.13,.68,'#e8dfbe','glow',yaw);
+    cylinder(x,.25,z,.2,.48,'#314154');cylinder(x,3.65,z,.072,7.2,'#455a74');
+    box(x+Math.sin(yaw)*.72,7.12,z+Math.cos(yaw)*.72,.12,.12,1.6,'#4e6684','metal',yaw);
+    box(x+Math.sin(yaw)*1.42,7.05,z+Math.cos(yaw)*1.42,.48,.13,.68,'#a7f4ff','glow',yaw);
+    if(lod===0)box(x+Math.sin(yaw)*.083,1.27,z+Math.cos(yaw)*.083,.045,1.7,.025,'#40e8f2','glow',yaw);
   }
   function palm(x,z,height,seed){
     const lean=((seed%9)-4)*.12,angle=(seed%113)/113*TAU;
@@ -142,13 +143,14 @@ export function describeCoastChunk(data,lod=0){
   }
   function bench(x,z,yaw=0){
     const placed=(dx,y,dz,w,h,d,color,type='solid')=>box(x+dx*Math.cos(yaw)+dz*Math.sin(yaw),y,z-dx*Math.sin(yaw)+dz*Math.cos(yaw),w,h,d,color,type,yaw);
-    placed(0,.62,0,2.2,.12,.63,'#a08460');
-    for(let n=0;n<4;n++)placed(0,.93+n*.13,-.26,2.2,.065,.07,'#ac8d66');
-    for(const side of [-1,1])placed(side*.82,.36,0,.10,.55,.52,'#405254','metal');
+    placed(0,.62,0,2.2,.12,.63,'#5b5773');
+    for(let n=0;n<4;n++)placed(0,.93+n*.13,-.26,2.2,.065,.07,'#807491');
+    for(const side of [-1,1])placed(side*.82,.36,0,.10,.55,.52,'#3c4f6c','metal');
+    if(lod===0)placed(0,.56,.32,2.05,.035,.035,'#ff4fb6','glow');
   }
   function umbrella(x,z,color){
     cylinder(x,1.33,z,.045,2.4,'#a49478');add('canopy',x,2.56,z,1.62,.68,1.62,color);
-    if(lod===0){cylinder(x,.25,z,.39,.10,'#baad94','round');for(const side of [-1,1]){box(x+side*1.2,.48,z,.62,.10,1.65,'#e7dbc2');box(x+side*1.2,.75,z-.55,.62,.15,.7,color,'solid');}}
+    if(lod===0){cylinder(x,.25,z,.39,.10,'#baad94','round');for(const side of [-1,1]){box(x+side*1.2,.48,z,.62,.10,1.65,'#b8adc8');box(x+side*1.2,.75,z-.55,.62,.15,.7,color,'solid');}}
   }
   function bin(x,z){cylinder(x,.65,z,.30,.83,'#4a6a61');cylinder(x,1.08,z,.33,.09,'#b2b9a3');box(x,1.02,z+.31,.34,.11,.035,'#223a37');}
   function featureProps(f){
@@ -164,12 +166,12 @@ export function describeCoastChunk(data,lod=0){
     }else if(kind==='beach'||kind==='sand'){
       for(let pz=Math.ceil((z-d/2)/29)*29+11;pz<z+d/2;pz+=29){
         const px=x+((hash(x,pz)%13)-6)*.8;
-        if(owns(px,pz)&&clear(px,pz,5)&&lod<2)umbrella(px,pz,['#c2857b','#769d9e','#d4b274'][hash(px,pz)%3]);
+        if(owns(px,pz)&&clear(px,pz,5)&&lod<2)umbrella(px,pz,['#ae5fa0','#478da4','#b98b67'][hash(px,pz)%3]);
       }
       if(lod<2&&owns(x,z)&&clear(x,z,7)&&Math.floor(z/128)%2===0){
         // A raised lifeguard cabin, with exterior rails and a ladder.
         for(const dx of [-1.45,1.45])for(const dz of [-1.1,1.1])box(x+dx,1.12,z+dz,.13,2.15,.13,'#d5c7a5');
-        box(x,2.0,z,3.3,.2,2.8,'#e3c7a4');box(x,2.9,z,2.6,1.6,2.0,'#8fbeb4');box(x,3.85,z,3.4,.18,2.7,'#f0d4ae');
+        box(x,2.0,z,3.3,.2,2.8,'#e3c7a4');box(x,2.9,z,2.6,1.6,2.0,'#657ca5');box(x,3.85,z,3.4,.18,2.7,'#c8abc4');
         box(x,3.0,z-1.02,1.7,.65,.06,'#315b61','glazing');
         for(const dx of [-1.55,1.55])box(x+dx,2.55,z,.08,1.05,2.7,'#d9dec6');
         for(let k=0;k<7;k++)box(x, .3+k*.24,z+2.6-k*.12,1.1,.08,.3,'#dbc8a5');

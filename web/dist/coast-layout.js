@@ -6,7 +6,7 @@ export const COAST_BOUNDS = Object.freeze({ minX:-256, maxX:1024, minZ:-512, max
 const S=128, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const P=(x,z)=>({x,z});
 const hash=(...parts)=>{let h=2166136261;for(const c of parts.join('|'))h=Math.imul(h^c.charCodeAt(0),16777619);h^=h>>>16;return h>>>0;};
-export const COAST_DISTRICT=Object.freeze({id:'ocean-drive',name:'海洋大道',label:'OCEAN DRIVE · 海洋大道',colors:['#83c6c5','#eee1cb','#e4b3aa'],styles:['hotel','deco'],floors:[3,8]});
+export const COAST_DISTRICT=Object.freeze({id:'ocean-drive',name:'海洋大道',label:'OCEAN DRIVE · 海洋大道',colors:['#426e82','#9b9ab5','#8f648d'],styles:['hotel','deco'],floors:[3,8]});
 export function inCoast(x,z){return x>=COAST_BOUNDS.minX&&x<COAST_BOUNDS.maxX&&z>=COAST_BOUNDS.minZ&&z<COAST_BOUNDS.maxZ;}
 const inBounds=(x,z,pad=0)=>x>=COAST_BOUNDS.minX-pad&&x<=COAST_BOUNDS.maxX+pad&&z>=COAST_BOUNDS.minZ-pad&&z<=COAST_BOUNDS.maxZ+pad;
 
@@ -66,11 +66,11 @@ function segmentHits(a,b,r,pad=0){
 }
 const building=(id,x,z,width,depth,height,floors,landmark,color,accent,style='hotel')=>({id:`coast/${id}`,x,z,width,depth,height,floors,landmark,style,color,accent,orientation:0,detailSeed:hash(id),roof:'terrace'});
 const buildings=[
- building('colony',-36,40,28,36,16,4,'colony','#68cfc8','#b9f0df'),
- building('dominion',-58,-61,28,40,22,5,'dominion','#f5e5c3','#cf9b91'),
- building('dixon',-56,-103,28,26,29,7,'dixon','#edc99f','#e6a574'),
- building('coral',-36,94,28,34,16,4,'coral','#ef9b98','#94c7bc'),
- building('marina-palace',-30,-211,32,44,23,6,'dominion','#e9dfbd','#a0b8ba'),
+ building('colony',-36,40,28,36,16,4,'colony','#438b98','#40e8f2'),
+ building('dominion',-58,-61,28,40,22,5,'dominion','#9b8fad','#ff4fb6'),
+ building('dixon',-56,-103,28,26,29,7,'dixon','#8a739f','#ffc86a'),
+ building('coral',-36,94,28,34,16,4,'coral','#a25c8f','#40e8f2'),
+ building('marina-palace',-30,-211,32,44,23,6,'dominion','#778fa7','#b085ff'),
 ];
 // Urban parcels line each street first, then the remaining inland block interiors.
 // This replaces isolated buildings in broad empty lots with continuous, varied
@@ -92,8 +92,8 @@ function addInfill(id,x,z,width,depth,frontageRoad=null){
  // Scattered office clusters rise behind the lower seafront, not in front of it.
  if(inland&&z<-190&&n%7===0){floors=18+(n>>>12)%7;style='glass';}
  const floorHeight=style==='glass'?3.65:3.2;
- const palette=style==='glass'?['#529da8','#72b5bf','#8ebbc1']:['#efd3a8','#e1b2a0','#9ecdbb','#f0dbae','#d999a6','#81c8c9'];
- const b=building(`infill-${id}`,x,z,width,depth,Math.round((floors*floorHeight+.6)*100)/100,floors,null,palette[n%palette.length],['#97b6b1','#b88c78','#91a5ac','#d2ba93'][(n>>>8)%4],style);
+ const palette=style==='glass'?['#315c78','#437a89','#526c8e']:['#7f6d88','#8b627c','#4d7b81','#8f8194','#985d90','#477d95'];
+ const b=building(`infill-${id}`,x,z,width,depth,Math.round((floors*floorHeight+.6)*100)/100,floors,null,palette[n%palette.length],['#40e8f2','#ff4fb6','#b085ff','#ffc86a'][(n>>>8)%4],style);
  let closest=null;
  for(const s of roadSegments){const p=projectToCoastSegment(x,z,s.a,s.b);if(!closest||p.distance<closest.distance)closest=p;}
  const dx=closest.x-x,dz=closest.z-z;

@@ -35,7 +35,7 @@ export class EntryCinematic {
     // Both opening camera paths remain on the open, eastern side of the
     // boulevard. The final shot arrives behind the walking character.
     const shots = [
-      { start: 0, end: 2.65, from: [61, 33, 91], to: [48, 27, 62], lookFrom: [-24, 7, -28], lookTo: [-32, 7, -17], title: '日落海岸', subtitle: 'SUNSET COAST · 18:42', fov: 58 },
+      { start: 0, end: 2.65, from: [61, 33, 91], to: [48, 27, 62], lookFrom: [-24, 7, -28], lookTo: [-32, 7, -17], title: '日落海岸', subtitle: 'SUNSET COAST · 20:48', fov: 58 },
       { start: 2.65, end: 5.15, from: [20, 5.5, 61], to: [16, 4.2, 44], lookFrom: [-35, 7, 38], lookTo: [-36, 7, 30], title: '每条街，都有故事', subtitle: 'OCEAN DRIVE', fov: 49 },
       { start: 5.15, end: 7.8, from: [14.4, 3.6, 39], to: [12.52, 2.60, 34.68], lookFrom: [13, 1.55, 29], lookTo: [13, 1.55, 28.6], title: '从这里开始', subtitle: 'WALK · DRIVE · EXPLORE', fov: 55 },
     ];

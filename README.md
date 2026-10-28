@@ -1,6 +1,6 @@
 # Sunset Coast · GTA6 风格 Blender 场景
 
-原创海滨城市与跑车镜头演示：Art Deco 建筑、热带街景与夕阳、棕榈大道、霓虹灯、沙滩和海水。包含可编辑的 Blender 工程、程序化建模脚本，以及 10 秒车辆与摄影机动画。
+原创海滨城市与跑车镜头演示：赛博朋克蓝紫暮景、Art Deco 建筑、霓虹店招、棕榈大道、沙滩和海水。包含可编辑的 Blender 工程、程序化建模脚本，并保留原始 10 秒车辆与摄影机动画。
 
 这是受 GTA6 海滨都市氛围启发的场景原型，不是完整游戏，也不包含 Rockstar 的模型、纹理或游戏代码。
 
@@ -14,20 +14,22 @@
 
 最新网页版把海滨陆侧从 **19 栋增加到 133 栋**，外围每个街区从 4–6 栋增加到 **16–22 栋**。连续沿街商铺、围合庭院、住宅区与办公楼群保留服务通道；远景采用同一套地图数据，走近后变成可探索的详细街区，持续生成并回收远处数据。
 
-最新可编辑快照是 [`scenes/vivid_city.blend`](scenes/vivid_city.blend)，包含进一步细化的车辆、店面、窗框、阳台与更鲜明的热带配色。以下为 **1920×1080 Blender 离线预览**，网页实时光照会有差异：
+最新可编辑快照是 [`scenes/cyberpunk_city.blend`](scenes/cyberpunk_city.blend)：青蓝／洋红灯轨、屋顶广告屏、设备棚与天线、发光科技店招、冷色湿润路面；车辆增加侧裙 LED、分段前灯与洋红尾灯。建筑近远景使用同一配色，保留道路与碰撞范围。以下为 **1920×1080 Blender 离线预览**，网页实时光照会有差异：
 
-![高清海滨街景](previews/vivid_city.png)
+![赛博朋克海滨街景](previews/cyberpunk_city.png)
 
-[高清城区俯瞰](previews/vivid_city_aerial.png) · [密集城区旧版](previews/dense_city_aerial.png)
+[霓虹城区俯瞰](previews/cyberpunk_city_aerial.png) · [明亮暮色旧版](previews/vivid_city_aerial.png) · [密集城区旧版](previews/dense_city_aerial.png)
 
 ```bash
-node scripts/export_infinite_preview.mjs --vivid --seed 610 --output /tmp/vivid-city.json
-blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/vivid-city.json --output previews/vivid_city.png --overview-output previews/vivid_city_aerial.png --blend scenes/vivid_city.blend --resolution 1920 --samples 48
+node scripts/export_infinite_preview.mjs --cyberpunk --seed 610 --output /tmp/cyberpunk-city.json
+blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/cyberpunk-city.json --output previews/cyberpunk_city.png --overview-output previews/cyberpunk_city_aerial.png --blend scenes/cyberpunk_city.blend --resolution 1920 --samples 48
 ```
 
 游戏封面使用 [Rockstar 官方发布的完整壁纸](https://www.rockstargames.com/VI/media/artwork-wallpapers)：4K 横版与1080×1920竖版，保留原画面和色彩。它不是游戏截图；本站明确标识为非官方可玩场景。官方封面和 Logo 的版权属于 Rockstar / Take-Two，来源与文件哈希记录于 [`web/dist/assets/gta6-cover-attribution.json`](web/dist/assets/gta6-cover-attribution.json)，不适用本仓库 MIT 许可。
 
 背景音乐默认原声优先：加载城市时准备 Spotify，点击进入时立即启动内置 COAST FM 并请求原声，早于入场 CG；收到原声实际播放事件后停止内置 BGM。等待原声或平台拒播时仍有默认 BGM，内置音乐明确标注为 COAST FM。关闭设置、返回菜单和帮助时继续；用户可独立暂停。本机音频选择后尝试播放并循环，不上传。GTA V 原声通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 及官方 iFrame API 播放，收起设置只隐藏面板，保留同一 iframe 和控制器，不暂停或卸载；自动播放和范围受浏览器、账号和地区限制。仓库不含商业音频文件。
+
+引擎声默认开启：进入时解锁音频，上车后随速度平滑变化，步行、CG、菜单和后台不发出引擎声。右上角声音按钮可独立关闭；本次会话中返回菜单再进入仍保留手动关闭状态。
 
 首次进城新增约 8 秒的实时 CG，由海滨全景、酒店街景过渡到步行人物；可以跳过，返回菜单后继续只作短过渡。驾驶默认转向比前版更灵活；右上角操控设置提供转向幅度60%–200%和响应速度60%–180%，默认130% / 115%，即时生效并在本机保存。保留渐进输入、高速稳定限制和快速回正；横屏摇杆为128px，油门72×150px，镜头按钮44px。
 
@@ -104,6 +106,8 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 
 | 路径 | 内容 |
 | --- | --- |
+| `scenes/cyberpunk_city.blend` | 霓虹建筑、车辆灯条和蓝紫暮景的最新可编辑快照 |
+| `previews/cyberpunk_city.png`、`previews/cyberpunk_city_aerial.png` | 1920×1080 同源几何的赛博朋克街景与城区俯瞰 |
 | `scenes/vivid_city.blend` | 细化车辆、建筑和鲜明配色的可编辑同源快照 |
 | `previews/vivid_city.png`、`previews/vivid_city_aerial.png` | 1920×1080 高清街景和城区俯瞰 |
 | `scenes/dense_city.blend` | 密集城区与有限远景的可编辑同源快照 |

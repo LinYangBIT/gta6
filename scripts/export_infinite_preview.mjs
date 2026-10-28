@@ -1,5 +1,5 @@
 /** Export the actual streamed browser scene for editable Blender previews. */
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,8 @@ const source = resolve(option('--source', resolve(root, 'web/dist')));
 const output = resolve(option('--output', '/tmp/endless-city.json'));
 const seed = Number(option('--seed', '610'));
 const vivid = args.includes('--vivid');
-const dense = args.includes('--dense') || vivid;
+const cyberpunk = args.includes('--cyberpunk');
+const dense = args.includes('--dense') || vivid || cyberpunk;
 const coastal = args.includes('--coastal');
 const street = args.includes('--street') || coastal || dense;
 const aerial = option('--view', 'street') === 'aerial';
@@ -36,8 +37,16 @@ if(street){
   hero=[...gameplay.vehicles.values()].find(car=>car.id==='0,0/car/0');
   // Blender imports the very same hero GLB used by the browser; pooled cars stay
   // in this geometry snapshot, with their per-instance and per-vertex colors.
-  if(hero)gameplay.vehicles.delete(hero.id);
+  if(hero&&!cyberpunk)gameplay.vehicles.delete(hero.id);
   actors=new ActorVisuals(scene,{mobile:false});
+  if(cyberpunk){
+    // Load the same actual hero asset into the runtime actor manager, including
+    // its current paint and attached neon geometry. No separate approximation.
+    const { GLTFLoader }=await import(pathToFileURL(resolve(source,'vendor/addons/loaders/GLTFLoader.js')));
+    const bytes=await readFile(resolve(source,'assets/car.glb'));
+    const gltf=await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),'');
+    actors.setVehicleTemplate(gltf.scene);
+  }
   actors.update(gameplay,{x:0,z:0},time,{contact:{x:13,z:13}});
 }
 scene.updateMatrixWorld(true);
@@ -74,7 +83,7 @@ scene.traverse(object => {
   batches.push({
     name: object.name || material.name || 'City material',
     geometry: { positions: Array.from(position.array), colors: geometry.attributes.color?Array.from(geometry.attributes.color.array):null, normals: geometry.attributes.normal ? Array.from(geometry.attributes.normal.array) : null, uv: geometry.attributes.uv ? Array.from(geometry.attributes.uv.array) : null, indices: geometry.index ? Array.from(geometry.index.array) : null },
-    material: { signAtlas: atlas, basicMaterial:!!material.isMeshBasicMaterial, road:['road','roadTri'].includes(surface), paving:['paving','pavingTri'].includes(surface), vertexColors:!!material.vertexColors, facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
+    material: { signAtlas: atlas, emissiveMap:!!material.emissiveMap, basicMaterial:!!material.isMeshBasicMaterial, road:['road','roadTri'].includes(surface), paving:['paving','pavingTri'].includes(surface), vertexColors:!!material.vertexColors, facade: object.name.endsWith('/ glass') ? 'glass' : object.name.endsWith('/ facade') ? 'masonry' : null, color: material.color?.toArray() || [1, 1, 1], roughness: material.roughness ?? .7, metalness: material.metalness ?? 0,
       emissive: material.isMeshBasicMaterial ? (material.color?.toArray() || [1,1,1]) : material.emissive?.toArray() || [0, 0, 0], emissiveIntensity: material.isMeshBasicMaterial ? 1 : material.emissiveIntensity ?? 0, water:object.name.endsWith('/ water'), smooth:['round','cylinder','canopy','crown'].some(type=>object.name===`City / ${type}`) },
     instances,
   });
@@ -85,6 +94,6 @@ const lens=Number(option('--lens', aerial?'38':coastal||dense?'25.5':street?'28'
 const overviewCamera=vectorOption('--overview-camera',dense?[310,380,320]:[330,340,330]);
 const overviewTarget=vectorOption('--overview-target',dense?[-180,0,-140]:[-15,0,-150]);
 const overviewLens=Number(option('--overview-lens',dense?'33':'38'));
-await writeFile(output, JSON.stringify({ seed, stats, street, coastal, dense, vivid, aerial, time, center, radius, horizon, horizonRadius, hero:hero?{...hero,glb:resolve(source,'assets/car.glb')}:null, camera, target, lens, overviewCamera, overviewTarget, overviewLens, aspect:street?16/9:3/2, batches }));
+await writeFile(output, JSON.stringify({ seed, stats, street, coastal, dense, vivid, cyberpunk, aerial, time, center, radius, horizon, horizonRadius, hero:hero&&!cyberpunk?{...hero,glb:resolve(source,'assets/car.glb')}:null, heroInRuntimeBatches:cyberpunk, camera, target, lens, overviewCamera, overviewTarget, overviewLens, aspect:street?16/9:3/2, batches }));
 console.log(JSON.stringify({ output, batches: batches.length, instances: batches.reduce((total, batch) => total + batch.instances.length, 0), stats }));
 actors?.dispose();city.dispose();

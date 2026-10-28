@@ -3,8 +3,8 @@
  * World coordinates stay in double precision; rendering owns its floating origin.
  * +Z is forward at yaw 0; positive steering turns left. Brake never reverses.
  */
-import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=10';
-import { coastRoadAt, coastRoute } from './coast-layout.js?v=10';
+import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=11';
+import { coastRoadAt, coastRoute } from './coast-layout.js?v=11';
 
 const WHEEL_RADIUS = .43;
 const CAR_RADIUS = 1.10;

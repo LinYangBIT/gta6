@@ -1,5 +1,5 @@
 /** Bind the driving settings without changing the current car or its motion. */
-import { STEERING_DEFAULTS, STEERING_LIMITS } from './driving.js?v=10';
+import { STEERING_DEFAULTS, STEERING_LIMITS } from './driving.js?v=11';
 
 export const STEERING_STORAGE_KEY = 'sunset-steering-settings';
 

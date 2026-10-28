@@ -1,0 +1,139 @@
+{
+  "title": "Sunset Coast / Cyberpunk blue-hour city",
+  "kind": "Offline Blender render of actual playable scene geometry; not a browser screenshot",
+  "world_seed": 610,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "camera_three_y_up": [
+    12,
+    2.2,
+    92
+  ],
+  "target_three_y_up": [
+    -20,
+    4.4,
+    0
+  ],
+  "lens_mm": 25.5,
+  "aerial_camera_three_y_up": [
+    310,
+    380,
+    320
+  ],
+  "aerial_target_three_y_up": [
+    -180,
+    0,
+    -140
+  ],
+  "aerial_lens_mm": 33,
+  "snapshot_center_three_xz": [
+    -128,
+    -128
+  ],
+  "snapshot_chunk_radius": 3,
+  "snapshot_horizon_radius": 4,
+  "stats": {
+    "loaded": 49,
+    "buildings": 467,
+    "instances": 25693,
+    "pending": 0,
+    "drawCalls": 25,
+    "district": "OCEAN DRIVE · 海洋大道",
+    "farLoaded": 32,
+    "farBuildings": 460,
+    "farInstances": 1082,
+    "farDrawCalls": 4,
+    "totalBuildings": 927
+  },
+  "sources": [
+    "web/dist/coast-layout.js",
+    "web/dist/coast-render.js",
+    "web/dist/coast-architecture.js",
+    "web/dist/urban-architecture.js",
+    "web/dist/world-layout.js",
+    "web/dist/infinite-city.js",
+    "web/dist/city-horizon.js",
+    "web/dist/street-signs.js",
+    "web/dist/actors.js",
+    "web/dist/human-model.js",
+    "web/dist/gameplay.js",
+    "web/dist/assets/car.glb"
+  ],
+  "detail_changes": [
+    "Cool blue-hour lighting and shared teal, violet and graphite city palettes, with cyan, magenta and amber window illumination",
+    "Attached facade and corner neon rails, framed rooftop media panels, roof equipment, antennas, service pipes and coastal hotel crown strips",
+    "Runtime vehicle geometry includes cyan and violet sill LEDs, segmented front optics, magenta rear-light accents and darker jewel metallic paint",
+    "Actual hero car.glb is loaded through the runtime actor manager with its current neon overlays; pooled vehicles remain instanced",
+    "Wet asphalt response and locally generated luminous shop signs; building footprints, road topology and gameplay collision layout are preserved"
+  ],
+  "reference_direction": "Authored cyberpunk restyling of the existing coastal city: Art Deco hotel silhouettes, neon facade rails, luminous signs, mixed window colors, blue-hour atmosphere and detailed vehicles. Existing coastal layouts were studied from the public Vice City Ocean Drive and GTA VI Dominion / Dixon imagery listed below. This is a stylized original reconstruction, not a complete replica of GTA VI.",
+  "reference_urls": [
+    "https://www.rockstargames.com/VI/media/screenshots",
+    "https://www.videogameschronicle.com/news/the-first-official-gta-trilogy-gameplay-footage-compares-the-definitive-editions-and-originals/",
+    "https://www.videogameschronicle.com/files/2021/11/GTA-The-Trilogy-The-Definitive-Edition-Vice-City-Screen-9-1440x810.jpg",
+    "https://s1.cdn.autoevolution.com/images/news/gallery/gta-6-trailer-2-did-you-spot-all-the-major-vehicles_19.jpg",
+    "https://media.gtaboom.com/variants/1920/media/images/9f/8e/Hotel_Dixon.jpg"
+  ],
+  "renderer": "Blender 4.3.2 / Cycles / 48 samples / denoising enabled / AgX Medium High Contrast / +0.35 EV",
+  "limits": "Finite 81-cell snapshot: 49 detailed cells and 32 distant cells, with 927 buildings. Live game uses a larger moving horizon and continues generating the same deterministic city as the player travels. Mesh geometry, transforms, vertex colors and finite building arrangement are exported from the game. Facade masks are baked; lighting, materials, atmosphere, optical glow and tone mapping use offline approximations and differ from browser rendering. This is not a gameplay screenshot. The official GTA VI artwork used in the website intro is not embedded in this editable scene. No extracted game meshes are included.",
+  "rebuild_commands": [
+    "node scripts/export_infinite_preview.mjs --cyberpunk --seed 610 --output /tmp/cyberpunk-city.json",
+    "blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/cyberpunk-city.json --output previews/cyberpunk_city.png --overview-output previews/cyberpunk_city_aerial.png --blend scenes/cyberpunk_city.blend --resolution 1920 --samples 48"
+  ],
+  "artifacts": {
+    "previews/cyberpunk_city.png": {
+      "bytes": 2689620,
+      "sha256": "d491f5a1f7a2e43fe9e87334dd7bc921c62ddca7c2aa51feaec4df9ac3b2d787"
+    },
+    "previews/cyberpunk_city_aerial.png": {
+      "bytes": 3915052,
+      "sha256": "eb212c31a4b8a83e027036198c9809427c045633443811f1f03b381bd7396dc8"
+    },
+    "scenes/cyberpunk_city.blend": {
+      "bytes": 31777160,
+      "sha256": "833fca9a6ec385bf341a1f6e63befaf53dbbda6150172f336bb9c28d604d67a4"
+    }
+  },
+  "source_sha256": {
+    "web/dist/coast-layout.js": "c113ecc47fccf1f36190ac097c3fbbeff159519ffe231caf1abed06c30f2a27c",
+    "web/dist/coast-render.js": "7d131366801301a439454c3e32e1c99e392641fbaaa13d154e82236d4b67e19a",
+    "web/dist/coast-architecture.js": "01a122644466fef473a88afb4999cff25fd0778a68c4f31363e0a7e35d29071d",
+    "web/dist/urban-architecture.js": "2635919e3cb2db1734a540119166ab851f1ef010c925ee19ec59394095534c99",
+    "web/dist/world-layout.js": "6687cf2734e71ed3f6062a212b1dde31ba992c1dc2c961de39483e9be34456e0",
+    "web/dist/infinite-city.js": "f27407d118e434c0ca909a6cf212b78497d1bf1ee165639624824ac2987ab5cb",
+    "web/dist/city-horizon.js": "4193bdd7d80fefc71dc61eddafa6b127ee22cfe7db032b6769c20208383e86f6",
+    "web/dist/street-signs.js": "e4400bbeb5c4a598fd65c07da876d1512197cea5e24ff1f6e2c2d36bdef8d1f3",
+    "web/dist/actors.js": "c4373b40933daa9b39311d894777292ac7609843b2cc8fbcaf30b077587e6af4",
+    "web/dist/human-model.js": "4b518a47cadaad10720b01cd056b022787ed100caa9ba74c46d940af93aa52cf",
+    "web/dist/gameplay.js": "432c92436baab223ae513a37915b0fd9ad6ab02d4031f7184fd400f2f87c8161",
+    "web/dist/assets/car.glb": "0262aa94de3dc1bdfc43f15a119efe28e662bbf926d6dfbe8117ec9b5313ceae"
+  },
+  "script_sha256": {
+    "scripts/export_infinite_preview.mjs": "a3ca85becfe8a2ddb09ef8b43ef33b317446d2068f1745a4b4229c116f2d8044",
+    "scripts/render_infinite_preview.py": "c91e978708fb354adbb6d499531c4da6fd674d8493c32d174102a27301aa13c8"
+  },
+  "embedded_render_metadata": {
+    "previews/cyberpunk_city.png": {
+      "Date": "2026/10/25 05:41:18",
+      "Camera": "City overview",
+      "RenderTime": "01:52.49",
+      "cycles.ViewLayer.samples": "48"
+    },
+    "previews/cyberpunk_city_aerial.png": {
+      "Date": "2026/10/25 05:43:29",
+      "Camera": "Coastal district / aerial camera",
+      "RenderTime": "02:09.92",
+      "cycles.ViewLayer.samples": "48"
+    }
+  },
+  "provenance_note": "Final PNGs and the editable Blender scene survived a workspace restart, but the temporary original scene-export JSON and render log did not. Artifact hashes above identify the surviving outputs. Render dates, camera names and sample counts are read directly from PNG metadata. The Blender scene was opened successfully without rendering or saving and confirms seed 610, 49 detailed cells, 32 distant cells, 927 buildings, the cyberpunk profile, 1920 x 1080, 48 samples, denoising enabled and +0.35 EV. Source and script hashes identify the frozen current v11 rebuild sources at audit time; they are not claimed to have been recorded during the original render. A fresh export from those sources recovers the matching city counts and profile.",
+  "current_snapshot_audit": {
+    "profile": "cyberpunk",
+    "batches": 148,
+    "instances": 27020,
+    "hero_in_runtime_batches": true,
+    "scene_object_count": 2761
+  }
+}

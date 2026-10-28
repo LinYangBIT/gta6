@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=10';
+import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=11';
 
 /** A finite moving window onto the same unlimited city, with cheap distant geometry.
  * Far buildings keep the exact footprint/height of their detailed counterparts.
@@ -10,11 +10,11 @@ export function describeHorizonChunk(data) {
   const box=(type,x,y,z,sx,sy,sz,color,seed=0,ry=0)=>records.push({type,x,y,z,sx,sy,sz,color,seed,ry});
   const X=data.x,Z=data.z,S=CHUNK_SIZE;
   if(data.coastal) {
-    box('solid',X+S/2,-.105,Z+S/2,S,.20,S,X>=0?'#a1bd87':'#bcb29e');
+    box('solid',X+S/2,-.105,Z+S/2,S,.20,S,X>=0?'#49656a':'#626b80');
     for(const f of data.features) {
       if(f.kind==='roundabout')continue; // Island is visible as land through its road loop.
       const water=['ocean','water','canal','marina'].includes(f.kind);
-      const color=water?'#20a8ba':f.kind==='beach'?'#f0d8a5':['park','lawn'].includes(f.kind)?'#79a468':'#d6c5af';
+      const color=water?'#165e7c':f.kind==='beach'?'#f0d8a5':['park','lawn'].includes(f.kind)?'#79a468':'#72758e';
       box(water?'water':'solid',f.x,water?0:.003,f.z,f.width,.02,f.depth,color);
     }
     for(const road of data.roads||[])for(const s of road.segments||[]) {
@@ -22,21 +22,21 @@ export function describeHorizonChunk(data) {
       if(length<.01)continue;
       const x=(s.a.x+s.b.x)/2,z=(s.a.z+s.b.z)/2,yaw=Math.atan2(dx,dz);
       // A fine height separation makes distant crossings stable without extra meshes.
-      box('solid',x,.008+(s.index%3)*.0001,z,road.width,.035,length+.02,'#465051',0,yaw);
+      box('solid',x,.008+(s.index%3)*.0001,z,road.width,.035,length+.02,'#293647',0,yaw);
     }
   } else {
-    box('solid',X+S/2,-.10,Z+S/2,S,.18,S,'#363d40');
-    box('solid',X+S/2,.06,Z+S/2,S-21,.22,S-21,'#c8b6a8');
+    box('solid',X+S/2,-.10,Z+S/2,S,.18,S,'#273442');
+    box('solid',X+S/2,.06,Z+S/2,S-21,.22,S-21,'#646c82');
     for(const f of data.features) {
       const water=f.kind==='canal'||f.kind==='fountain';
-      box(water?'water':'solid',f.x,.245,f.z,f.width,.03,f.depth,water?'#20a8ba':f.kind==='park'?'#607b52':'#c2b09a');
+      box(water?'water':'solid',f.x,.245,f.z,f.width,.03,f.depth,water?'#165e7c':f.kind==='park'?'#607b52':'#c2b09a');
     }
   }
   for(const b of data.buildings) {
     const seed=(b.detailSeed%65521)/101,type=b.style==='glass'?'glass':'facade';
     box(type,b.x,.22+b.height/2,b.z,b.width,b.height,b.depth,b.color,seed);
     records.at(-1).buildingId=b.id;
-    box('solid',b.x,.22+b.height+.13,b.z,b.width+.35,.26,b.depth+.35,b.style==='glass'?'#9badaf':'#e4d9c4');
+    box('solid',b.x,.22+b.height+.13,b.z,b.width+.35,.26,b.depth+.35,b.style==='glass'?'#8095b4':'#b1c5db');
     if(b.height>55)box(type,b.x,.22+b.height+1.9,b.z,b.width*.60,3.6,b.depth*.60,b.color,seed+1);
   }
   return records;

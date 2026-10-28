@@ -36,3 +36,32 @@ test('higher resolution tyres retain road contact and steering clearance',()=>{
   }
   actors.dispose();
 });
+
+test('the close Blender car shares bounded neon trim without owning the borrowed GLB',()=>{
+  const actors=new ActorVisuals(new THREE.Scene()),template=new THREE.Group();
+  const borrowedGeometry=new THREE.BoxGeometry(1,1,1),borrowedMaterial=new THREE.MeshStandardMaterial();
+  template.add(new THREE.Mesh(borrowedGeometry,borrowedMaterial));
+  let borrowedDisposed=0;borrowedGeometry.addEventListener('dispose',()=>borrowedDisposed++);
+  actors.setVehicleTemplate(template);
+  const trim=actors.hero.children.filter(node=>node.name.startsWith('Vehicle cybernetic trim'));
+  assert.equal(trim.length,2);
+  const geometries=trim.map(node=>node.geometry);let ownedDisposed=0;
+  for(const node of trim){
+    node.geometry.addEventListener('dispose',()=>ownedDisposed++);
+    node.geometry.computeBoundingBox();const b=node.geometry.boundingBox;
+    assert.ok(b.min.x>=-1.1&&b.max.x<=1.1&&b.min.z>=-2.3&&b.max.z<=2.3);
+    assert.ok(b.min.y>.26&&b.max.y<1);
+    assert.equal(node.material.isMeshBasicMaterial,true);
+    assert.equal(node.material.vertexColors,true);
+    assert.equal(node.castShadow,false);
+    assert.ok(node.geometry.attributes.position.count<=600);
+  }
+  const head=trim[0].geometry.attributes.color,tail=trim[1].geometry.attributes.color;
+  assert.ok(head.getZ(0)>head.getX(0),'cool cyan rail stays distinct from its dark body');
+  assert.ok(tail.getX(0)>tail.getY(0),'rear magenta light keeps its colour');
+  actors.setVehicleTemplate(template);
+  assert.deepEqual(actors.hero.children.filter(node=>node.name.startsWith('Vehicle cybernetic trim')).map(node=>node.geometry),geometries,'replacing the hero reuses owned trim');
+  assert.equal(actors.vehiclePools.size,17);
+  actors.dispose();assert.equal(ownedDisposed,2);assert.equal(borrowedDisposed,0);
+  borrowedGeometry.dispose();borrowedMaterial.dispose();
+});

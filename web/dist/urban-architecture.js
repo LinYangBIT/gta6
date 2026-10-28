@@ -1,6 +1,6 @@
 /** Dense street-front architecture. Window shaders supply the repeated detail;
  * a bounded number of real parts gives each block a useful street silhouette. */
-const WHITE='#f0e6cf', DARK='#29494f';
+const WHITE='#b5c5d9', DARK='#232c43';
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 
 export function describeUrbanBuilding(building,lod=0) {
@@ -16,8 +16,9 @@ export function describeUrbanBuilding(building,lod=0) {
   const color=b.color||'#c9bba5';
   // A compact, stable palette gives adjacent shops their own identity. Keep the
   // wall color from the shared layout so near and distant buildings still match.
-  const trims=glass?['#63b9c9','#e1bc76','#89c5cb']:['#de837e','#49b5b1','#a89ac9','#e1b45f','#74b9a0'];
+  const trims=glass?['#52e9f4','#ffc06e','#ff62ce']:['#ff62ce','#52e9f4','#a18dff','#ffc06e','#65edc3'];
   const accent=trims[(hash>>>4)%trims.length];
+  const secondAccent=hash%2?'#ff62ce':'#52e9f4';
   function add(type,x,y,z,sx,sy,sz,tint,ry=0,rx=0,rz=0,partSeed=seed){
     records.push({type,x:b.x+co*x+si*z,y,z:b.z-si*x+co*z,sx,sy,sz,color:tint,ry:angle+ry,rx,rz,seed:partSeed});
   }
@@ -51,6 +52,10 @@ export function describeUrbanBuilding(building,lod=0) {
   }else if(glass){
     for(const side of [-1,1])box(side*(w/2-.35),base+h/2,front-.09,.18,h,.18,'#9bb7b9','metal');
   }
+  // Retrofit light rails emphasize the existing street silhouette. The strips
+  // share one glow batch, with no lamps or per-building animation resources.
+  box(0,3.38,front-.77,Math.min(w*.86,17.4),.065,.065,accent,'glow');
+  for(const side of [-1,1])box(side*(w/2-.45),base+h*.57,front-.12,.07,h*.70,.075,secondAccent,'glow');
   if(detail===1)return records;
 
   const bays=clamp(Math.floor(shopWidth/3.6),2,5);
@@ -119,6 +124,33 @@ export function describeUrbanBuilding(building,lod=0) {
       round(w*.24,top+.78,-d*.20,.60,1.25,'#a8b5aa');
       round(w*.24,top+1.43,-d*.20,.66,.10,'#c5cbbb');
     }
+  }
+  // Rooftop media frames and service equipment vary by parcel. All additions
+  // stay inside the established frontage clearance and have a constant budget.
+  if(hash%3===0){
+    const mediaWidth=Math.min(w*.54,8.4),mediaY=top+1.8,mediaZ=front+.25;
+    box(0,mediaY,mediaZ,mediaWidth+ .28,1.92,.18,DARK,'metal');
+    for(const side of [-1,1]){
+      box(side*(mediaWidth/2+.09),mediaY,mediaZ-.12,.07,1.94,.07,accent,'glow');
+      box(0,mediaY+side*.92,mediaZ-.12,mediaWidth+.24,.065,.07,secondAccent,'glow');
+      box(side*mediaWidth*.34,top+.60,mediaZ,.13,1.10,.24,DARK,'metal');
+    }
+    add('sign',0,mediaY,mediaZ-.105,mediaWidth,1.55,1,'#ffffff',Math.PI,0,0,(hash+3)%8);
+  }else{
+    // A low solar / equipment canopy and its cable trunk retain the coastal
+    // roofline while making the infrastructure feel like an inhabited city.
+    const rackZ=d*.19;
+    box(w*.17,top+.57,rackZ,w*.35,.13,d*.28,'#234860','metal',0,.10);
+    for(const side of [-1,1])box(w*.17+side*w*.12,top+.28,rackZ,.11,.50,d*.23,DARK,'metal');
+    box(w*.17,top+.68,rackZ-d*.14,w*.34,.055,.06,secondAccent,'glow');
+  }
+  if(hash%2===0){
+    round(-w*.35,top+1.45,d*.31,.075,2.6,'#627590');
+    box(-w*.35,top+2.35,d*.31,.85,.09,.09,DARK,'metal');
+    box(-w*.35,top+2.79,d*.31,.12,.16,.12,accent,'glow');
+  }else{
+    box(w/2+.12,h*.44,d*.25,.17,h*.58,.17,'#627590','metal');
+    box(w/2+.17,h*.44,d*.25,.07,h*.53,.08,accent,'glow');
   }
   return records;
 }

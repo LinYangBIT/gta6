@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { createHuman, animateHuman } from './human-model.js?v=10';
-import { CHUNK_SIZE, isRoad } from './world-layout.js?v=10';
-import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=10';
+import { createHuman, animateHuman } from './human-model.js?v=11';
+import { CHUNK_SIZE, isRoad } from './world-layout.js?v=11';
+import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=11';
 
 // Gameplay holds 36 streamed vehicles plus at most 64 remembered relocations.
 // Capacity covers the entire bounded map, including a crowded parked-car block.
@@ -68,6 +68,32 @@ function loft(rings) {
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));g.setIndex(indices);g.computeVertexNormals();return g;
 }
 
+function cyberVehicleTrim(kind, box) {
+  const suv=kind==='suv',coupe=kind==='coupe';
+  const w=suv?1.02:.96,length=suv?2.35:coupe?2.24:2.4,belt=suv?1.04:.85;
+  const cool=suv?'#68f3d4':coupe?'#35e7ff':'#a18aff',hot='#ff4bb9';
+  for(const side of [-1,1]) {
+    // Recessed light rails lie beneath the sill, inside the mirror envelope.
+    // They are emissive geometry rather than one dynamic light per parked car.
+    box('light',side*(w-.025),.305,-.04,.035,.034,2.20,cool);
+    box('light',side*(w+.025),belt-.16,-.06,.018,.018,1.64,cool);
+    box('light',side*w*.40,belt-.07,length+.016,w*.34,.023,.018,cool);
+    box('light',side*w*.22,belt-.045,length+.018,.035,.072,.022,cool);
+    box('tail',side*w*.38,belt-.065,-length-.038,w*.39,.024,.018,hot);
+    box('tail',side*w*.79,belt-.02,-length-.015,.024,.12,.024,hot);
+    // Segmented marker lamps and raised corner optics articulate each lightbar.
+    for(let n=0;n<3;n++)box('light',side*(w+.028),belt-.15,.72+n*.09,.025,.042,.027,cool);
+  }
+  box('tail',0,belt-.065,-length-.038,.12,.024,.018,'#ff9adf');
+}
+
+/** Shared with Blender export so the detailed GLB receives the same neon trim. */
+export function createVehicleNeonGeometry(kind='coupe') {
+  const parts={light:[],tail:[]};
+  cyberVehicleTrim(kind,(type,x,y,z,sx,sy,sz,color)=>parts[type].push({geometry:new THREE.BoxGeometry(1,1,1),matrix:transform(x,y,z,sx,sy,sz),color}));
+  return Object.fromEntries(Object.entries(parts).map(([type,list])=>[type,bake(list)]));
+}
+
 function makeVehicle(kind) {
   const suv = kind === 'suv', coupe = kind === 'coupe';
   const w=suv?1.02:.96, length=suv?2.35:coupe?2.24:2.4, belt=suv?1.04:.85;
@@ -85,7 +111,7 @@ function makeVehicle(kind) {
   add('paint',loft([[rear-.02,w*.79,roof-.095,roof-.065],[rear+.13,w*.78,roof-.08,roof+.015],[front-.13,w*.73,roof-.05,roof+.02],[front+.04,w*.72,roof-.06,roof-.025]]));
   // Door frames, sills, handles, trim, mirrors and subtly raised hood details.
   for (const side of [-1,1]) {
-    box('detail',side*(w+.012),.48,0,.045,.10,length*1.74,'#263038');
+    box('detail',side*(w+.012),.48,0,.045,.10,length*1.74,'#142538');
     box('detail',side*(w+.008),belt-.10,-.1,.016,.025,length*1.75,'#343c43');
     box('paint',side*w*.81,(belt+roof)/2,rear+.11,.065,roof-belt,.11);
     box('paint',side*w*.80,(belt+roof)/2,front-.08,.065,roof-belt,.09);
@@ -113,6 +139,7 @@ function makeVehicle(kind) {
       rounded('detail',side*(w+.065),wheelY+.08,z+.17,.065,.19,.11,coupe?'#cc4c3e':'#9b8c71');
     }
     if(suv){box('detail',side*w*.68,roof+.08,-.36,.07,.09,2.4,'#58666a');box('detail',side*(w+.03),.31,-.1,.13,.06,2.6,'#8c9698');}
+    for(let n=0;n<3;n++)box('detail',side*w*.36,belt+.053,1.18+n*.095,.27,.024,.055,'#192d42');
   }
   // Split headlights and grille lend each silhouette a distinct front face.
   box('detail',0,.52,length+.01,w*1.6,.15,.06,'#1a2327');
@@ -135,6 +162,7 @@ function makeVehicle(kind) {
   box('detail',0,.61,-length-.016,.43,.18,.025,'#e9e7d8');
   box('detail',0,.59,length+.048,.40,.16,.025,'#d8ded7');
   if(coupe)box('paint',0,belt+.095,-length+.17,w*1.7,.055,.20);
+  cyberVehicleTrim(kind,box);
   const out={};for(const [type,parts]of Object.entries(buckets))out[type]=bake(parts);
   return {geometry:out,width:w,wheelbase,wheelY,wheelRadius};
 }
@@ -172,7 +200,8 @@ export class ActorVisuals {
     this.vehiclePools=new Map();this.vehicleModels=new Map();this.geometries=new Set();this.materials=new Set();this.disposed=false;
     this._matrix=new THREE.Matrix4();this._wheelMatrix=new THREE.Matrix4();this._local=new THREE.Matrix4();this._q=new THREE.Quaternion();this._roll=new THREE.Quaternion();this._wheelQ=new THREE.Quaternion();this._color=new THREE.Color();this._position=new THREE.Vector3();this._scale=new THREE.Vector3(1,1,1);
     const mat=(params)=>{const m=new THREE.MeshStandardMaterial({vertexColors:true,...params});this.materials.add(m);return m;};
-    this.carMaterials={paint:mat({roughness:.29,metalness:.58}),glass:mat({color:'#1e3d4b',roughness:.17,metalness:.75}),detail:mat({roughness:.48,metalness:.35}),light:mat({emissive:'#dff7ec',emissiveIntensity:.55}),tail:mat({emissive:'#e72c2c',emissiveIntensity:.38}),tire:mat({roughness:.96}),rim:mat({roughness:.28,metalness:.72})};
+    const lit=()=>{const m=new THREE.MeshBasicMaterial({vertexColors:true,toneMapped:false});this.materials.add(m);return m;};
+    this.carMaterials={paint:mat({roughness:.23,metalness:.73}),glass:mat({color:'#17243c',roughness:.13,metalness:.77}),detail:mat({roughness:.38,metalness:.49}),light:lit(),tail:lit(),tire:mat({roughness:.96}),rim:mat({roughness:.22,metalness:.81})};
     for(const kind of ['coupe','sedan','suv']) {
       const model=makeVehicle(kind);this.vehicleModels.set(kind,model);
       for(const [part,geometry]of Object.entries(model.geometry))this._pool(`${kind}:${part}`,geometry,this.carMaterials[part],MAX_VEHICLES);
@@ -189,7 +218,8 @@ export class ActorVisuals {
   }
   _pool(key,geometry,material,capacity) {
     const pool=new THREE.InstancedMesh(geometry,material,capacity);pool.count=0;pool.name=`Vehicles / ${key}`;
-    pool.castShadow=true;pool.receiveShadow=true;pool.instanceMatrix.setUsage(THREE.DynamicDrawUsage);pool.frustumCulled=true;
+    const luminous=key.endsWith(':light')||key.endsWith(':tail');
+    pool.castShadow=!luminous;pool.receiveShadow=!luminous;pool.instanceMatrix.setUsage(THREE.DynamicDrawUsage);pool.frustumCulled=true;
     this.vehiclePools.set(key,pool);this.geometries.add(geometry);this.group.add(pool);return pool;
   }
   setVehicleTemplate(template) {
@@ -198,6 +228,12 @@ export class ActorVisuals {
     // Share immutable template resources; disposal remains with the asset owner.
     this.hero=template.clone(true);this.hero.name='Blender coupe / close detail';this.hero.visible=false;this.heroWheels=[];this.heroPaint=[];
     this.hero.traverse(node=>{if(node.isMesh){node.castShadow=true;node.receiveShadow=true;const clonePaint=m=>{if(/satin metallic paint/i.test(m.name)){const own=m.clone();this.materials.add(own);this.heroPaint.push(own);return own;}return m;};node.material=Array.isArray(node.material)?node.material.map(clonePaint):clonePaint(node.material);}if(node.userData.wheel_radius)this.heroWheels.push({node,initial:node.rotation.x,front:node.name.includes('front')});});
+    if(!this.heroNeon){this.heroNeon=createVehicleNeonGeometry();for(const geometry of Object.values(this.heroNeon))this.geometries.add(geometry);}
+    for(const [type,geometry] of Object.entries(this.heroNeon)){
+      const trim=new THREE.Mesh(geometry,this.carMaterials[type]);trim.name=`Vehicle cybernetic trim / ${type}`;
+      trim.castShadow=false;trim.receiveShadow=false;this.hero.add(trim);
+    }
+    for(const material of this.heroPaint){material.roughness=.23;material.metalness=.73;}
     this.group.add(this.hero);
   }
   update(gameplay,origin={x:0,z:0},time=0,mission={}) {

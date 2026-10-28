@@ -1,12 +1,12 @@
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=10';
-import { createStreetSignMaterial } from './street-signs.js?v=10';
-import { describeCoastChunk } from './coast-render.js?v=10';
-import { describeUrbanBuilding } from './urban-architecture.js?v=10';
-import { CityHorizon } from './city-horizon.js?v=10';
+import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=11';
+import { createStreetSignMaterial } from './street-signs.js?v=11';
+import { describeCoastChunk } from './coast-render.js?v=11';
+import { describeUrbanBuilding } from './urban-architecture.js?v=11';
+import { CityHorizon } from './city-horizon.js?v=11';
 
-const WHITE = '#eee7d8';
-const DARK = '#20303b';
+const WHITE = '#b1c5db';
+const DARK = '#182632';
 const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 function random(seed) {
   let n = seed >>> 0;
@@ -15,7 +15,7 @@ function random(seed) {
 
 /** Window rows remain detailed at long range without thousands of window meshes. */
 function facadeMaterial(glass = false) {
-  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: glass ? .28 : .78, metalness: glass ? .52 : .04 });
+  const material = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: glass ? .25 : .65, metalness: glass ? .55 : .10 });
   material.onBeforeCompile = shader => {
     shader.vertexShader = `attribute float facadeSeed;varying vec2 vFacadeUv;varying vec2 vFacadeSize;varying float vFacadeSeed;varying float vFacadeWall;\n${shader.vertexShader}`;
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -30,19 +30,22 @@ function facadeMaterial(glass = false) {
       float border=${glass ? '.055' : '.19'};
       float paneMask=step(border,pane.x)*step(pane.x,1.0-border)*step(.23,pane.y)*step(pane.y,.82);
       float facadeMask=paneMask*step(.045,vFacadeUv.x)*step(vFacadeUv.x,.955)*step(3.4/max(vFacadeSize.y,4.0),vFacadeUv.y)*step(vFacadeUv.y,1.0-1.1/max(vFacadeSize.y,4.0))*vFacadeWall;
-      float roomLit=step(.77,windowHash(floor(facadeUV)));
-      vec3 reflection=mix(vec3(.055,.115,.17),vec3(.24,.36,.41),vFacadeUv.y);
-      reflection+=vec3(.10,.065,.08)*pow(max(0.0,sin(vFacadeUv.x*8.0+vFacadeSeed)),8.0);
-      diffuseColor.rgb=mix(diffuseColor.rgb,mix(reflection,vec3(.78,.53,.27),roomLit),facadeMask*${glass ? '.92' : '.9'});`);
-    shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(.42,.21,.055)*roomLit*facadeMask*.5;`);
+      float roomLit=step(.58,windowHash(floor(facadeUV)));
+      float roomHue=windowHash(floor(facadeUV)+vec2(19.0,41.0));
+      vec3 roomColor=mix(vec3(.09,.70,.94),vec3(1.0,.45,.12),step(.56,roomHue));
+      roomColor=mix(roomColor,vec3(.72,.13,.65),step(.90,roomHue));
+      vec3 reflection=mix(vec3(.025,.075,.14),vec3(.18,.28,.45),vFacadeUv.y);
+      reflection+=vec3(.16,.025,.12)*pow(max(0.0,sin(vFacadeUv.x*8.0+vFacadeSeed)),8.0);
+      diffuseColor.rgb=mix(diffuseColor.rgb,mix(reflection,roomColor*.72,roomLit),facadeMask*${glass ? '.92' : '.9'});`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(1.0)*roomColor*roomLit*facadeMask*.72;`);
   };
-  material.customProgramCacheKey = () => `infinite-facade-${glass ? 'glass' : 'masonry'}-1`;
+  material.customProgramCacheKey = () => `infinite-facade-${glass ? 'glass' : 'masonry'}-cyber-2`;
   return material;
 }
 
 /** Pavement grain is evaluated in metres instead of stretched box UVs. */
 function streetMaterial(paving=false) {
-  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:paving?.91:.97});
+  const material=new THREE.MeshStandardMaterial({color:0xffffff,roughness:paving?.64:.42,metalness:paving?.08:.17});
   material.onBeforeCompile=shader=>{
     shader.vertexShader=`varying vec3 vStreetPosition;\n${shader.vertexShader}`;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStreetPosition=(instanceMatrix*vec4(position,1.0)).xyz;');
@@ -53,8 +56,11 @@ function streetMaterial(paving=false) {
       diffuseColor.rgb*=.91+grain*.15;
       ${paving ? `vec2 tile=fract(streetP/1.8);float seam=1.0-step(.018,min(min(tile.x,tile.y),min(1.0-tile.x,1.0-tile.y)));diffuseColor.rgb*=1.0-seam*.21;diffuseColor.rgb*=.95+streetNoise(floor(streetP/1.8))*.08;` : `float patch=streetNoise(floor(streetP*.13));diffuseColor.rgb*=.9+patch*.17;vec2 lane=abs(mod(streetP+64.0,128.0)-64.0);float tracks=(1.0-smoothstep(.45,.90,abs(lane.x-3.7)))+(1.0-smoothstep(.45,.90,abs(lane.y-3.7)));diffuseColor.rgb*=1.0-tracks*.10;`}
     `);
+    if(!paving)shader.fragmentShader=shader.fragmentShader.replace('#include <roughnessmap_fragment>',`#include <roughnessmap_fragment>
+      float wetPatch=streetNoise(floor(vStreetPosition.xz*.18));
+      roughnessFactor=mix(.34,.50,wetPatch);`);
   };
-  material.customProgramCacheKey=()=>paving?'coast-concrete-1':'coast-asphalt-1';
+  material.customProgramCacheKey=()=>paving?'cyber-concrete-2':'cyber-asphalt-2';
   return material;
 }
 
@@ -81,16 +87,16 @@ function describeChunk(data, lod = 0) {
   const box = (x,y,z,w,h,d,color,type='solid',ry=0,seed=0) => add(type,x,y,z,w,h,d,color,ry,seed);
   const cylinder = (x,y,z,r,h,color) => add('cylinder',x,y,z,r,h,r,color);
   const X=data.x,Z=data.z,S=CHUNK_SIZE;
-  box(X+S/2,-.10,Z+S/2,S,.18,S,'#363d40','road');
+  box(X+S/2,-.10,Z+S/2,S,.18,S,'#273442','road');
   // A raised pedestrian island leaves a full-width road at every tile edge.
-  box(X+S/2,.06,Z+S/2,S-21,.22,S-21,'#d0beb1','paving');
-  box(X+S/2,.18,Z+S/2,S-26,.06,S-26,'#c8b6a8','paving');
+  box(X+S/2,.06,Z+S/2,S-21,.22,S-21,'#6b7087','paving');
+  box(X+S/2,.18,Z+S/2,S-26,.06,S-26,'#646c82','paving');
   // Pale concrete curb and coral sidewalk edging are distinct from the asphalt.
   for(const edge of [10.55,S-10.55]) {
-    box(X+edge,.18,Z+S/2,.22,.16,S-21,'#e0d7c5','paving');
-    box(X+S/2,.18,Z+edge,S-21,.16,.22,'#e0d7c5','paving');
+    box(X+edge,.18,Z+S/2,.22,.16,S-21,'#a4b7ca','paving');
+    box(X+S/2,.18,Z+edge,S-21,.16,.22,'#a4b7ca','paving');
   }
-  const stripe = '#e5c676';
+  const stripe = '#e9b875';
   for (let t=18;t<S-13;t+=15) {
     box(X,.014,Z+t,.12,.018,7,stripe,'paint');
     box(X+t,.014,Z,7,.018,.12,stripe,'paint');
@@ -111,8 +117,8 @@ function describeChunk(data, lod = 0) {
     for(const [dx,dz] of [[11.7,11.7],[-11.7,-11.7]]) {
       cylinder(X+dx,2.15,Z+dz,.095,4.3,DARK);
       box(X+dx,4.1,Z+dz,.35,.9,.32,DARK);
-      box(X+dx,4.25,Z+dz-.17,.16,.16,.03,'#efb785','glow');
-      box(X+dx,3.98,Z+dz-.17,.16,.16,.03,'#7fd3ad','glow');
+      box(X+dx,4.25,Z+dz-.17,.16,.16,.03,'#ffc86a','glow');
+      box(X+dx,3.98,Z+dz-.17,.16,.16,.03,'#40e8f2','glow');
     }
   }
   // Every block has a real palm avenue, including the first walking street.
@@ -144,9 +150,10 @@ function describeChunk(data, lod = 0) {
   for(const feature of data.features || []) featureParts(feature);
 
   function lamp(x,z,angle) {
-    cylinder(x,3.7,z,.095,7.2,'#424b50');
-    box(x+Math.sin(angle)*.85,7.1,z+Math.cos(angle)*.85,.12,.11,1.8,'#424b50','solid',angle);
-    box(x+Math.sin(angle)*1.65,7.02,z+Math.cos(angle)*1.65,.5,.10,.9,'#ffdaa5','glow',angle);
+    cylinder(x,3.7,z,.095,7.2,'#303f57');
+    box(x+Math.sin(angle)*.85,7.1,z+Math.cos(angle)*.85,.12,.11,1.8,'#303f57','solid',angle);
+    box(x+Math.sin(angle)*1.65,7.02,z+Math.cos(angle)*1.65,.5,.10,.9,'#a4eff6','glow',angle);
+    if(lod===0)box(x+Math.sin(angle)*.10,1.25,z+Math.cos(angle)*.10,.045,1.7,.025,'#40e8f2','glow',angle);
   }
   function palm(x,z,height,seed) {
     const rng=random(seed);cylinder(x,height/2+.2,z,.14,height,'#8e8063');
@@ -157,7 +164,7 @@ function describeChunk(data, lod = 0) {
   }
   function buildingParts(b) {
     const {x,z,width:w,depth:d,height:h}=b;
-    const accent=b.accent||'#64c8b8', color=b.color||'#e0b1a0', rng=random(b.detailSeed);
+    const accent=b.accent||'#40e8f2', color=b.color||'#7b628b', rng=random(b.detailSeed);
     const isGlass=b.style==='glass', residential=b.style==='residential';
     const seed=(b.detailSeed%65521)/101;
     const type=isGlass?'glass':'facade';
@@ -166,15 +173,15 @@ function describeChunk(data, lod = 0) {
     box(x,.43,z,w+.45,.46,d+.45,'#5f6060');
     if(b.style==='glass') {
       // A stepped skyline, articulated curtain wall, and separate roof pavilion.
-      box(x,base+h+.18,z,w+1,.36,d+1,'#9badaf');
+      box(x,base+h+.18,z,w+1,.36,d+1,'#8095b4');
       box(x,base+h+2.4,z,w*.63,4.5,d*.63,color,'glass',0,seed+3);
       const ribs=lod===2?2:Math.max(2,Math.floor(w/7));
       for(let n=0;n<=ribs;n++) {
         const dx=(n/ribs-.5)*(w-.8);
-        box(x+dx,base+h/2,z+d/2+.07,.12,h,.15,'#9fb7bd','metal');
-        box(x+dx,base+h/2,z-d/2-.07,.12,h,.15,'#9fb7bd','metal');
+        box(x+dx,base+h/2,z+d/2+.07,.12,h,.15,'#6c88aa','metal');
+        box(x+dx,base+h/2,z-d/2-.07,.12,h,.15,'#6c88aa','metal');
       }
-      for(let y=8;y<h;y+=lod===0?7:14)box(x,base+y,z,w+.18,.16,d+.18,'#84a5af','metal');
+      for(let y=8;y<h;y+=lod===0?7:14)box(x,base+y,z,w+.18,.16,d+.18,'#7495b5','metal');
       if(lod<2)cylinder(x-w*.24,h+5,z+d*.18,.10,8,'#495a67');
     } else if(b.style==='deco'||b.style==='hotel') {
       // Horizontal sunshades, a ziggurat crown, and contrasting corner fins.
@@ -193,7 +200,7 @@ function describeChunk(data, lod = 0) {
       }
     } else if(b.style==='brick') {
       // Recessed floor bands, deep cornice, vertical parapet pilasters.
-      for(let y=3.7;y<h;y+=3.5)box(x,y,z,w+.25,.16,d+.25,'#d6c3aa');
+      for(let y=3.7;y<h;y+=3.5)box(x,y,z,w+.25,.16,d+.25,'#9c9bb7');
       box(x,base+h+.25,z,w+.8,.55,d+.8,'#9b715b');
       box(x,base+h+.55,z,w+.45,.16,d+.45,WHITE);
       for(const dx of [-w*.44,0,w*.44])box(x+dx,base+h/2,z-d/2-.12,.35,h,.25,'#b18c72');
@@ -214,7 +221,7 @@ function describeChunk(data, lod = 0) {
       const bays=Math.max(2,Math.floor(w/4.5));
       for(let n=0;n<=bays;n++)box(x+(n/bays-.5)*w*.84,1.6,front-.15,.11,2.85,.18,WHITE,'metal');
       box(x,3.1,front-.7,w*.92,.18,1.6,accent);
-      box(x,3.02,front-1.48,w*.91,.05,.035,'#f3c38c','glow');
+      box(x,3.02,front-1.48,w*.91,.05,.035,'#ff4fb6','glow');
       // Individual canopy stripes and luminous sign lettering are only nearby.
       if(lod===0) {
         const stripes=Math.min(15,Math.floor(w));
@@ -358,7 +365,7 @@ export class InfiniteCity {
     this.geometry={triangle:trianglePrismGeometry(),sign:new THREE.PlaneGeometry(1,1),box:new THREE.BoxGeometry(1,1,1),cylinder:new THREE.CylinderGeometry(1,1,1,10),round:new THREE.CylinderGeometry(1,1,1,24),canopy:new THREE.ConeGeometry(1,1,16),leaf:leafGeometry(),crown:new THREE.IcosahedronGeometry(1,1)};
     this._coastTime={value:0};
     const standard=(roughness=.7,metalness=0)=>new THREE.MeshStandardMaterial({color:0xffffff,roughness,metalness});
-    this.materials={sign:createStreetSignMaterial(),road:streetMaterial(),paving:streetMaterial(true),solid:standard(.68),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.38,.5),glazing:standard(.22,.55),paint:standard(.9),green:standard(.91),cylinder:standard(.67),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff}),water:oceanMaterial(this._coastTime),foam:oceanMaterial(this._coastTime,true),round:standard(.72),canopy:standard(.83),stucco:grainMaterial('stucco'),ground:grainMaterial('ground'),sand:grainMaterial('sand')};
+    this.materials={sign:createStreetSignMaterial(),road:streetMaterial(),paving:streetMaterial(true),solid:standard(.60,.06),facade:facadeMaterial(),glass:facadeMaterial(true),metal:standard(.32,.62),glazing:standard(.18,.60),paint:standard(.74),green:standard(.91),cylinder:standard(.55,.12),leaf:standard(.88),crown:standard(.94),glow:new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}),water:oceanMaterial(this._coastTime),foam:oceanMaterial(this._coastTime,true),round:standard(.62,.06),canopy:standard(.72),stucco:grainMaterial('stucco'),ground:grainMaterial('ground'),sand:grainMaterial('sand')};
     this.materials.roadTri=this.materials.road;this.materials.pavingTri=this.materials.paving;this.materials.curbTri=this.materials.solid;this.materials.paintTri=this.materials.paint;
     this.materials.leaf.side=THREE.DoubleSide;
     for(const material of Object.values(this.materials))material.envMapIntensity=.58;

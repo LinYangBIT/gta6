@@ -67,3 +67,16 @@ test('porthole windows face the boulevard and whole hotel placement rotates cons
     assert.ok(Math.abs(r.ry-a.ry-angle)<1e-7);
   }
 });
+
+test('hotel retrofit media faces the street and switches off detailed roof props at distance',()=>{
+  for(const b of hotels){
+    const near=describeCoastBuilding(b,0),mid=describeCoastBuilding(b,1),far=describeCoastBuilding(b,2);
+    const signs=near.filter(r=>r.type==='sign');
+    assert.equal(signs.length,1);assert.ok(signs[0].y>b.height,'media frame sits above the roof');
+    const normal=new THREE.Vector3(0,0,1).applyEuler(new THREE.Euler(signs[0].rx,signs[0].ry,signs[0].rz));
+    assert.ok(normal.x>.999,'new media panel faces the boulevard');
+    assert.equal(mid.filter(r=>r.type==='sign').length,0);assert.equal(far.filter(r=>r.type==='sign').length,0);
+    assert.ok(near.some(r=>r.type==='glow'&&r.y>b.height+3),'roof antenna has a small beacon');
+    assert.ok(near.length<1100,'five landmarks retain bounded offline/mobile export size');
+  }
+});

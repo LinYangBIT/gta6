@@ -1,4 +1,4 @@
-import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=10';
+import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=11';
 /**
  * Seeded city planning shared by the renderer, collisions and navigation.
  * Coordinates are metres. A curved coastal quarter connects to the infinite street grid.
@@ -10,11 +10,11 @@ export const WORLD_SEED = 610;
 export const COLLISION_CACHE_LIMIT = 48;
 
 export const DISTRICTS = Object.freeze([
-  { id: 'deco', name: '棕榈艺廊', label: 'PALM DECO · 棕榈艺廊', colors: ['#f0b297', '#cfdba7', '#d8abd1', '#f3dbaf'], accent: '#c6877a', styles: ['deco', 'hotel'], floors: [5, 13] },
-  { id: 'downtown', name: '玻璃天际线', label: 'SKYLINE · 玻璃天际线', colors: ['#438f9e', '#56a0b7', '#486f9a', '#a0b4d5'], accent: '#97e4eb', styles: ['glass', 'glass', 'hotel'], floors: [12, 30] },
-  { id: 'oldtown', name: '霓虹旧城', label: 'OLD QUARTER · 霓虹旧城', colors: ['#b65f50', '#ce8860', '#be9471', '#e2bb8d'], accent: '#f3a66e', styles: ['brick', 'deco'], floors: [3, 7] },
-  { id: 'garden', name: '花园住宅区', label: 'GARDEN HEIGHTS · 花园住宅区', colors: ['#e4d49f', '#a6c9ae', '#ddb69a', '#a4b8d2'], accent: '#a8dca8', styles: ['residential', 'residential', 'deco'], floors: [2, 6] },
-  { id: 'marina', name: '运河湾', label: 'MARINA BAY · 运河湾', colors: ['#f1d9a9', '#68c4cb', '#cca1c8', '#ed9d83'], accent: '#69d4da', styles: ['hotel', 'deco', 'glass'], floors: [4, 12] },
+  { id: 'deco', name: '棕榈艺廊', label: 'PALM DECO · 棕榈艺廊', colors: ['#725467', '#516b72', '#66577f', '#8a6f78'], accent: '#ff4fb6', styles: ['deco', 'hotel'], floors: [5, 13] },
+  { id: 'downtown', name: '玻璃天际线', label: 'SKYLINE · 玻璃天际线', colors: ['#2d6478', '#3f6c8a', '#3e527d', '#6977a4'], accent: '#40e8f2', styles: ['glass', 'glass', 'hotel'], floors: [12, 30] },
+  { id: 'oldtown', name: '霓虹旧城', label: 'OLD QUARTER · 霓虹旧城', colors: ['#684654', '#8a5b61', '#6a576b', '#8f7180'], accent: '#ffc86a', styles: ['brick', 'deco'], floors: [3, 7] },
+  { id: 'garden', name: '花园住宅区', label: 'GARDEN HEIGHTS · 花园住宅区', colors: ['#6f7180', '#496b70', '#816b78', '#58688d'], accent: '#7df5c3', styles: ['residential', 'residential', 'deco'], floors: [2, 6] },
+  { id: 'marina', name: '运河湾', label: 'MARINA BAY · 运河湾', colors: ['#778296', '#3b7b88', '#785f96', '#975e81'], accent: '#40e8f2', styles: ['hotel', 'deco', 'glass'], floors: [4, 12] },
 ].map(district => Object.freeze({ ...district, colors: Object.freeze(district.colors), styles: Object.freeze(district.styles), floors: Object.freeze(district.floors) })));
 
 /** Hash full coordinate strings instead of truncating world coordinates to 32 bits. */

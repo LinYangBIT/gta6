@@ -21,6 +21,12 @@ blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
 #   --input /tmp/dense-city.json --output previews/dense_city.png \
 #   --overview-output previews/dense_city_aerial.png --blend scenes/dense_city.blend \
 #   --resolution 1280 --samples 32
+# Cyberpunk blue-hour profile, including runtime hero-car neon overlays:
+# node scripts/export_infinite_preview.mjs --cyberpunk --seed 610 --output /tmp/cyberpunk-city.json
+# blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
+#   --input /tmp/cyberpunk-city.json --output previews/cyberpunk_city.png \
+#   --overview-output previews/cyberpunk_city_aerial.png --blend scenes/cyberpunk_city.blend \
+#   --resolution 1920 --samples 48
 
 The live city is infinite; this preview contains only its bounded nearby cells.
 Facade window masks are baked offline from the browser shader; GPU precision,
@@ -80,13 +86,22 @@ def facade_images(key, name):
     mask = ((pu >= border) & (pu <= 1-border) & (pv >= .23) & (pv <= .82)
             & (u >= .045) & (u <= .955) & (v >= 3.4 / height) & (v <= 1 - 1.1 / height)).astype(np.float32)
     hashed = np.sin(np.floor(fu)*127.1 + np.floor(fv)*311.7 + seed*17.1) * 43758.5453
-    lit = ((hashed % 1) >= .77).astype(np.float32)
-    reflection = np.array([.055,.115,.17]) + v[:,:,None] * np.array([.185,.245,.24])
-    reflection += np.array([.10,.065,.08]) * np.maximum(0,np.sin(u*8+seed))[:,:,None]**8
-    pane = reflection*(1-lit[:,:,None]) + np.array([.78,.53,.27])*lit[:,:,None]
+    lit = ((hashed % 1) >= (.58 if data.get('cyberpunk') else .77)).astype(np.float32)
+    if data.get('cyberpunk'):
+        room_hue = (np.sin((np.floor(fu)+19)*127.1 + (np.floor(fv)+41)*311.7 + seed*17.1) * 43758.5453) % 1
+        room_color = np.where((room_hue >= .56)[:,:,None], np.array([1,.45,.12]), np.array([.09,.70,.94]))
+        room_color = np.where((room_hue >= .90)[:,:,None], np.array([.72,.13,.65]), room_color)
+        reflection = np.array([.025,.075,.14]) + v[:,:,None] * np.array([.155,.205,.31])
+        reflection += np.array([.16,.025,.12]) * np.maximum(0,np.sin(u*8+seed))[:,:,None]**8
+        pane = reflection*(1-lit[:,:,None]) + room_color*.72*lit[:,:,None]
+        emission = room_color * (lit*mask*.72)[:,:,None]
+    else:
+        reflection = np.array([.055,.115,.17]) + v[:,:,None] * np.array([.185,.245,.24])
+        reflection += np.array([.10,.065,.08]) * np.maximum(0,np.sin(u*8+seed))[:,:,None]**8
+        pane = reflection*(1-lit[:,:,None]) + np.array([.78,.53,.27])*lit[:,:,None]
+        emission = np.array([.42,.21,.055]) * (lit*mask*.5)[:,:,None]
     mix = mask[:,:,None] * (.92 if style == 'glass' else .9)
     albedo = np.array(rgb)*(1-mix) + pane*mix
-    emission = np.array([.42,.21,.055]) * (lit*mask*.5)[:,:,None]
     images = []
     for label, pixels in [('windows', albedo), ('lit rooms', emission)]:
         rgba = np.ones((resolution,resolution,4), dtype=np.float32)
@@ -121,9 +136,13 @@ def get_material(key, name):
         attribute=mat.node_tree.nodes.new('ShaderNodeVertexColor')
         attribute.layer_name='Browser vertex color'
         mat.node_tree.links.new(attribute.outputs['Color'],bsdf.inputs['Base Color'])
+        if key[11]:
+            mat.node_tree.links.new(attribute.outputs['Color'],bsdf.inputs['Emission Color'])
     if key[8] in sign_atlases:
         node=mat.node_tree.nodes.new('ShaderNodeTexImage');node.image=sign_atlases[key[8]]
         mat.node_tree.links.new(node.outputs['Color'],bsdf.inputs['Base Color'])
+        if key[12]:
+            mat.node_tree.links.new(node.outputs['Color'],bsdf.inputs['Emission Color'])
     if key[6]:
         noise=mat.node_tree.nodes.new('ShaderNodeTexNoise');noise.inputs['Scale'].default_value=34
         coordinate=mat.node_tree.nodes.new('ShaderNodeNewGeometry')
@@ -177,7 +196,7 @@ for batch in data['batches']:
                 dimensions = instance['dimensions']
                 width = dimensions[2] if abs(normals[face[0]*3]) > .5 else dimensions[0]
                 facade = (base['facade'],round(width,3),round(dimensions[1],3),round(instance['facadeSeed'],4))
-            key = (*basic,facade,'road' if base.get('road') else 'paving' if base.get('paving') else None, bool(base.get('vertexColors')), batch['name'] if base.get('signAtlas') else None, bool(base.get('smooth')) or not batch['name'].startswith('City /'),bool(base.get('water')))
+            key = (*basic,facade,'road' if base.get('road') else 'paving' if base.get('paving') else None, bool(base.get('vertexColors')), batch['name'] if base.get('signAtlas') else None, bool(base.get('smooth')) or not batch['name'].startswith('City /'),bool(base.get('water')),bool(base.get('basicMaterial')),bool(base.get('emissiveMap')))
             get_material(key,batch['name'])
             target = groups[key]
             offset = len(target['vertices'])
@@ -233,6 +252,8 @@ if data.get('dense'):
     scene['source'] = 'Actual coast-layout/urban-architecture/world-layout/infinite-city/city-horizon/actors browser geometry; finite streamed neighborhood; offline Blender lighting'
     scene['distant_chunk_count'] = data['stats'].get('farLoaded',0)
     scene['visible_building_count'] = data['stats'].get('totalBuildings',data['stats']['buildings'])
+if data.get('cyberpunk'):
+    scene['visual_profile'] = 'Cyberpunk blue hour / actual runtime geometry and hero neon overlays'
 scene['preview_limits'] = 'Finite snapshot of the live infinite world. Offline materials, lighting and tone mapping differ from the browser. This is not a gameplay screenshot.'
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = args.samples if data.get('street') else min(args.samples,16)
@@ -245,6 +266,9 @@ scene.view_settings.view_transform = 'AgX'
 if data.get('vivid'):
     scene.view_settings.look = 'AgX - Medium High Contrast'
     scene.view_settings.exposure = .10
+if data.get('cyberpunk'):
+    scene.view_settings.look = 'AgX - Medium High Contrast'
+    scene.view_settings.exposure = .35
 scene.world.use_nodes = True
 world_nodes = scene.world.node_tree.nodes
 world_nodes.get('Background').inputs['Color'].default_value = (.45, .65, .82, 1) if data.get('street') else (.35,.46,.68,1)
@@ -254,11 +278,16 @@ if data.get('street'):
     sky.sun_elevation=math.radians(28);sky.sun_rotation=math.radians(135)
     scene.world.node_tree.links.new(sky.outputs['Color'],world_nodes.get('Background').inputs['Color'])
     world_nodes.get('Background').inputs['Strength'].default_value=.20 if data.get('vivid') else .18
+    if data.get('cyberpunk'):
+        sky.sun_elevation=math.radians(8)
+        world_nodes.get('Background').inputs['Strength'].default_value=.13
     # Keep the same clear cyan-to-warm-horizon art direction as the browser sky;
     # Nishita still supplies ambient illumination to physical surfaces.
     import numpy as np
     rgba=np.ones((256,512,4),dtype=np.float32)
     bottom=np.array([.51,.78,.95] if data.get('vivid') else [.55,.73,.91]);top=np.array([.025,.31,.67] if data.get('vivid') else [.035,.25,.56])
+    if data.get('cyberpunk'):
+        bottom=np.array([.135,.073,.163]);top=np.array([.008,.024,.093])
     for row in range(256):
         elevation=max(0,math.sin((row/255-.5)*math.pi));t=min(1,elevation/.22);t=t*t*(3-2*t)
         rgba[row,:,:3]=bottom*(1-t)+top*t
@@ -275,10 +304,23 @@ if data.get('street'):
 sun_data = bpy.data.lights.new('Sunset key', 'SUN')
 sun_data.energy = 3.3 if data.get('vivid') else 3.0 if data.get('street') else 2.7
 sun_data.color = (1.0,.91,.80) if data.get('vivid') else (1.0,.88,.73) if data.get('street') else (1.0,.77,.53)
+if data.get('cyberpunk'):
+    sun_data.energy = 2.05
+    sun_data.color = (.64,.73,1.0)
 sun_data.angle = math.radians(2 if data.get('street') else 7)
 sun = bpy.data.objects.new('Sunset key', sun_data)
 bpy.context.collection.objects.link(sun)
 sun.rotation_euler = (math.radians(28), math.radians(-25), math.radians(-42))
+if data.get('cyberpunk'):
+    fill_data=bpy.data.lights.new('Cyan dusk fill','SUN');fill_data.energy=.72;fill_data.color=(.22,.77,.86);fill_data.angle=math.radians(12)
+    fill=bpy.data.objects.new('Cyan dusk fill',fill_data);bpy.context.collection.objects.link(fill)
+    fill.rotation_euler=(math.radians(48),math.radians(15),math.radians(126))
+    # A restrained optical glow is an offline approximation, not browser post-FX.
+    scene.use_nodes=True
+    nodes=scene.node_tree.nodes;nodes.clear()
+    layers=nodes.new('CompositorNodeRLayers');glow=nodes.new('CompositorNodeGlare');glow.glare_type='FOG_GLOW';glow.quality='HIGH';glow.threshold=.85;glow.size=7
+    composite=nodes.new('CompositorNodeComposite')
+    scene.node_tree.links.new(layers.outputs['Image'],glow.inputs['Image']);scene.node_tree.links.new(glow.outputs['Image'],composite.inputs['Image'])
 
 camera_data = bpy.data.cameras.new('Street life / landscape camera' if data.get('street') else 'City overview')
 camera = bpy.data.objects.new('City overview', camera_data)

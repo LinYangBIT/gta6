@@ -7,11 +7,11 @@
   <meta name="description" content="探索连续延伸的海滨都市：密集商铺、住宅庭院、办公楼群与远处天际线，可步行、驾驶和接取委托。">
   <title>Sunset Coast — 日落海岸</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./style.css?v=10">
-  <link rel="stylesheet" href="./cover.css?v=10">
-  <link rel="stylesheet" href="./music.css?v=10">
-  <link rel="stylesheet" href="./cinematic.css?v=10">
-  <link rel="stylesheet" href="./settings.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
+  <link rel="stylesheet" href="./cover.css?v=11">
+  <link rel="stylesheet" href="./music.css?v=11">
+  <link rel="stylesheet" href="./cinematic.css?v=11">
+  <link rel="stylesheet" href="./settings.css?v=11">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body class="is-intro">
@@ -35,12 +35,12 @@
 
   <section id="intro" class="intro intro--cover" aria-labelledby="intro-title">
     <picture class="intro__poster" aria-hidden="true">
-      <source media="(orientation: portrait)" srcset="./assets/gta6-cover-portrait.jpg?v=10">
-      <img src="./assets/gta6-cover-landscape.jpg?v=10" width="3840" height="2160" alt="" fetchpriority="high" decoding="async">
+      <source media="(orientation: portrait)" srcset="./assets/gta6-cover-portrait.jpg?v=11">
+      <img src="./assets/gta6-cover-landscape.jpg?v=11" width="3840" height="2160" alt="" fetchpriority="high" decoding="async">
     </picture>
     <div class="intro__shade" aria-hidden="true"></div>
     <header class="intro__header">
-      <a class="brand" href="#" aria-label="Sunset Coast 非官方可玩场景首页"><img class="brand__logo" src="./assets/gta6-logo.png?v=10" width="807" height="540" alt="Grand Theft Auto VI"><span>SUNSET COAST<small>非官方可玩场景</small></span></a>
+      <a class="brand" href="#" aria-label="Sunset Coast 非官方可玩场景首页"><img class="brand__logo" src="./assets/gta6-logo.png?v=11" width="807" height="540" alt="Grand Theft Auto VI"><span>SUNSET COAST<small>非官方可玩场景</small></span></a>
       <button id="intro-music-toggle" class="text-button intro-music" aria-label="播放或暂停背景音乐">♫ 音乐</button><a class="source-link" href="https://github.com/LinYangBIT/gta6" target="_blank" rel="noopener noreferrer">工程与源码 <span aria-hidden="true">↗</span></a>
     </header>
     <div class="intro__content">
@@ -68,7 +68,7 @@
 
   <section id="entry-cinematic" class="entry-cinematic" aria-label="城市入场动画" hidden>
     <div class="entry-cinematic__fade" aria-hidden="true"></div>
-    <div class="entry-cinematic__caption"><p id="cinematic-subtitle">SUNSET COAST · 18:42</p><h2 id="cinematic-title">日落海岸</h2></div>
+    <div class="entry-cinematic__caption"><p id="cinematic-subtitle">SUNSET COAST · 20:48</p><h2 id="cinematic-title">日落海岸</h2></div>
     <button id="cinematic-skip" class="entry-cinematic__skip">跳过 CG <svg aria-hidden="true"><use href="#i-next"/></svg></button>
     <span class="entry-cinematic__progress" aria-hidden="true"></span>
   </section>
@@ -76,9 +76,9 @@
   <main id="hud" class="hud" aria-label="城市探索与任务控制" hidden>
     <header class="hud__header">
       <div class="hud__identity"><span class="brand__sun" aria-hidden="true"></span><div><strong>SUNSET COAST</strong><span id="district">棕榈大道</span></div></div>
-      <div class="hud__time"><span class="live-dot"></span>18:42 <span>GOLDEN HOUR</span></div>
+      <div class="hud__time"><span class="live-dot"></span>20:48 <span>NEON HOUR</span></div>
       <nav class="toolbar" aria-label="体验设置">
-        <button id="sound-button" class="icon-button" aria-label="打开引擎声" aria-pressed="false" title="引擎声"><svg aria-hidden="true"><use href="#i-sound"/></svg><span class="mute-slash" aria-hidden="true"></span></button>
+        <button id="sound-button" class="icon-button" aria-label="关闭引擎声" aria-pressed="true" title="引擎声 · 默认开启"><svg aria-hidden="true"><use href="#i-sound"/></svg><span class="mute-slash" aria-hidden="true"></span></button>
         <button id="fullscreen-button" class="icon-button desktop-only" aria-label="切换全屏" title="全屏"><svg aria-hidden="true"><use href="#i-expand"/></svg></button>
         <button id="help-button" class="icon-button" aria-label="打开操控设置与操作指南" title="操控设置与操作指南"><svg aria-hidden="true"><use href="#i-settings"/></svg></button>
         <button id="menu-button" class="icon-button" aria-label="返回菜单，快捷键 Esc" title="返回菜单 · Esc"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
@@ -146,11 +146,11 @@
     <p class="dialog__intro">你从街头步行开始。跟随金色任务标记与联系人见面；靠近任意街边车辆，按 E 上车，停车后再次按 E 下车。城市会随着探索持续生成。</p>
     <label class="graphics-setting" for="graphics-quality">画面清晰度<select id="graphics-quality"><option value="auto">自动 · 高清优先</option><option value="high">高清</option><option value="balanced">均衡</option><option value="performance">流畅</option></select></label>
     <dl class="key-guide"><div><dt><kbd>W A S D</kbd> / <kbd>方向键</kbd></dt><dd>步行移动 / 驾驶</dd></div><div><dt><kbd>SHIFT</kbd></dt><dd>步行时奔跑</dd></div><div><dt><kbd>E</kbd></dt><dd>交谈、上车或下车</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>驾驶时手刹</dd></div><div><dt><kbd>C</kbd> / <kbd>V</kbd></dt><dd>切换镜头 / 镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到街头起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>音乐播放器 / 下一首或打开原声</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
-    <p class="help-note">推荐横屏游玩。左手拖动摇杆移动，右手拖动画面环视，按住「奔跑」加速；靠近车辆后点「上车」。驾驶时摇杆变为方向盘，右侧显示油门、刹车和倒车。双指缩放镜头。完成委托可获得报酬，之后继续接受新的送达任务。进入时先播放可跳过的城市 CG，并同步启动默认 BGM；原声未开始时由内置 COAST FM 衔接，Spotify 原声开始后自动切换；音乐默认收起为顶部两个小按钮，点击音符才展开完整播放器；收起设置或返回菜单不会主动停止音乐。Spotify 自动播放受浏览器和平台限制，未出声时点击顶部音乐按钮展开播放器，再点播放键。可切换至 COAST FM 或本地音频，本地文件不上传。驾驶转向保留高速稳定限制，上方可调整转向幅度与响应速度，默认更灵活；轻推摇杆微调、持续推转弯，松手回正；S 或倒车键先减速再倒车。画面清晰度可在上方选择。</p>
+    <p class="help-note">推荐横屏游玩。左手拖动摇杆移动，右手拖动画面环视，按住「奔跑」加速；靠近车辆后点「上车」。驾驶时摇杆变为方向盘，右侧显示油门、刹车和倒车。引擎声默认开启，上车后随车速变化；右上角声音按钮可关闭。双指缩放镜头。完成委托可获得报酬，之后继续接受新的送达任务。进入时先播放可跳过的城市 CG，并同步启动默认 BGM；原声未开始时由内置 COAST FM 衔接，Spotify 原声开始后自动切换；音乐默认收起为顶部两个小按钮，点击音符才展开完整播放器；收起设置或返回菜单不会主动停止音乐。Spotify 自动播放受浏览器和平台限制，未出声时点击顶部音乐按钮展开播放器，再点播放键。可切换至 COAST FM 或本地音频，本地文件不上传。驾驶转向保留高速稳定限制，上方可调整转向幅度与响应速度，默认更灵活；轻推摇杆微调、持续推转弯，松手回正；S 或倒车键先减速再倒车。画面清晰度可在上方选择。</p>
     <p class="reference-note">街区依据 <a href="https://www.videogameschronicle.com/news/the-first-official-gta-trilogy-gameplay-footage-compares-the-definitive-editions-and-originals/" target="_blank" rel="noopener noreferrer">Vice City 海滨大道截图 ↗</a>与 <a href="https://www.rockstargames.com/VI/media/screenshots" target="_blank" rel="noopener noreferrer">GTA VI 官方画面 ↗</a>重建；这是原型街区，并非完整游戏地图。原声由 Spotify 提供，网站不保存商业音轨。</p>
     <button class="button button--primary" data-close="help-dialog">知道了 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </dialog>
   <dialog id="video-dialog" class="dialog video-dialog" aria-labelledby="video-title"><button class="dialog__close icon-button" data-close="video-dialog" aria-label="关闭短片"><svg aria-hidden="true"><use href="#i-close"/></svg></button><p id="video-title" class="eyebrow">ORIGINAL COAST / BLENDER SHORT</p><video id="cruise-video" controls playsinline preload="none"><source src="./assets/sunset_cruise.mp4" type="video/mp4">你的浏览器无法播放此视频，可<a href="./assets/sunset_cruise.mp4">下载短片</a>。</video></dialog>
-  <script type="module" src="./main.js?v=10"></script>
+  <script type="module" src="./main.js?v=11"></script>
 </body>
 </html>

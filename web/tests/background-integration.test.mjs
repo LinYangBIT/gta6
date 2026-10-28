@@ -7,7 +7,7 @@ const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
 const source=await readFile(new URL('../dist/main.js',import.meta.url),'utf8');
 
 function harness(){
-  const callbacks={window:new Map(),document:new Map(),canvas:new Map()},calls=[],elements=new Map();
+  const callbacks={window:new Map(),document:new Map(),canvas:new Map()},calls=[],elements=new Map(),engineStates=[];
   let handlers,videoOpen=false,now=0;
   class Vector3{constructor(x=0,y=0,z=0){Object.assign(this,{x,y,z});}set(x,y,z){Object.assign(this,{x,y,z});return this;}}
   function element(id){
@@ -17,6 +17,7 @@ function harness(){
   }
   const canvas={focus(){calls.push('focus:canvas');},addEventListener(name,fn){callbacks.canvas.set(name,fn);}};
   const soundtrack={source:'spotify',prepare(){calls.push('prepare');return Promise.resolve(true);},start(){calls.push('start');return Promise.resolve(true);},setSuspended(value){calls.push(['suspended',value]);},nextTrack(){},togglePanel(){}};
+  const engineAudio={enabled:true,start(){calls.push('engine-start');return Promise.resolve(this.enabled);},toggle(){this.enabled=!this.enabled;},update(state){engineStates.push({...state});}};
   const classes=new Set();
   const document={hidden:false,body:{classList:{add(value){classes.add(value);},remove(value){classes.delete(value);}}},
     querySelector(selector){if(selector==='#world')return canvas;if(selector.includes('dialog')&&videoOpen)return element('video-dialog');return null;},
@@ -30,6 +31,7 @@ function harness(){
     MissionSystem:class{snapshot(){return {noticeId:0,target:null,completed:0};}update(){return this.snapshot();}},
     FloatingOrigin:class{constructor(){this.x=0;this.z=0;}update(){return {dx:0,dz:0};}},
     CameraControls:class{constructor(){this.yaw=0;}clear(){}reset(){}},createRadio:()=>({}),createSoundtrack:()=>soundtrack,
+    createEngineSound:()=>engineAudio,
     createUI(value){handlers=value;return ui;},QUALITY_MODES:['auto','high','balanced','performance'],
     createSteeringSettings({simulation}){assert.ok(simulation,'settings bind the current driving simulation');calls.push('settings');},
     coastGroundHeight:()=>.22,districtAt:()=>({label:'Ocean Drive'}),requestAnimationFrame(){},
@@ -41,7 +43,7 @@ function harness(){
   const moduleBody=source.slice(0,boot).replace(/^import[^\n]*\n/gm,'').replaceAll('import.meta.url',JSON.stringify('https://example.test/main.js'));
   vm.runInContext(moduleBody,context);
   vm.runInContext('ready=true;renderer={render(){}};city={update(){return {};}};actors={update(){}};camera={position:new THREE.Vector3(),lookAt(){}};updateCamera=()=>{};updateMarkers=()=>{};drawMap=()=>{};',context);
-  return {callbacks,calls,elements,classes,handlers,document,ui,read:expression=>vm.runInContext(expression,context),
+  return {callbacks,calls,elements,classes,handlers,document,ui,engineAudio,engineStates,read:expression=>vm.runInContext(expression,context),
     video(value){videoOpen=value;},advance(seconds){for(let elapsed=0;elapsed<seconds-1e-8;elapsed+=.05){now+=50;vm.runInContext(`tick(${now});`,context);}}};
 }
 
@@ -49,7 +51,7 @@ test('official audio starts synchronously before CG; CG blocks input and retains
   const h=harness();
   assert.deepEqual(h.calls,['prepare','settings'],'loading prepares audio and applies steering preferences without playing');
   h.handlers.start('free');
-  assert.deepEqual(h.calls.slice(2,4),['start','hide'],'trusted click requests audio before changing the screen');
+  assert.deepEqual(h.calls.slice(2,5),['start','engine-start','hide'],'trusted click unlocks BGM and default engine before changing the screen');
   assert.equal(h.read('active'),false);assert.equal(h.read('entry.playing'),true);
   assert.equal(h.read('missionEnabled'),false);assert.equal(h.elements.get('hud').inert,true);
   h.handlers.start('walk');
@@ -95,6 +97,22 @@ test('Escape skips CG while the skip button has keyboard focus',()=>{
   let prevented=false;
   h.callbacks.window.get('keydown')({code:'Escape',target:{matches:selector=>selector.includes('button')},preventDefault(){prevented=true;}});
   assert.equal(prevented,true);h.advance(.4);assert.equal(h.read('active'),true);
+});
+
+test('default engine is unlocked at entry but is audible only in active driving and keeps manual mute',()=>{
+  const h=harness();assert.equal(h.engineAudio.enabled,true);
+  h.handlers.start('walk');h.advance(.1);
+  assert.equal(h.engineStates.at(-1).active,false,'CG does not idle an engine');
+  h.elements.get('cinematic-skip').listeners.get('click')();h.advance(.4);
+  assert.equal(h.engineStates.at(-1).driving,false,'walking is silent');
+  h.read("game.mode='drive';game.state.speed=12;");h.advance(.05);
+  assert.deepEqual(h.engineStates.at(-1),{speed:12,active:true,driving:true,blocked:false});
+  h.document.hidden=true;h.callbacks.document.get('visibilitychange')();
+  assert.equal(h.engineStates.at(-1).blocked,true);
+  h.document.hidden=false;h.handlers.sound();assert.equal(h.engineAudio.enabled,false);
+  h.handlers.menu();h.handlers.start('walk');assert.equal(h.engineAudio.enabled,false,'reentry does not override user mute');
+  h.callbacks.canvas.get('webglcontextlost')({preventDefault(){}});
+  assert.equal(h.engineStates.at(-1).active,false,'context loss mutes even though rendering stops');
 });
 
 test('the compact music buttons and persistent player remain outside the HUD and CG',()=>{

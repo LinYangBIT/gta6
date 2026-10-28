@@ -15,8 +15,8 @@ test('dense buildings retain distinct styles while bounding every level of detai
   const fingerprints=new Set();
   for(const style of styles)for(const seed of [1,4,610,813,2147483647]){
     const b=building(style,seed),near=describeUrbanBuilding(b,0),mid=describeUrbanBuilding(b,1),far=describeUrbanBuilding(b,2);
-    assert.ok(near.length>=45&&near.length<=65,`${style}/${seed} near ${near.length}`);
-    assert.ok(mid.length<=18&&mid.length>=8,`${style}/${seed} mid ${mid.length}`);
+    assert.ok(near.length>=45&&near.length<=80,`${style}/${seed} near ${near.length}`);
+    assert.ok(mid.length<=21&&mid.length>=8,`${style}/${seed} mid ${mid.length}`);
     assert.ok(far.length<=7&&far.length>=3,`${style}/${seed} far ${far.length}`);
     assert.ok(near.length>mid.length&&mid.length>far.length);
     assert.ok(near.some(r=>r.type==='sign'));
@@ -33,8 +33,8 @@ test('dense buildings retain distinct styles while bounding every level of detai
 });
 
 test('all orientations preserve collision footprints and keep detail within reserved sidewalk margin',()=>{
-  for(const style of styles)for(const orientation of [0,Math.PI/2,Math.PI,-Math.PI/2])for(const roof of ['flat','pitched','stepped']){
-    const b={...building(style,610,orientation),roof},records=describeUrbanBuilding(b,0),body=bounds(records[0]);
+  for(const style of styles)for(const seed of [610,813,822])for(const orientation of [0,Math.PI/2,Math.PI,-Math.PI/2])for(const roof of ['flat','pitched','stepped']){
+    const b={...building(style,seed,orientation),roof},records=describeUrbanBuilding(b,0),body=bounds(records[0]);
     assert.ok(Math.abs(body.min.x-(b.x-b.width/2))<1e-6);
     assert.ok(Math.abs(body.max.x-(b.x+b.width/2))<1e-6);
     assert.ok(Math.abs(body.min.z-(b.z-b.depth/2))<1e-6);
@@ -66,6 +66,19 @@ test('short residential buildings keep balconies distinct and detailed windows b
     const upperGlazing=records.filter(r=>r.type==='glazing'&&r.y>4);
     assert.equal(upperGlazing.length,2,'bounded close-up window detail independent of floor count');
     for(const window of upperGlazing)assert.ok(window.y+window.sy/2<.22+h);
-    assert.ok(records.length<=65);
+    assert.ok(records.length<=80);
+  }
+});
+
+test('cyberpunk retrofits keep a bounded glow batch and selectively add framed rooftop media',()=>{
+  for(const style of styles)for(const seed of [2,3,4,813]){
+    const b=building(style,seed),near=describeUrbanBuilding(b,0),mid=describeUrbanBuilding(b,1),far=describeUrbanBuilding(b,2);
+    assert.ok(near.filter(r=>r.type==='glow').length>=4);
+    assert.equal(mid.filter(r=>r.type==='glow').length,3,'mid-distance light rails do not grow with storey count');
+    assert.equal(far.filter(r=>r.type==='glow').length,0,'far geometry remains minimal');
+    const media=near.filter(r=>r.type==='sign'&&r.y>b.height);
+    assert.equal(media.length,seed%3===0?1:0,'roof media appears only on selected parcels');
+    if(media.length)assert.ok(near.some(r=>r.type==='metal'&&r.y===media[0].y&&r.sy>media[0].sy),'screen has real structural backing');
+    assert.ok(near.length<=80);
   }
 });

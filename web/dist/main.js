@@ -1,21 +1,22 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Gameplay } from './gameplay.js?v=10';
-import { MissionSystem } from './missions.js?v=10';
-import { ActorVisuals } from './actors.js?v=10';
-import { createUI } from './ui.js?v=10';
-import { CameraControls } from './camera-controls.js?v=10';
-import { createRadio } from './radio.js?v=10';
-import { createSoundtrack } from './soundtrack.js?v=10';
-import { createSteeringSettings } from './steering-settings.js?v=10';
-import { EntryCinematic } from './entry-cinematic.js?v=10';
-import { coastRoute, coastGroundHeight } from './coast-layout.js?v=10';
-import { refineMaterials } from './surface-detail.js?v=10';
-import { InfiniteCity } from './infinite-city.js?v=10';
-import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=10';
-import { FloatingOrigin } from './world-origin.js?v=10';
-import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=10';
+import { Gameplay } from './gameplay.js?v=11';
+import { MissionSystem } from './missions.js?v=11';
+import { ActorVisuals } from './actors.js?v=11';
+import { createUI } from './ui.js?v=11';
+import { CameraControls } from './camera-controls.js?v=11';
+import { createRadio } from './radio.js?v=11';
+import { createSoundtrack } from './soundtrack.js?v=11';
+import { createEngineSound } from './engine-sound.js?v=11';
+import { createSteeringSettings } from './steering-settings.js?v=11';
+import { EntryCinematic } from './entry-cinematic.js?v=11';
+import { coastRoute, coastGroundHeight } from './coast-layout.js?v=11';
+import { refineMaterials } from './surface-detail.js?v=11';
+import { InfiniteCity } from './infinite-city.js?v=11';
+import { CHUNK_SIZE, generateChunk, districtAt, collidersNear } from './world-layout.js?v=11';
+import { FloatingOrigin } from './world-origin.js?v=11';
+import { resolveRenderQuality, nextAutomaticTier, QUALITY_MODES } from './render-quality.js?v=11';
 
 const canvas = document.querySelector('#world');
 const mobile = matchMedia('(pointer: coarse)').matches;
@@ -36,9 +37,8 @@ const view = new CameraControls();
 const radio = createRadio();
 const cameraLabels = ['跟随', '侧面', '第一人称', '俯瞰'];
 let renderer, scene, camera, sky, sun, fillLight, actors;
-let ready = false, active = false, soundOn = false, clock = 0;
+let ready = false, active = false, clock = 0;
 let lastTime = performance.now();
-let audioContext, engine, audioGain, engineFilter;
 let frameCost = 0, frameCount = 0, adaptiveFrames = 0, autoTier = 'high', qualityMode='auto';
 try{const saved=localStorage.getItem('sunset-graphics-quality');if(QUALITY_MODES.includes(saved))qualityMode=saved;}catch{/* Optional setting persistence. */}
 let introOrbit = 0;
@@ -54,6 +54,7 @@ const forward = new THREE.Vector3();
 const carPosition = new THREE.Vector3();
 
 let ui;
+const engineAudio=createEngineSound({onStatus:message=>ui?.toast(message)});
 const soundtrack=createSoundtrack({
   radio,
   onStatus(message){ui?.toast(message);},
@@ -64,6 +65,7 @@ ui = createUI({
     if (!ready || entry.playing) return;
     // Request official audio in this trusted click, before the visual transition.
     soundtrack.start();
+    engineAudio.start();
     active=false; missionEnabled=mode!=='free'; clearInput();view.reset();walkCameraYaw=game.state.yaw;
     cinematicFrame=entry.start({x:game.state.x,z:game.state.z,ground:coastGroundHeight(game.state.x,game.state.z)??.22,quick:entryPlayed,reducedMotion:reduceMotion});
     document.body.classList.add('is-cinematic');
@@ -121,7 +123,7 @@ function interact(){
   if(missionEnabled&&current.interaction?.available){const result=missions.interact(actor);if(result.message)ui.toast(result.message);return;}
   const previousMode=game.mode,result=game.interact();
   if(result.message)ui.toast(result.message);
-  if(result.ok&&previousMode!==game.mode){clearInput();view.reset();walkCameraYaw=game.state.yaw;}
+  if(result.ok&&previousMode!==game.mode){clearInput();view.reset();walkCameraYaw=game.state.yaw;if(game.mode==='drive')engineAudio.start();updateSound();}
 }
 function syncOrigin(){
   const {dx,dz}=origin.update(game.state.x,game.state.z);
@@ -150,23 +152,23 @@ function setupRenderer(){
   applyRenderQuality();
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.08;
+  renderer.toneMappingExposure=1.16;
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  scene=new THREE.Scene();scene.background=new THREE.Color('#aad7df');
+  scene=new THREE.Scene();scene.background=new THREE.Color('#344561');
   // The skyline uses the same streamed plots as the streets below. Atmospheric
   // depth now reaches across several neighborhoods rather than hiding the next block.
-  scene.fog=new THREE.Fog('#aad7df',mobile?320:500,mobile?930:1400);
+  scene.fog=new THREE.Fog('#344561',mobile?320:500,mobile?930:1400);
   camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.15,2600);
   camera.position.set(43,22,48);cameraTarget.set(-2,4,-25);
   camera.lookAt(cameraTarget);
-  const hemisphere=new THREE.HemisphereLight('#b9e7ff','#8b8064',.92);scene.add(hemisphere);
-  sun=new THREE.DirectionalLight('#ffe0a3',3.3);sun.position.set(-55,70,80);
+  const hemisphere=new THREE.HemisphereLight('#9bbcff','#57425f',1.12);scene.add(hemisphere);
+  sun=new THREE.DirectionalLight('#b6c8ff',2.05);sun.position.set(-55,70,80);
   sun.castShadow=true;
   applyRenderQuality();sun.shadow.bias=-.00025;sun.shadow.normalBias=.04;
   Object.assign(sun.shadow.camera,{left:-42,right:42,top:42,bottom:-42,near:1,far:240});
   scene.add(sun,sun.target);
-  fillLight=new THREE.DirectionalLight('#88c8ed',.50);fillLight.position.set(20,20,-50);scene.add(fillLight);
+  fillLight=new THREE.DirectionalLight('#6de6ed',.72);fillLight.position.set(20,20,-50);scene.add(fillLight);
   const room=new RoomEnvironment();const pmrem=new THREE.PMREMGenerator(renderer);
   const environment=pmrem.fromScene(room,.04);scene.environment=environment.texture;
   room.dispose();pmrem.dispose();
@@ -183,14 +185,14 @@ function setupRenderer(){
 function createSky(){
   const material=new THREE.ShaderMaterial({
     side:THREE.BackSide,depthWrite:false,fog:false,
-    uniforms:{zenith:{value:new THREE.Color('#51ade1')},horizon:{value:new THREE.Color('#f0d2af')},sunColor:{value:new THREE.Color('#fff0c3')},sunDirection:{value:new THREE.Vector3(-.55,.7,.8).normalize()}},
+    uniforms:{zenith:{value:new THREE.Color('#162b56')},horizon:{value:new THREE.Color('#67466f')},sunColor:{value:new THREE.Color('#ee9aca')},sunDirection:{value:new THREE.Vector3(-.65,.12,.75).normalize()}},
     vertexShader:`varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
     fragmentShader:`varying vec3 vDir;uniform vec3 zenith,horizon,sunColor,sunDirection;
     float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
     float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.0),f.x),f.y);}
     void main(){vec3 d=normalize(vDir);float h=smoothstep(-.03,.6,d.y);vec3 c=mix(horizon,zenith,h);
     vec2 p=d.xz/max(.09,d.y)*1.5;float n=noise(p)*.55+noise(p*2.0)*.28+noise(p*4.0)*.17;
-    float clouds=smoothstep(.52,.76,n)*smoothstep(.04,.22,d.y);c=mix(c,vec3(.91,.92,.88),clouds*.8);
+    float clouds=smoothstep(.52,.76,n)*smoothstep(.04,.22,d.y);c=mix(c,vec3(.32,.38,.57),clouds*.68);
     float a=max(dot(d,sunDirection),0.0);c+=sunColor*pow(a,36.0)*.25;c=mix(c,sunColor,smoothstep(.9991,.9995,a));gl_FragColor=vec4(c,1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}`
   });
   sky=new THREE.Mesh(new THREE.SphereGeometry(1800,32,20),material);sky.renderOrder=-100;sky.frustumCulled=false;scene.add(sky);
@@ -207,7 +209,7 @@ function createCourse(){
 async function downloadAsset(file,totalHint,onChunk){
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),120000);
   try{
-    const response=await fetch(new URL(`./assets/${file}?v=10`,import.meta.url),{signal:controller.signal});
+    const response=await fetch(new URL(`./assets/${file}?v=11`,import.meta.url),{signal:controller.signal});
     if(!response.ok)throw new Error(`素材加载失败 (${response.status})`);
     if(!response.body){const data=await response.arrayBuffer();onChunk(data.byteLength,totalHint);return data;}
     const reader=response.body.getReader();const chunks=[];let loaded=0;
@@ -371,24 +373,10 @@ function drawMap(){
   map.save();map.translate(w/2,h/2);map.rotate(-s.yaw);map.fillStyle='#fff9e6';map.strokeStyle='#292339';map.lineWidth=2;map.beginPath();map.moveTo(0,8);map.lineTo(-5,-5);map.lineTo(0,-2);map.lineTo(5,-5);map.closePath();map.stroke();map.fill();map.restore();
 }
 
-function toggleSound(){
-  if(!audioContext){
-    const Audio=window.AudioContext||window.webkitAudioContext;
-    if(!Audio){ui.toast('此浏览器暂不支持声音');return;}
-    audioContext=new Audio();engine=audioContext.createOscillator();engine.type='sawtooth';
-    engineFilter=audioContext.createBiquadFilter();engineFilter.type='lowpass';engineFilter.frequency.value=420;
-    audioGain=audioContext.createGain();audioGain.gain.value=0;
-    engine.connect(engineFilter).connect(audioGain).connect(audioContext.destination);engine.start();
-  }
-  soundOn=!soundOn;if(soundOn)audioContext.resume().catch(()=>{soundOn=false;});
-  ui.toast(soundOn?'引擎声已开启':'声音已关闭');
-}
+function toggleSound(){engineAudio.toggle();updateSound();}
 function updateSound(){
-  if(!audioContext)return;
-  const speed=Math.abs(game.state.speed);
-  engine.frequency.setTargetAtTime(42+speed*5,audioContext.currentTime,.08);
-  engineFilter.frequency.setTargetAtTime(250+speed*18,audioContext.currentTime,.08);
-  audioGain.gain.setTargetAtTime(soundOn&&active&&game.mode==='drive'&&!ui.orientationBlocked&&!document.hidden&&!document.querySelector('dialog[open]')?.022:0,audioContext.currentTime,.08);
+  engineAudio.update({speed:Math.abs(game.state.speed),active,driving:game.mode==='drive',
+    blocked:ui.orientationBlocked||document.hidden||Boolean(document.querySelector('dialog[open]'))});
 }
 async function toggleFullscreen(){
   try{if(document.fullscreenElement)await document.exitFullscreen();else if(document.documentElement.requestFullscreen){await document.documentElement.requestFullscreen();if(screen.orientation?.lock)try{await screen.orientation.lock('landscape');}catch{/* The rotate hint remains available. */}}else ui.toast('可使用浏览器菜单进入全屏');}catch{ui.toast('浏览器暂未允许全屏');}
@@ -420,7 +408,7 @@ function tick(now){
   const interactionLabel=context?.label??(game.mode==='drive'?(canExit?'下车':'停车后下车'):nearest?`驾驶 ${nearest.label??'车辆'}`:'靠近车辆可上车');
   ui.update({mode:game.mode,vehicleLabel:game.activeVehicle?.label??'街头漫步',interactionLabel,canInteract:!!context?.available||canExit||!!nearest,
     mission:missionEnabled?missionView:{...missionView,chapter:'FREE ROAM',title:'城市属于你',objective:'步行探索，或靠近任意车辆上车。菜单可进入任务模式。',progress:0,total:0,target:null},
-    speed:Math.abs(s.speed)*3.6,gear:s.speed<-.15?'R':Math.abs(s.speed)<.15?'N':String(Math.min(5,1+Math.floor(Math.abs(s.speed)/9))),checkpoint:missionView.completed,total:0,time:s.lapTime,distance:s.distance,seed:worldSeed,loadedChunks:cityStats.loaded,destinationDistance:target?Math.hypot(s.x-target.x,s.z-target.z):0,cameraLabel:cameraLabels[view.mode],musicSource:soundtrack.source,musicPanelOpen:soundtrack.isOpen,musicOn:soundtrack.playing,trackLabel:soundtrack.label,soundOn,cruising:s.cruising,district:districtAt(s.x,s.z,worldSeed).label});
+    speed:Math.abs(s.speed)*3.6,gear:s.speed<-.15?'R':Math.abs(s.speed)<.15?'N':String(Math.min(5,1+Math.floor(Math.abs(s.speed)/9))),checkpoint:missionView.completed,total:0,time:s.lapTime,distance:s.distance,seed:worldSeed,loadedChunks:cityStats.loaded,destinationDistance:target?Math.hypot(s.x-target.x,s.z-target.z):0,cameraLabel:cameraLabels[view.mode],musicSource:soundtrack.source,musicPanelOpen:soundtrack.isOpen,musicOn:soundtrack.playing,trackLabel:soundtrack.label,soundOn:engineAudio.enabled,cruising:s.cruising,district:districtAt(s.x,s.z,worldSeed).label});
   if(frameCount%5===0)drawMap();
   renderer.render(scene,camera);
   frameCount++;
@@ -458,7 +446,7 @@ for(const type of ['pointerup','pointercancel','lostpointercapture'])canvas.addE
 canvas.addEventListener('wheel',event=>{if(active){event.preventDefault();view.zoomBy(Math.exp(event.deltaY*.001));}},{passive:false});
 canvas.addEventListener('dblclick',recenterCamera);
 canvas.addEventListener('contextmenu',event=>event.preventDefault());
-canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;closeCinematic();clearInput();soundtrack.setSuspended(true);ui.showIntro();ui.setError('图形连接暂时中断，请重新载入海岸。');});
+canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();ready=false;active=false;closeCinematic();clearInput();soundtrack.setSuspended(true);updateSound();ui.showIntro();ui.setError('图形连接暂时中断，请重新载入海岸。');});
 
 try{setupRenderer();requestAnimationFrame(tick);await loadWorld();}
 catch(error){console.error('Coast initialization failed',error);ui.setError(error instanceof Error?`暂时无法进入 3D 场景：${error.message}`:'暂时无法载入 3D 场景。你仍可观看预览短片。');}

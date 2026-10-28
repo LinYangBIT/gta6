@@ -3,10 +3,10 @@
  * Ocean Drive / GTA VI hotel screenshots. These are new meshes, not game assets.
  * The street-facing elevation is local +X; widths/depths are X/Z footprints.
  */
-const CREAM = '#f1e7cf';
-const FRAME = '#e2e0ce';
-const GLASS = '#1c5365';
-const DARK = '#394448';
+const CREAM = '#bbc9df';
+const FRAME = '#b3c8dd';
+const GLASS = '#28435e';
+const DARK = '#263247';
 const FONT = {
   A:['01110','10001','10001','11111','10001','10001','10001'],
   B:['11110','10001','10001','11110','10001','10001','11110'],
@@ -38,17 +38,17 @@ export function describeCoastBuilding(building, lod = 0) {
   const orientation=Number.isFinite(b.orientation)?b.orientation:0, co=Math.cos(orientation), si=Math.sin(orientation);
   const variant=b.landmark || (b.style==='glass'?'tower':'apartment');
   const styles={
-    colony:{wall:'#58b8be',accent:'#85f0d8',dark:'#317f8a',floors:4},
-    dominion:{wall:'#efe1c5',accent:'#e58f9c',dark:'#a58d78',floors:5},
-    dixon:{wall:'#eee3d2',accent:'#edb467',dark:'#a17b57',floors:7},
-    coral:{wall:'#e79b9d',accent:'#55c5b8',dark:'#b87674',floors:4},
-    tower:{wall:'#aec5c5',accent:'#b7cfce',dark:'#728a95',floors:Math.round(h/3.5)},
-    apartment:{wall:b.color||'#d9c8b1',accent:b.accent||'#a7bdad',dark:'#8a8d84',floors:b.floors||Math.round(h/3.4)},
+    colony:{wall:'#315c6c',accent:'#52e9f4',dark:'#203f55',floors:4},
+    dominion:{wall:'#655577',accent:'#ff62ce',dark:'#3b354e',floors:5},
+    dixon:{wall:'#555878',accent:'#ffc06e',dark:'#34394b',floors:7},
+    coral:{wall:'#74546d',accent:'#52e9f4',dark:'#3f314d',floors:4},
+    tower:{wall:'#315263',accent:'#52e9f4',dark:'#2d394f',floors:Math.round(h/3.5)},
+    apartment:{wall:b.color||'#555178',accent:b.accent||'#ff62ce',dark:'#32394d',floors:b.floors||Math.round(h/3.4)},
   };
   const theme=styles[variant]||styles.apartment;
   // Shared layout color also drives distant massing, so approaching a landmark
   // adds its details without swapping the dominant facade hue.
-  const style={...theme,wall:b.color||theme.wall};
+  const style={...theme,wall:b.color||theme.wall,accent:b.accent||theme.accent};
   const floors=Math.max(2,Math.min(24,b.floors||style.floors));
   const floorH=(h-3.6)/(floors-1), roof=base+h;
   const seed=(b.detailSeed||1)%65521/101;
@@ -311,5 +311,35 @@ export function describeCoastBuilding(building, lod = 0) {
     if(lod<2)text('OCEAN SUITES',front+.32,3.9,0,Math.min(d*.76,15),'#d8b28b','metal');
   }
   parapet();
+  if(lod<2){
+    const neon=style.accent,secondary=variant==='colony'||variant==='coral'?'#ff62ce':'#52e9f4';
+    // Retrofit light rails keep each hotel's Deco silhouette legible after
+    // sunset. These are shared glow instances, not expensive dynamic lamps.
+    box(front+.20,roof+.89,0,.10,.12,d*.86,neon,'glow');
+    for(const side of [-1,1])box(front+.42,h*.57,side*d*.43,.08,h*.75,.075,secondary,'glow');
+    if(lod===0){
+      // An actual framed rooftop screen, with its support and media surface,
+      // is distinct from simply tinting the original facade a neon colour.
+      const mediaZ=d*.19,mediaY=roof+2.05,mediaW=Math.min(d*.27,9.5),mediaX=front-.65;
+      box(mediaX,mediaY,mediaZ,.24,2.05,mediaW+.36,DARK,'metal');
+      for(const side of [-1,1]){
+        box(mediaX+.15,mediaY,mediaZ+side*(mediaW/2+.11),.055,2.05,.075,neon,'glow');
+        box(mediaX+.15,mediaY+side*.99,mediaZ,.055,.065,mediaW+.30,secondary,'glow');
+        box(mediaX,roof+.72,mediaZ+side*mediaW*.34,.26,1.36,.14,DARK,'metal');
+      }
+      add('sign',mediaX+.135,mediaY,mediaZ,mediaW,1.72,1,'#ffffff',Math.PI/2);
+      records[records.length-1].seed=((b.detailSeed||0)>>>0)%8;
+      // Rooftop communications and exposed service risers add a layered,
+      // occupied silhouette while remaining inside the existing parcel.
+      round(-w*.34,roof+2.3,-d*.31,.09,4.1,'#71849e');
+      box(-w*.34,roof+3.30,-d*.31,.10,.10,1.45,DARK,'metal');
+      box(-w*.34,roof+4.40,-d*.31,.15,.20,.15,secondary,'glow');
+      for(const z of [-d*.29,-d*.18]){
+        round(-w/2+.14,roof*.53,z,.10,roof*.88,'#63738c');
+        box(-w/2+.14,roof*.91,z,.22,.12,.40,'#8ca0b8','metal');
+      }
+      box(front+.49,3.43,0,.055,.055,d*.69,neon,'glow');
+    }
+  }
   return records;
 }
