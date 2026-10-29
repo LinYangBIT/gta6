@@ -1,5 +1,5 @@
 /** DOM-only presentation and touch controls for Sunset Coast. */
-import { createMissionGuidance, missionDirection } from './mission-guidance.js?v=12';
+import { createMissionGuidance, missionDirection } from './mission-guidance.js?v=13';
 
 export function createUI(handlers = {}) {
   const byId = id => document.getElementById(id);

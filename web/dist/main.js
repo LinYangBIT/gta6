@@ -4,7 +4,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Gameplay } from './gameplay.js?v=12';
 import { MissionSystem } from './missions.js?v=12';
 import { ActorVisuals } from './actors.js?v=12';
-import { createUI } from './ui.js?v=12';
+import { createUI } from './ui.js?v=13';
 import { CameraControls } from './camera-controls.js?v=12';
 import { createRadio } from './radio.js?v=12';
 import { createSoundtrack } from './soundtrack.js?v=12';

@@ -1,4 +1,14 @@
-/** Short English dispatch lines. Speech is optional; the same line is always captioned. */
+/** Low, steady English dispatch. Speech is optional; every line is captioned. */
+// Web Speech has no standard gender field. Prefer familiar adult male voices
+// when the device offers them; unknown English voices still get the lower pitch.
+const maleVoice = /\bmale\b|\b(?:Guy|David|Mark|Alex|Daniel|Aaron|Ryan|Andrew|Brian|George|Arthur|Oliver|James|Matthew|Christopher|Eric)(?:Multilingual)?(?:Neural)?\b/i;
+function voiceScore(item) {
+  const identity = `${item.name || ''} ${item.voiceURI || ''}`;
+  return (maleVoice.test(identity) ? 100 : 0)
+    + (/\bnatural\b|neural/i.test(identity) ? 12 : 0)
+    + (item.localService ? 8 : 0) + (/^en[-_]US$/i.test(item.lang) ? 6 : 0)
+    + (item.default ? 1 : 0);
+}
 export function createMissionGuidance(options = {}) {
   const speech = options.speech ?? globalThis.speechSynthesis;
   const Utterance = options.Utterance ?? globalThis.SpeechSynthesisUtterance;
@@ -9,8 +19,7 @@ export function createMissionGuidance(options = {}) {
   const voice = () => {
     const voices = speech?.getVoices?.() || [];
     const english = voices.filter(item => /^en(?:[-_]|$)/i.test(item.lang || ''));
-    return english.find(item => item.localService && /^en-US$/i.test(item.lang))
-      || english.find(item => item.localService) || english.find(item => item.default) || english[0];
+    return english.reduce((best, item) => !best || voiceScore(item) > voiceScore(best) ? item : best, undefined);
   };
   function cancel() {
     const wasSpeaking = speaking;
@@ -27,8 +36,9 @@ export function createMissionGuidance(options = {}) {
     if (!supported) { status = 'text-only'; notify(); return false; }
     try {
       const utterance = new Utterance(current.voiceText);
-      utterance.lang = 'en-US'; utterance.rate = .98; utterance.pitch = 1; utterance.volume = .9;
+      utterance.rate = .92; utterance.pitch = .78; utterance.volume = .9;
       const selected = voice();
+      utterance.lang = selected?.lang?.replace('_', '-') || 'en-US';
       if (selected) utterance.voice = selected;
       speaking = utterance;
       status = 'ready';
