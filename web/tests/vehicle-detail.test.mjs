@@ -6,6 +6,7 @@ import { ActorVisuals } from '../dist/actors.js';
 test('refined body parts stay finite, in vehicle bounds and within a fixed geometry budget',()=>{
   const actors=new ActorVisuals(new THREE.Scene());
   for(const [kind,model] of actors.vehicleModels){
+    if(!['coupe','sedan','suv'].includes(kind))continue;
     let vertices=0;
     for(const geometry of Object.values(model.geometry)){
       vertices+=geometry.attributes.position.count;
@@ -18,7 +19,7 @@ test('refined body parts stay finite, in vehicle bounds and within a fixed geome
     }
     assert.ok(vertices<11000,`${kind}: ${vertices} vertices`);
   }
-  assert.equal(actors.vehiclePools.size,17,'detail remains merged into the existing material batches');
+  assert.equal(actors.vehiclePools.size,34,'all six vehicle types use a bounded shared set of material batches');
   actors.dispose();
 });
 
@@ -29,7 +30,8 @@ test('higher resolution tyres retain road contact and steering clearance',()=>{
   assert.ok(tire.attributes.position.count+rim.attributes.position.count<8000);
   assert.ok(tire.boundingBox.min.y>=-1.001&&tire.boundingBox.max.y<=1.001,'tread must not enlarge rolling radius');
   assert.ok(rim.boundingBox.min.y>tire.boundingBox.min.y&&rim.boundingBox.max.y<tire.boundingBox.max.y);
-  for(const model of actors.vehicleModels.values()){
+  for(const [kind,model] of actors.vehicleModels){
+    if(!['coupe','sedan','suv'].includes(kind))continue;
     const lowest=model.wheelY+tire.boundingBox.min.y*model.wheelRadius;
     assert.ok(lowest>=-.012&&lowest<=.012,`${lowest} tyre/ground gap`);
     assert.ok(tire.boundingBox.max.x*model.wheelRadius+model.width+.015<1.25,'wheel stays inside mirror envelope');
@@ -61,7 +63,7 @@ test('the close Blender car shares bounded neon trim without owning the borrowed
   assert.ok(tail.getX(0)>tail.getY(0),'rear magenta light keeps its colour');
   actors.setVehicleTemplate(template);
   assert.deepEqual(actors.hero.children.filter(node=>node.name.startsWith('Vehicle cybernetic trim')).map(node=>node.geometry),geometries,'replacing the hero reuses owned trim');
-  assert.equal(actors.vehiclePools.size,17);
+  assert.equal(actors.vehiclePools.size,34);
   actors.dispose();assert.equal(ownedDisposed,2);assert.equal(borrowedDisposed,0);
   borrowedGeometry.dispose();borrowedMaterial.dispose();
 });

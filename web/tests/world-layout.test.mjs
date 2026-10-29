@@ -37,15 +37,15 @@ test('districts form coherent regions with different building styles, heights an
     const chunk = generateChunk(cx, cz);
     districts.add(chunk.district.id); layouts.add(chunk.layout);
     const regionStart = { x: Math.floor(cx / 3) * 3 * 128, z: Math.floor(cz / 3) * 3 * 128 };
-    if (!chunk.coastal && !generateChunk(Math.floor(cx / 3) * 3, Math.floor(cz / 3) * 3).coastal)
+    if (!chunk.coastal && !chunk.metro && !generateChunk(Math.floor(cx / 3) * 3, Math.floor(cz / 3) * 3).coastal && !generateChunk(Math.floor(cx / 3) * 3, Math.floor(cz / 3) * 3).metro)
       assert.equal(districtAt(chunk.x + 64, chunk.z + 64).id, districtAt(regionStart.x + 2, regionStart.z + 2).id);
     for (const building of chunk.buildings) { styles.add(building.style); heights.add(building.height); colors.add(building.color); }
     for (const feature of chunk.features) features.add(feature.kind);
   }
-  assert.equal(districts.size, DISTRICTS.length + 1);
+  assert.equal(districts.size, DISTRICTS.length + 1 + 6);
   assert.ok(districts.has('ocean-drive'));
   assert.equal(styles.size, 5);
-  assert.equal(layouts.size, 5);
+  assert.equal(layouts.size, 11);
   assert.ok(layouts.has('coastal'));
   assert.ok(heights.size > 35);
   assert.ok(colors.size >= 18);

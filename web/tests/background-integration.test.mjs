@@ -106,7 +106,7 @@ test('default engine is unlocked at entry but is audible only in active driving 
   h.elements.get('cinematic-skip').listeners.get('click')();h.advance(.4);
   assert.equal(h.engineStates.at(-1).driving,false,'walking is silent');
   h.read("game.mode='drive';game.state.speed=12;");h.advance(.05);
-  assert.deepEqual(h.engineStates.at(-1),{speed:12,active:true,driving:true,blocked:false});
+  assert.deepEqual(h.engineStates.at(-1),{speed:12,vehicleKind:'coupe',altitude:0,active:true,driving:true,blocked:false});
   h.document.hidden=true;h.callbacks.document.get('visibilitychange')();
   assert.equal(h.engineStates.at(-1).blocked,true);
   h.document.hidden=false;h.handlers.sound();assert.equal(h.engineAudio.enabled,false);
@@ -125,4 +125,24 @@ test('the compact music buttons and persistent player remain outside the HUD and
     assert.ok(button>hudEnd&&button<panel,`${id} stays accessible when the menu hides the HUD or the full player is collapsed`);
   }
   assert.match(html,/id="intro-music-toggle"/);assert.match(html,/id="music-play-toggle"/);
+});
+
+test('flight keys are separate from ground handbrake and impacts follow active gameplay',()=>{
+  const h=harness();
+  h.read("impacts={starts:0,emits:0,clears:0,startAudio(){this.starts++;},emit(){this.emits++;},update(){},clear(){this.clears++;}};");
+  h.handlers.start('walk');assert.equal(h.read('impacts.starts'),1);
+  h.elements.get('cinematic-skip').listeners.get('click')();h.advance(.4);
+  h.read("game.mode='drive';game.activeVehicle={kind:'helicopter'};");
+  h.callbacks.window.get('keydown')({code:'Space',target:{matches:()=>false},preventDefault(){}});
+  assert.equal(h.read('readInput().ascend'),1);
+  assert.equal(h.read('readInput().handbrake'),false);
+  h.callbacks.window.get('keyup')({code:'Space'});
+  h.callbacks.window.get('keydown')({code:'ControlLeft',target:{matches:()=>false},preventDefault(){}});
+  assert.equal(h.read('readInput().descend'),1);
+  h.advance(.05);assert.ok(h.read('impacts.emits')>0);
+  h.read("game.activeVehicle={kind:'truck'};keys.add('Space');");
+  assert.equal(h.read('readInput().ascend'),0);
+  assert.equal(h.read('readInput().descend'),0);
+  assert.equal(h.read('readInput().handbrake'),true);
+  h.handlers.menu();assert.ok(h.read('impacts.clears')>0);
 });

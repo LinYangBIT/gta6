@@ -12,7 +12,7 @@ const coverage=chunk=>chunk.buildings.reduce((sum,b)=>sum+b.width*b.depth,0)/(91
 test('infinite blocks hold dense continuous street frontage with usable inner courts',()=>{
   let count=0,totalBuildings=0,totalCoverage=0;const layouts=new Set();
   for(let cx=-20;cx<20;cx++)for(let cz=-20;cz<20;cz++){
-    const chunk=generateChunk(cx,cz,610);if(chunk.coastal)continue;
+    const chunk=generateChunk(cx,cz,610);if(chunk.coastal||chunk.metro)continue;
     assert.ok(chunk.buildings.length>=16&&chunk.buildings.length<=22);
     assert.ok(coverage(chunk)>.60&&coverage(chunk)<.88,`${chunk.key} coverage=${coverage(chunk)}`);
     for(const face of ['north','south','west','east']){

@@ -31,14 +31,21 @@ export function createEngineSound(options = {}) {
   function apply() {
     if (!context || disposed || !master) return;
     const speed = Math.min(60, Math.abs(Number.isFinite(state.speed) ? state.speed : 0));
-    const time = context.currentTime, rpm = 42 + speed * 4.5;
+    const kind = state.vehicleKind, helicopter = kind === 'helicopter', truck = kind === 'truck';
+    const time = context.currentTime;
+    const rpm = helicopter ? 68 + Math.min(speed, 30) * .65 : truck ? 29 + speed * 2.3 : 42 + speed * 4.5;
+    fundamental.type = helicopter ? 'triangle' : 'sawtooth';
+    harmonic.type = helicopter ? 'sawtooth' : 'triangle';
     fundamental.frequency.setTargetAtTime(rpm, time, .085);
-    harmonic.frequency.setTargetAtTime(rpm * 2.01, time, .085);
-    lowpass.frequency.setTargetAtTime(260 + speed * 14, time, .1);
+    harmonic.frequency.setTargetAtTime(rpm * (truck ? 1.51 : helicopter ? 3.03 : 2.01), time, .085);
+    lowpass.frequency.setTargetAtTime(helicopter ? 470 : truck ? 190 + speed * 8 : 260 + speed * 14, time, .1);
     const audible = enabled && unlocked && context.state === 'running'
-      && state.active && state.driving && !state.blocked;
-    const volume = audible ? .015 + Math.min(1, speed / 42) * .006 : 0;
-    master.gain.setTargetAtTime(volume, time, audible ? .065 : .035);
+      && state.active && state.driving && !state.blocked && kind !== 'bicycle';
+    // A bounded blade pulse makes the helicopter distinct without another
+    // permanent AudioContext or oscillator. Cycling remains motor-silent.
+    const rotorPulse = helicopter ? .62 + .38 * (.5 + .5 * Math.sin(time * Math.PI * 34)) : 1;
+    const volume = audible ? (.015 + Math.min(1, speed / 42) * .006) * rotorPulse : 0;
+    master.gain.setTargetAtTime(volume, time, audible ? helicopter ? .008 : .065 : .035);
   }
 
   async function start() {
@@ -80,7 +87,7 @@ export function createEngineSound(options = {}) {
     start, toggle,
     update(next = {}) {
       if (disposed) return;
-      state = { speed: next.speed, active: Boolean(next.active), driving: Boolean(next.driving), blocked: Boolean(next.blocked) };
+      state = { speed: next.speed, vehicleKind: next.vehicleKind || 'coupe', active: Boolean(next.active), driving: Boolean(next.driving), blocked: Boolean(next.blocked) };
       apply();
     },
     dispose() {

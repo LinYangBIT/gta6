@@ -7,11 +7,12 @@
   <meta name="description" content="探索连续延伸的海滨都市：密集商铺、住宅庭院、办公楼群与远处天际线，可步行、驾驶和接取委托。">
   <title>Sunset Coast — 日落海岸</title>
   <link rel="icon" type="image/svg+xml" href="./icon.svg">
-  <link rel="stylesheet" href="./style.css?v=11">
-  <link rel="stylesheet" href="./cover.css?v=11">
-  <link rel="stylesheet" href="./music.css?v=11">
-  <link rel="stylesheet" href="./cinematic.css?v=11">
-  <link rel="stylesheet" href="./settings.css?v=11">
+  <link rel="stylesheet" href="./style.css?v=12">
+  <link rel="stylesheet" href="./cover.css?v=12">
+  <link rel="stylesheet" href="./music.css?v=12">
+  <link rel="stylesheet" href="./cinematic.css?v=12">
+  <link rel="stylesheet" href="./settings.css?v=12">
+  <link rel="stylesheet" href="./mission.css?v=12">
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js","three/addons/":"./vendor/addons/"}}</script>
 </head>
 <body class="is-intro">
@@ -35,12 +36,12 @@
 
   <section id="intro" class="intro intro--cover" aria-labelledby="intro-title">
     <picture class="intro__poster" aria-hidden="true">
-      <source media="(orientation: portrait)" srcset="./assets/gta6-cover-portrait.jpg?v=11">
-      <img src="./assets/gta6-cover-landscape.jpg?v=11" width="3840" height="2160" alt="" fetchpriority="high" decoding="async">
+      <source media="(orientation: portrait)" srcset="./assets/gta6-cover-portrait.jpg?v=12">
+      <img src="./assets/gta6-cover-landscape.jpg?v=12" width="3840" height="2160" alt="" fetchpriority="high" decoding="async">
     </picture>
     <div class="intro__shade" aria-hidden="true"></div>
     <header class="intro__header">
-      <a class="brand" href="#" aria-label="Sunset Coast 非官方可玩场景首页"><img class="brand__logo" src="./assets/gta6-logo.png?v=11" width="807" height="540" alt="Grand Theft Auto VI"><span>SUNSET COAST<small>非官方可玩场景</small></span></a>
+      <a class="brand" href="#" aria-label="Sunset Coast 非官方可玩场景首页"><img class="brand__logo" src="./assets/gta6-logo.png?v=12" width="807" height="540" alt="Grand Theft Auto VI"><span>SUNSET COAST<small>非官方可玩场景</small></span></a>
       <button id="intro-music-toggle" class="text-button intro-music" aria-label="播放或暂停背景音乐">♫ 音乐</button><a class="source-link" href="https://github.com/LinYangBIT/gta6" target="_blank" rel="noopener noreferrer">工程与源码 <span aria-hidden="true">↗</span></a>
     </header>
     <div class="intro__content">
@@ -56,7 +57,7 @@
         <div class="loading__meta"><span id="loading-message">正在准备城市…</span><span id="loading-percent">0%</span></div>
         <div class="loading__track"><span id="loading-fill"></span></div>
       </div>
-      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 城市已就绪 · 入场 CG / GTA V 原声 / 步行与驾驶</p>
+      <p id="ready-message" class="ready-message" hidden><span class="live-dot"></span> 城市已就绪 · 英文电台 / 语音任务 / 骑行、驾驶与飞行</p>
       <div class="city-choice"><span>城市编号 <strong id="world-seed">000610</strong></span><button id="new-city-button" class="text-button" disabled>换一座城 <span aria-hidden="true">↻</span></button></div>
       <div id="load-error" class="load-error" role="alert" hidden>
         <strong>暂时无法进入三维场景</strong><p id="error-message"></p>
@@ -88,16 +89,21 @@
       <div class="route-panel__top"><span class="route-mark" aria-hidden="true">◇</span><span id="mission-chapter">第一份委托</span><span id="mission-progress">01 / 04</span></div>
       <h2 id="mission-title">初到海岸</h2>
       <p id="mission-objective">走到街角，与联系人见面</p>
+      <p id="mission-action-hint" class="mission-action-hint">跟随金色光柱 · 步行靠近联络人</p>
+      <div id="mission-navigation" class="mission-navigation"><span id="mission-direction-arrow" class="mission-direction-arrow" aria-hidden="true">↑</span><strong id="mission-nav-distance">17 m</strong><span id="mission-direction">前方</span><span class="mission-navigation__target">金色光柱</span></div>
       <div class="route-progress" aria-hidden="true"><span id="mission-progress-fill"></span></div>
       <div class="route-panel__bottom"><span>目标 <strong id="destination-distance">20 m</strong></span><span id="mission-reward-wrap">报酬 <strong id="mission-reward">$300</strong></span><span id="mission-cash">$0</span></div>
+      <div class="mission-voice"><button id="mission-voice-toggle" type="button" aria-label="关闭英文任务语音" aria-pressed="true" title="英文任务语音开关"><span aria-hidden="true">◖))</span><span id="mission-voice-status">EN VOICE</span></button><button id="mission-voice-replay" type="button" aria-label="重播当前英文任务提示" title="重播英文提示">↻ 重播</button></div>
+      <p id="mission-caption" class="mission-caption" lang="en">Follow the gold marker to your contact.</p>
       <span id="route-description" class="sr-only"></span>
     </section>
+    <aside id="mission-banner" class="mission-banner" role="status" aria-live="polite"><span id="mission-banner-title">目标已更新</span><strong id="mission-banner-objective"></strong><small id="mission-banner-caption" lang="en"></small></aside>
     <div class="world-stats" aria-label="城市探索统计"><span id="distance-value">0.00 km</span><span id="checkpoint-count">0 份委托</span><span>城市 <b id="city-label">000610</b></span></div>
 
 
     <div class="camera-dock" aria-label="视角控制"><button id="camera-button" class="camera-chip" aria-label="切换镜头，快捷键 C" title="切换镜头 · C"><svg aria-hidden="true"><use href="#i-camera"/></svg><span id="camera-label">追逐镜头</span><span aria-hidden="true">⌄</span></button><button id="recenter-button" class="icon-button" aria-label="镜头回到身后" title="镜头回正"><svg aria-hidden="true"><use href="#i-center"/></svg></button><span class="camera-dock__hint">拖动画面 · 自由环视</span></div>
     <div id="cruise-badge" class="cruise-badge" hidden><span class="live-dot"></span> 自动巡游中 <small>操控方向即可接管</small></div>
-    <div class="minimap-wrap"><canvas id="minimap" width="256" height="256" aria-label="周边城市道路小地图"></canvas><span class="minimap-north">N ↑</span><span class="minimap-label">CITY STREETS</span></div>
+    <div class="minimap-wrap"><canvas id="minimap" width="256" height="256" aria-label="周边城市道路小地图"></canvas><span class="minimap-north">N ↑</span><span class="minimap-label"><b class="legend-bike">B</b> 自行车 <b class="legend-truck">T</b> 卡车 <b class="legend-helicopter">H</b> 直升机</span></div>
     <div class="drive-hints" aria-hidden="true"><span><kbd>W A S D</kbd> <span id="movement-hint">移动</span></span><i></i><span><kbd id="secondary-key">SHIFT</kbd> <span id="secondary-hint">奔跑</span></span><i></i><span><kbd>C</kbd> 镜头 · 拖动环视</span></div>
     <div class="interaction"><button id="interact-button" class="interact-button" disabled><kbd>E</kbd><span id="interaction-label">靠近车辆或任务地点</span></button><span class="interaction__note">任何街边车辆都可驾驶</span></div>
     <div class="speedometer" aria-label="车速"><div class="speedometer__top"><span id="gear">N</span><button id="reset-button" class="reset-button" title="回到起点 · R" aria-label="回到起点，快捷键 R"><svg aria-hidden="true"><use href="#i-reset"/></svg></button></div><div class="speedometer__value"><span id="speed">0</span><small>km/h</small></div><div class="speedometer__line"><span id="speed-fill"></span></div><p><span id="vehicle-label">ON FOOT</span><span>●</span></p></div>
@@ -108,24 +114,26 @@
         </div><span id="movement-caption" class="touch-controls__caption">拖动摇杆 · 自由移动</span>
       </div>
       <div class="touch-controls__walk"><button data-control="sprint" class="touch-sprint" aria-label="移动时按住奔跑"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="14" cy="4" r="2"/><path d="m11 8 4 3 4 1M11 8l-4 3H3m8-3-2 6 5 3-1 5m-4-8-4 6H2"/></svg><strong>奔跑</strong><small>移动时按住</small></button></div>
+      <div class="touch-controls__flight" aria-label="直升机高度控制"><span>高度 <b id="flight-altitude">0 m</b></span><button data-control="ascend" class="touch-ascend" aria-label="按住上升直升机">↑<strong>上升</strong></button><button data-control="descend" class="touch-descend" aria-label="按住下降直升机">↓<strong>下降</strong></button></div>
       <div class="touch-controls__pedals">
         <div class="touch-controls__utility"><button data-control="handbrake" class="touch-handbrake" aria-label="按住手刹">手刹</button><button data-control="brake" class="touch-brake" aria-label="按住刹车">刹车<span aria-hidden="true">Ⅱ</span></button><button data-control="reverse" class="touch-reverse" aria-label="按住倒车">倒车 <span aria-hidden="true">R</span></button></div>
         <button data-control="throttle" class="touch-throttle" aria-label="按住油门前进"><span aria-hidden="true">↑</span><strong>油门</strong><small>按住前进</small><i aria-hidden="true"></i></button>
       </div>
     </div>
   </main>
-    <div class="radio-card" aria-label="海岸电台"><button id="music-button" class="radio-card__play" aria-label="打开音乐播放器" aria-pressed="false" aria-expanded="false" aria-controls="soundtrack-panel" title="音乐来源与播放器"><svg aria-hidden="true"><use href="#i-music"/></svg><span class="radio-card__equalizer" aria-hidden="true"><i></i><i></i><i></i></span></button><div class="radio-card__track"><span><span id="music-source-label">GTA V 原声</span> <b id="radio-state">READY</b></span><strong id="track-label">GTA V · THE SCORE</strong></div><button id="music-play-toggle" class="icon-button" aria-label="暂停背景音乐" title="播放或暂停背景音乐">Ⅱ</button><button id="track-button" class="icon-button" aria-label="切换下一首音乐" title="下一首"><svg aria-hidden="true"><use href="#i-next"/></svg></button></div>
+    <div class="radio-card" aria-label="海岸电台"><button id="music-button" class="radio-card__play" aria-label="打开音乐播放器" aria-pressed="false" aria-expanded="false" aria-controls="soundtrack-panel" title="音乐来源与播放器"><svg aria-hidden="true"><use href="#i-music"/></svg><span class="radio-card__equalizer" aria-hidden="true"><i></i><i></i><i></i></span></button><div class="radio-card__track"><span><span id="music-source-label">PULSE FM</span> <b id="radio-state">READY</b></span><strong id="track-label">On My Way · Alex feat. Donnie Ozone</strong></div><button id="music-play-toggle" class="icon-button" aria-label="暂停背景音乐" title="播放或暂停背景音乐">Ⅱ</button><button id="track-button" class="icon-button" aria-label="切换下一首音乐" title="下一首"><svg aria-hidden="true"><use href="#i-next"/></svg></button></div>
     <section id="soundtrack-panel" class="soundtrack-panel" aria-labelledby="soundtrack-title" hidden>
       <div class="soundtrack-panel__header"><strong id="soundtrack-title">为这段路选一首歌</strong><button id="soundtrack-compact" class="soundtrack-compact" aria-label="收起音乐设置，继续播放" aria-pressed="false" hidden>收起</button><button id="soundtrack-close" class="icon-button" aria-label="收起音乐设置，继续后台播放"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
-      <div class="soundtrack-sources" role="group" aria-label="音乐来源"><button id="music-source-spotify" aria-pressed="true">GTA V 原声</button><button id="music-source-coast" aria-pressed="false">COAST FM</button><button id="music-source-local" aria-pressed="false">本地音乐</button></div>
-      <div id="soundtrack-spotify">
+      <div class="soundtrack-sources" role="group" aria-label="音乐来源"><button id="music-source-pulse" aria-pressed="true">英文热歌</button><button id="music-source-spotify" aria-pressed="false">GTA V 原声</button><button id="music-source-coast" aria-pressed="false">COAST FM</button><button id="music-source-local" aria-pressed="false">本地音乐</button></div>
+      <div id="soundtrack-pulse" class="coast-player"><p>PULSE FM <span>英文人声 · 140 / 128 BPM</span></p><strong id="pulse-track-name">On My Way · Alex feat. Donnie Ozone</strong><div><button id="pulse-toggle" class="button button--outline">播放 / 暂停</button><button id="pulse-next" class="button button--outline">下一首 →</button></div><small id="pulse-track-credit"></small><a href="./assets/music-attribution.json" target="_blank" rel="noopener">曲目与授权 ↗</a></div>
+      <div id="soundtrack-spotify" hidden>
         <div id="spotify-mount" class="spotify-mount"></div>
         <p class="soundtrack-note">原声未开始时播放内置 BGM；范围取决于 Spotify 账号和地区。<a href="https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD" target="_blank" rel="noopener noreferrer">打开 Spotify ↗</a></p>
       </div>
       <div id="soundtrack-coast" class="coast-player" hidden><p>COAST FM <span>原创合成器电台</span></p><div><button id="coast-toggle" class="button button--outline">播放 / 暂停</button><button id="coast-next" class="button button--outline">下一首 →</button></div><small>两首原创曲目，无需外部服务。</small></div>
       <div id="soundtrack-local" class="local-player" hidden><p id="local-audio-name">还没有选择音频</p><audio id="local-audio" controls preload="none"></audio><button id="local-audio-pick" class="text-button">选择音频文件 ↗</button><input id="local-audio-file" type="file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.flac,.opus" hidden aria-label="选择本地音频文件"><small>文件只在本机播放，不会上传。</small></div>
       <label class="music-volume-label" for="music-volume">音乐音量 <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.38"></label>
-      <p id="soundtrack-status" class="soundtrack-status" role="status">进入即播放 BGM，GTA V 原声开始后自动接替内置音乐</p>
+      <p id="soundtrack-status" class="soundtrack-status" role="status">进入即播放 PULSE FM 英文歌曲，可切换原声或本地音乐</p>
     </section>
 
   <aside id="rotate-notice" class="rotate-notice" aria-label="横屏体验提示"><div class="rotate-notice__phone" aria-hidden="true">↻</div><p class="eyebrow">A WIDER WORLD</p><h2>把手机横过来</h2><p>让城市铺满视野，双手操控更顺手。</p><button id="rotate-fullscreen" class="button button--primary">全屏体验 <svg aria-hidden="true"><use href="#i-expand"/></svg></button><button id="continue-portrait" class="text-button">继续竖屏游玩</button></aside>
@@ -143,14 +151,15 @@
       <div class="steering-settings__scale" aria-hidden="true"><span>柔和 · 60%</span><span>迅速 · 180%</span></div>
       <div class="steering-settings__footer"><p id="steering-settings-note">幅度越大转弯越急，响应越高打方向越快。即时生效，自动保存在本机。</p><button id="steering-reset" class="text-button" type="button">恢复推荐</button></div>
     </fieldset>
+    <p class="mission-help">金色光柱与屏幕方向箭头指向任务目标；每次目标变化都有英文语音和中英字幕。任务面板可关闭语音或重播。小地图：<b class="legend-bike">B 自行车</b> · <b class="legend-truck">T 卡车</b> · <b class="legend-helicopter">H 直升机</b>。直升机用 SPACE 上升、CTRL 下降，触屏使用高度按钮；送达需先降落停稳。</p>
     <p class="dialog__intro">你从街头步行开始。跟随金色任务标记与联系人见面；靠近任意街边车辆，按 E 上车，停车后再次按 E 下车。城市会随着探索持续生成。</p>
     <label class="graphics-setting" for="graphics-quality">画面清晰度<select id="graphics-quality"><option value="auto">自动 · 高清优先</option><option value="high">高清</option><option value="balanced">均衡</option><option value="performance">流畅</option></select></label>
-    <dl class="key-guide"><div><dt><kbd>W A S D</kbd> / <kbd>方向键</kbd></dt><dd>步行移动 / 驾驶</dd></div><div><dt><kbd>SHIFT</kbd></dt><dd>步行时奔跑</dd></div><div><dt><kbd>E</kbd></dt><dd>交谈、上车或下车</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>驾驶时手刹</dd></div><div><dt><kbd>C</kbd> / <kbd>V</kbd></dt><dd>切换镜头 / 镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到街头起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>音乐播放器 / 下一首或打开原声</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
-    <p class="help-note">推荐横屏游玩。左手拖动摇杆移动，右手拖动画面环视，按住「奔跑」加速；靠近车辆后点「上车」。驾驶时摇杆变为方向盘，右侧显示油门、刹车和倒车。引擎声默认开启，上车后随车速变化；右上角声音按钮可关闭。双指缩放镜头。完成委托可获得报酬，之后继续接受新的送达任务。进入时先播放可跳过的城市 CG，并同步启动默认 BGM；原声未开始时由内置 COAST FM 衔接，Spotify 原声开始后自动切换；音乐默认收起为顶部两个小按钮，点击音符才展开完整播放器；收起设置或返回菜单不会主动停止音乐。Spotify 自动播放受浏览器和平台限制，未出声时点击顶部音乐按钮展开播放器，再点播放键。可切换至 COAST FM 或本地音频，本地文件不上传。驾驶转向保留高速稳定限制，上方可调整转向幅度与响应速度，默认更灵活；轻推摇杆微调、持续推转弯，松手回正；S 或倒车键先减速再倒车。画面清晰度可在上方选择。</p>
+    <dl class="key-guide"><div><dt><kbd>W A S D</kbd> / <kbd>方向键</kbd></dt><dd>步行移动 / 驾驶</dd></div><div><dt><kbd>SHIFT</kbd></dt><dd>步行时奔跑</dd></div><div><dt><kbd>E</kbd></dt><dd>交谈、上车或下车</dd></div><div><dt><kbd>SPACE</kbd></dt><dd>汽车手刹 / 直升机上升</dd></div><div><dt><kbd>CTRL</kbd></dt><dd>直升机下降，落地停稳后才能下机</dd></div><div><dt><kbd>C</kbd> / <kbd>V</kbd></dt><dd>切换镜头 / 镜头回正</dd></div><div><dt><kbd>R</kbd></dt><dd>回到街头起点</dd></div><div><dt><kbd>M</kbd> / <kbd>N</kbd></dt><dd>音乐播放器 / 下一首或打开原声</dd></div><div><dt><kbd>ESC</kbd></dt><dd>返回菜单</dd></div></dl>
+    <p class="help-note">推荐横屏游玩。左手拖动摇杆移动，右手拖动画面环视，按住「奔跑」加速；靠近车辆后点「上车」。驾驶时摇杆变为方向盘，右侧显示油门、刹车和倒车。引擎声默认开启，上车后随车速变化；右上角声音按钮可关闭。双指缩放镜头。完成委托可获得报酬，之后继续接受新的送达任务。进入时先播放可跳过的城市 CG，并同步启动 PULSE FM 英文歌曲；任务语音响起时音乐会自动降低音量；音乐默认收起为顶部两个小按钮，点击音符才展开完整播放器；收起设置或返回菜单不会主动停止音乐。Spotify 自动播放受浏览器和平台限制，未出声时点击顶部音乐按钮展开播放器，再点播放键。可切换至 COAST FM 或本地音频，本地文件不上传。驾驶转向保留高速稳定限制，上方可调整转向幅度与响应速度，默认更灵活；轻推摇杆微调、持续推转弯，松手回正；S 或倒车键先减速再倒车。画面清晰度可在上方选择。</p>
     <p class="reference-note">街区依据 <a href="https://www.videogameschronicle.com/news/the-first-official-gta-trilogy-gameplay-footage-compares-the-definitive-editions-and-originals/" target="_blank" rel="noopener noreferrer">Vice City 海滨大道截图 ↗</a>与 <a href="https://www.rockstargames.com/VI/media/screenshots" target="_blank" rel="noopener noreferrer">GTA VI 官方画面 ↗</a>重建；这是原型街区，并非完整游戏地图。原声由 Spotify 提供，网站不保存商业音轨。</p>
     <button class="button button--primary" data-close="help-dialog">知道了 <svg aria-hidden="true"><use href="#i-arrow"/></svg></button>
   </dialog>
   <dialog id="video-dialog" class="dialog video-dialog" aria-labelledby="video-title"><button class="dialog__close icon-button" data-close="video-dialog" aria-label="关闭短片"><svg aria-hidden="true"><use href="#i-close"/></svg></button><p id="video-title" class="eyebrow">ORIGINAL COAST / BLENDER SHORT</p><video id="cruise-video" controls playsinline preload="none"><source src="./assets/sunset_cruise.mp4" type="video/mp4">你的浏览器无法播放此视频，可<a href="./assets/sunset_cruise.mp4">下载短片</a>。</video></dialog>
-  <script type="module" src="./main.js?v=11"></script>
+  <script type="module" src="./main.js?v=12"></script>
 </body>
 </html>

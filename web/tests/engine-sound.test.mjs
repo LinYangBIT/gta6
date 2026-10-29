@@ -93,3 +93,26 @@ test('unsupported and rejected audio fail quietly while disposal releases the gr
   assert.equal(h.calls.closed, 1); assert.ok(h.calls.oscillators.every(n => n.stopped && n.disconnected));
   assert.equal(await h.sound.start(), false);
 });
+
+test('bicycle has no motor sound while truck and helicopter have distinct engine profiles', async () => {
+  const h = harness(); await h.sound.start();
+  const state = {speed: 12, active: true, driving: true, blocked: false};
+  h.sound.update({...state, vehicleKind: 'coupe'});
+  const carFrequency = h.calls.oscillators[0].frequency.value;
+  h.sound.update({...state, vehicleKind: 'truck'});
+  assert.ok(h.calls.oscillators[0].frequency.value < carFrequency);
+  assert.ok(h.master().value > 0);
+  h.sound.update({...state, vehicleKind: 'bicycle'});
+  assert.equal(h.master().value, 0, 'pedalling must not emit an idling car engine');
+  h.sound.update({...state, vehicleKind: 'helicopter'});
+  const initialPulse = h.master().value;
+  assert.equal(h.calls.oscillators[0].type, 'triangle');
+  assert.equal(h.calls.oscillators[1].type, 'sawtooth');
+  h.calls.context.currentTime += 1 / 68;
+  h.sound.update({...state, vehicleKind: 'helicopter'});
+  assert.notEqual(h.master().value, initialPulse, 'blade pulse modulates helicopter loudness');
+  assert.ok(h.master().value > 0 && h.master().value <= .022);
+  h.sound.update({...state, vehicleKind: 'helicopter', blocked: true});
+  assert.equal(h.master().value, 0, 'rotor audio observes overlays and hidden-tab silence');
+  h.sound.dispose();
+});

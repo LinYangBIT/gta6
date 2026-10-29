@@ -46,7 +46,7 @@ test('visible controls have an accessible name and touch actions are unambiguous
   }
   const controls = [...html.matchAll(/data-control="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(controls).size, controls.length, 'Duplicate touch controls');
-  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'reverse', 'handbrake', 'sprint'].includes(action), `Unknown touch action ${action}`);
+  for (const action of controls) assert(['left', 'right', 'throttle', 'brake', 'reverse', 'handbrake', 'sprint', 'ascend', 'descend'].includes(action), `Unknown touch action ${action}`);
 });
 
 
@@ -161,7 +161,12 @@ test('landscape controls switch safely between walking, driving, and contextual 
     assert.equal(elements.get('mission-progress-fill').style.width, '40%');
     elements.get('interact-button').emit('click');
     assert.equal(interactions, 1, 'nearby context action reaches gameplay');
+    ui.update({ mode: 'drive', vehicleKind: 'helicopter', altitude: 14.7 });
+    assert.equal(fakeDocument.body.classList.contains('is-flying'), true);
+    assert.equal(elements.get('secondary-hint').textContent, '上升 / 下降');
+    assert.equal(elements.get('flight-altitude').textContent, '15 m');
     ui.update({ mode: 'walk', mission: { title: '自由探索', total: 0, progress: 0 } });
+    assert.equal(fakeDocument.body.classList.contains('is-flying'), false);
     assert.equal(elements.get('mission-progress').textContent, '∞ 自由探索');
     assert.equal(elements.get('destination-distance').textContent, '自由探索');
     pedals[4].emit('pointerdown', { pointerId: 12, button: 0 });

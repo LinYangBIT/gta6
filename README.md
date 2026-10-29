@@ -6,30 +6,34 @@
 
 ## 在线城市体验
 
+地图加入货运堆场与起重机、航空站、架空交通广场、运动公园、山麓住宅和集市，海边增加篮球、排球和健身设施；外围仍持续生成。
+
+新增自行车、六轮卡车和可升降的直升机；车辆按质量传递碰撞冲量，停放车辆会被撞动，伴随火花、尘土与撞击声。任务有高亮光柱、方向箭头、阶段横幅和默认英文语音。直升机使用 Space 上升、Ctrl 下降，手机提供升降键，降落停稳后才能下机。
+
 [打开 Sunset Coast](https://sunset-coast-drive-linyang.yanglinchasel.chatgpt.site)（公开访问）。
 
-网页版已升级为横屏开放城市：**人物步行开局、任意车辆上下车、连续委托和现金奖励**。WASD 移动 / 驾驶，Shift 奔跑，E 交谈 / 上下车，C 切镜头，拖动自由环视。手机横屏左侧摇杆、右侧动作键。加入弯曲滨海大道、环岛、斜向连接路、酒店后巷和跨湾连接路；保留按需生成的无限街区。点击“进入城市”即启动内置 BGM 并请求 GTA V 官方 Spotify 原声，原声实际开始后接替内置音乐，默认只显示顶部音乐与播放 / 暂停两个小按钮，点音符展开设置；收起设置保持同一播放器；原声受限时内置 BGM 继续，也可展开官方播放器手动播放。可切换 COAST FM 或本机音频。网页版源码及完整说明在 [`web/`](web/README.md)。
+网页版已升级为横屏开放城市：**人物步行开局、任意车辆上下车、连续委托和现金奖励**。WASD 移动 / 驾驶，Shift 奔跑，E 交谈 / 上下车，C 切镜头，拖动自由环视。手机横屏左侧摇杆、右侧动作键。加入弯曲滨海大道、环岛、斜向连接路、酒店后巷和跨湾连接路；保留按需生成的无限街区。点击“进入城市”即播放 PULSE FM 英文人声舞曲，默认只显示顶部音乐与播放 / 暂停两个小按钮，收起设置保持播放。可切换 Spotify 官方原声、COAST FM 或本机音频。网页版源码及完整说明在 [`web/`](web/README.md)。
 
 海洋大道重建实际参考了 [Vice City 海洋大道截图](https://www.videogameschronicle.com/files/2021/11/GTA-The-Trilogy-The-Definitive-Edition-Vice-City-Screen-9-1440x810.jpg)、[GTA VI Dominion 酒店](https://s1.cdn.autoevolution.com/images/news/gallery/gta-6-trailer-2-did-you-spot-all-the-major-vehicles_19.jpg) 与 [Dixon 酒店画面](https://media.gtaboom.com/variants/1920/media/images/9f/8e/Hotel_Dixon.jpg)，重新制作四类地标酒店的可见外观，并细化窗框、窗台、圆角立面、阳台、入口、咖啡座、屋顶设备和海滨植被。参考图片不随仓库分发，网页使用自行制作的几何与材质。这是有限街区的参考重建，外围连接原创无限城市；并非完整 GTA 地图。
 
 最新网页版把海滨陆侧从 **19 栋增加到 133 栋**，外围每个街区从 4–6 栋增加到 **16–22 栋**。连续沿街商铺、围合庭院、住宅区与办公楼群保留服务通道；远景采用同一套地图数据，走近后变成可探索的详细街区，持续生成并回收远处数据。
 
-最新可编辑快照是 [`scenes/cyberpunk_city.blend`](scenes/cyberpunk_city.blend)：青蓝／洋红灯轨、屋顶广告屏、设备棚与天线、发光科技店招、冷色湿润路面；车辆增加侧裙 LED、分段前灯与洋红尾灯。建筑近远景使用同一配色，保留道路与碰撞范围。以下为 **1920×1080 Blender 离线预览**，网页实时光照会有差异：
+最新可编辑快照是 [`scenes/metro_city.blend`](scenes/metro_city.blend)：货运堆场、起重机、架空交通设施、运动场、航空站和山麓地标，包含实际生成的六类载具；保留青蓝／洋红霓虹暮景。以下为 **1920×1080 Blender 离线预览**，使用网页同源几何，实时光照会有差异：
 
-![赛博朋克海滨街景](previews/cyberpunk_city.png)
+![城市扩展港区近景](previews/metro_city.png)
 
-[霓虹城区俯瞰](previews/cyberpunk_city_aerial.png) · [明亮暮色旧版](previews/vivid_city_aerial.png) · [密集城区旧版](previews/dense_city_aerial.png)
+[新版城区俯瞰](previews/metro_city_aerial.png) · [赛博朋克海滨旧版](previews/cyberpunk_city_aerial.png) · [明亮暮色旧版](previews/vivid_city_aerial.png) · [密集城区旧版](previews/dense_city_aerial.png)
 
 ```bash
-node scripts/export_infinite_preview.mjs --cyberpunk --seed 610 --output /tmp/cyberpunk-city.json
-blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/cyberpunk-city.json --output previews/cyberpunk_city.png --overview-output previews/cyberpunk_city_aerial.png --blend scenes/cyberpunk_city.blend --resolution 1920 --samples 48
+node scripts/export_infinite_preview.mjs --metro --seed 610 --output /tmp/metro-city.json
+blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- --input /tmp/metro-city.json --output previews/metro_city.png --overview-output previews/metro_city_aerial.png --blend scenes/metro_city.blend --resolution 1920 --samples 48
 ```
 
 游戏封面使用 [Rockstar 官方发布的完整壁纸](https://www.rockstargames.com/VI/media/artwork-wallpapers)：4K 横版与1080×1920竖版，保留原画面和色彩。它不是游戏截图；本站明确标识为非官方可玩场景。官方封面和 Logo 的版权属于 Rockstar / Take-Two，来源与文件哈希记录于 [`web/dist/assets/gta6-cover-attribution.json`](web/dist/assets/gta6-cover-attribution.json)，不适用本仓库 MIT 许可。
 
-背景音乐默认原声优先：加载城市时准备 Spotify，点击进入时立即启动内置 COAST FM 并请求原声，早于入场 CG；收到原声实际播放事件后停止内置 BGM。等待原声或平台拒播时仍有默认 BGM，内置音乐明确标注为 COAST FM。关闭设置、返回菜单和帮助时继续；用户可独立暂停。本机音频选择后尝试播放并循环，不上传。GTA V 原声通过 [官方 Spotify 专辑](https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD) 及官方 iFrame API 播放，收起设置只隐藏面板，保留同一 iframe 和控制器，不暂停或卸载；自动播放和范围受浏览器、账号和地区限制。仓库不含商业音频文件。
+背景音乐默认 **PULSE FM 英文人声舞曲**：**On My Way**（Alex / AlexBeroza feat. Donnie Ozone，140 BPM）和 **Road Back To You**（Allerlei von Nicolai feat. Admiral Bob，128 BPM）。点击进入直接播放自托管 MP3，自动轮播，关闭面板仍继续；英文任务语音播报时压低音乐。两首歌曲均采用 **CC BY 3.0**，完整来源、署名、修改记录和哈希在 [`web/dist/assets/music-attribution.json`](web/dist/assets/music-attribution.json)，不适用 MIT。Spotify 官方 GTA V 原声、原创合成电台和本机文件仍可选择。
 
-引擎声默认开启：进入时解锁音频，上车后随速度平滑变化，步行、CG、菜单和后台不发出引擎声。右上角声音按钮可独立关闭；本次会话中返回菜单再进入仍保留手动关闭状态。
+引擎声默认开启：进入时解锁音频，上车后随速度平滑变化，卡车低沉、直升机有旋翼节奏，自行车、步行、CG、菜单和后台不发出引擎声。右上角声音按钮可独立关闭；本次会话中返回菜单再进入仍保留手动关闭状态。
 
 首次进城新增约 8 秒的实时 CG，由海滨全景、酒店街景过渡到步行人物；可以跳过，返回菜单后继续只作短过渡。驾驶默认转向比前版更灵活；右上角操控设置提供转向幅度60%–200%和响应速度60%–180%，默认130% / 115%，即时生效并在本机保存。保留渐进输入、高速稳定限制和快速回正；横屏摇杆为128px，油门72×150px，镜头按钮44px。
 
@@ -106,6 +110,9 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 
 | 路径 | 内容 |
 | --- | --- |
+| `scenes/metro_city.blend` | 新城区设施与六类载具的最新可编辑快照 |
+| `previews/metro_city.png`、`previews/metro_city_aerial.png` | 1920×1080 港区近景与城市俯瞰 |
+| `previews/metro_city.json` | 真实导出源码、脚本和成品哈希及重建说明 |
 | `scenes/cyberpunk_city.blend` | 霓虹建筑、车辆灯条和蓝紫暮景的最新可编辑快照 |
 | `previews/cyberpunk_city.png`、`previews/cyberpunk_city_aerial.png` | 1920×1080 同源几何的赛博朋克街景与城区俯瞰 |
 | `scenes/vivid_city.blend` | 细化车辆、建筑和鲜明配色的可编辑同源快照 |
@@ -130,6 +137,6 @@ blender -b scenes/sunset_coast.blend --python-exit-code 1 --python scripts/rende
 | `scripts/validate_scene.py` | 可重复运行的工程检查 |
 | `scripts/render_previews.py` | 渲染辅助视角与巡游视频 |
 
-所有几何和材质由本项目脚本生成，不依赖外部付费素材。代码及原创资产使用 [MIT License](LICENSE)。GTA / Grand Theft Auto 商标属于各自权利人；本项目为独立非官方作品。
+所有几何和材质由本项目脚本生成，不依赖外部付费素材。两首 PULSE FM 歌曲按 CC BY 3.0 单独署名，官方封面另有版权。代码及原创资产使用 [MIT License](LICENSE)。GTA / Grand Theft Auto 商标属于各自权利人；本项目为独立非官方作品。
 
 **English:** An original GTA6-inspired coastal environment for Blender 4.3+, with editable procedural assets and a 240-frame sunset cruise. Open the `.blend`, or rebuild it with the command above. Includes a public browser driving prototype; this is an independent project, not an official Rockstar product.

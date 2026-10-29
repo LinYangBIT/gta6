@@ -1,7 +1,8 @@
 import * as THREE from './vendor/three.module.js';
-import { createHuman, animateHuman } from './human-model.js?v=11';
-import { CHUNK_SIZE, isRoad } from './world-layout.js?v=11';
-import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=11';
+import { createHuman, animateHuman } from './human-model.js?v=12';
+import { createSpecialVehicle, poseBicycleRider } from './special-vehicles.js?v=12';
+import { CHUNK_SIZE, isRoad } from './world-layout.js?v=12';
+import { coastGroundHeight, coastRoadAt, COAST_PEDESTRIAN_PATHS } from './coast-layout.js?v=12';
 
 // Gameplay holds 36 streamed vehicles plus at most 64 remembered relocations.
 // Capacity covers the entire bounded map, including a crowded parked-car block.
@@ -206,7 +207,11 @@ export class ActorVisuals {
       const model=makeVehicle(kind);this.vehicleModels.set(kind,model);
       for(const [part,geometry]of Object.entries(model.geometry))this._pool(`${kind}:${part}`,geometry,this.carMaterials[part],MAX_VEHICLES);
     }
-    const wheel=makeWheels();for(const [part,geometry]of Object.entries(wheel))this._pool(part,geometry,this.carMaterials[part],MAX_VEHICLES*4);
+    for(const kind of ['bicycle','truck','helicopter']){
+      const model=createSpecialVehicle(kind);this.vehicleModels.set(kind,model);
+      for(const [part,geometry]of Object.entries(model.geometry))this._pool(`${kind}:${part}`,geometry,this.carMaterials[part]||this.carMaterials.detail,MAX_VEHICLES*(part==='cycleWheel'?2:1));
+    }
+    const wheel=makeWheels();for(const [part,geometry]of Object.entries(wheel))this._pool(part,geometry,this.carMaterials[part],MAX_VEHICLES*6);
     // Ambient pedestrians use a bounded set, never spawn vehicles outside gameplay.
     this.pedestrians=[];
     const shirts=['#b4c2a7','#a66f65','#c1b796','#c4d4db','#826d8f','#d0a270'];
@@ -239,12 +244,14 @@ export class ActorVisuals {
   update(gameplay,origin={x:0,z:0},time=0,mission={}) {
     if(this.disposed)return this.stats;
     const state=gameplay.state,ox=origin.x||0,oz=origin.z||0;
-    this.avatar.visible=gameplay.mode==='walk';this.avatar.position.set(state.x-ox,groundHeight(state.x,state.z),state.z-oz);this.avatar.rotation.y=state.yaw;
+    const cycling=gameplay.mode==='drive'&&gameplay.activeVehicle?.kind==='bicycle';
+    this.avatar.visible=gameplay.mode==='walk'||cycling;this.avatar.position.set(state.x-ox,groundHeight(state.x,state.z),state.z-oz);this.avatar.rotation.y=state.yaw;
     animateHuman(this.avatar,{speed:this.avatar.visible?Math.abs(state.speed):0,time});
+    if(cycling){poseBicycleRider(this.avatar,state.wheelAngle||0);this.avatar.translateZ(-.50);}
     const contact=mission?.contact;
     this.contact.visible=!!contact&&Math.hypot(contact.x-state.x,contact.z-state.z)<220;
     if(contact){this.contact.position.set(contact.x-ox,groundHeight(contact.x,contact.z),contact.z-oz);this.contact.rotation.y=Math.atan2(state.x-contact.x,state.z-contact.z);animateHuman(this.contact,{time,gesture:true});}
-    this._updateVehicles(gameplay,origin);
+    this._updateVehicles(gameplay,origin,time);
     // Stroll along unobstructed sidewalks; each actor remains in a single block.
     const cx=Math.floor(state.x/CHUNK_SIZE),cz=Math.floor(state.z/CHUNK_SIZE);
     for(let i=0;i<this.pedestrians.length;i++){
@@ -265,7 +272,7 @@ export class ActorVisuals {
     }
     return this.stats;
   }
-  _updateVehicles(gameplay,origin) {
+  _updateVehicles(gameplay,origin,time=0) {
     const {state}=gameplay,ox=origin.x||0,oz=origin.z||0;
     const records=[...gameplay.vehicles.values()].sort((a,b)=>((a.id===gameplay.activeVehicle?.id)?-1:(b.id===gameplay.activeVehicle?.id)?1:Math.hypot(a.x-state.x,a.z-state.z)-Math.hypot(b.x-state.x,b.z-state.z))).slice(0,MAX_VEHICLES);
     const heroRecord=this.hero?records.find(v=>v.kind==='coupe'&&(v.id===gameplay.activeVehicle?.id||Math.hypot(v.x-state.x,v.z-state.z)<26)):null;
@@ -273,7 +280,7 @@ export class ActorVisuals {
     if(this.hero)this.hero.visible=!!heroRecord;
     for(const record of records) {
       const kind=this.vehicleModels.has(record.kind)?record.kind:'sedan',model=this.vehicleModels.get(kind);
-      const y=groundHeight(record.x,record.z);
+      const y=groundHeight(record.x,record.z)+(Number.isFinite(record.altitude)?Math.max(0,record.altitude):0);
       const yaw=record.yaw||0,steer=record.steering||0,roll=record.wheelAngle||0;
       this._q.setFromAxisAngle(Y,yaw);this._position.set(record.x-ox,y,record.z-oz);this._scale.set(1,1,1);this._matrix.compose(this._position,this._q,this._scale);
       if(record===heroRecord){
@@ -283,14 +290,34 @@ export class ActorVisuals {
         continue;
       }
       for(const part of Object.keys(model.geometry)) {
+        if(model.animated?.[part])continue;
         const pool=this.vehiclePools.get(`${kind}:${part}`),i=pool.count++;pool.setMatrixAt(i,this._matrix);
         this._color.set(part==='paint'?record.color||'#c2cbd0':'#ffffff');pool.setColorAt(i,this._color);
       }
-      for(const side of [-1,1])for(const front of [-1,1]) {
-        this._wheelQ.setFromAxisAngle(Y,front===1?steer:0);this._roll.setFromAxisAngle(X,roll);this._wheelQ.multiply(this._roll);
-        this._position.set(side*(model.width+.015),model.wheelY,front*model.wheelbase);this._scale.setScalar(model.wheelRadius);
+      const wheels=model.wheels??[-1,1].flatMap(side=>[-1,1].map(front=>({x:side*(model.width+.015),y:model.wheelY,z:front*model.wheelbase,radius:model.wheelRadius,front:front===1})));
+      for(const wheel of wheels) {
+        this._wheelQ.setFromAxisAngle(Y,wheel.front?steer:0);this._roll.setFromAxisAngle(X,roll);this._wheelQ.multiply(this._roll);
+        this._position.set(wheel.x,wheel.y,wheel.z);this._scale.setScalar(wheel.radius);
         this._local.compose(this._position,this._wheelQ,this._scale);this._wheelMatrix.multiplyMatrices(this._matrix,this._local);
         for(const type of ['tire','rim']){const pool=this.vehiclePools.get(type);pool.setMatrixAt(pool.count++,this._wheelMatrix);}
+      }
+      if(kind==='bicycle'){
+        for(const wheel of model.cycleWheels){
+          this._wheelQ.setFromAxisAngle(Y,wheel.front?steer:0);this._roll.setFromAxisAngle(X,roll);this._wheelQ.multiply(this._roll);
+          this._position.set(wheel.x,wheel.y,wheel.z);this._scale.set(1,1,1);this._local.compose(this._position,this._wheelQ,this._scale);
+          this._wheelMatrix.multiplyMatrices(this._matrix,this._local);const pool=this.vehiclePools.get('bicycle:cycleWheel');pool.setMatrixAt(pool.count++,this._wheelMatrix);
+        }
+        this._position.set(0,.39,-.13);this._wheelQ.setFromAxisAngle(X,roll);this._local.compose(this._position,this._wheelQ,this._scale);
+        this._wheelMatrix.multiplyMatrices(this._matrix,this._local);const pool=this.vehiclePools.get('bicycle:pedals');pool.setMatrixAt(pool.count++,this._wheelMatrix);
+      }
+      if(kind==='helicopter'){
+        const running=record.rotorRunning??record.id===gameplay.activeVehicle?.id;
+        const rotorAngle=running?(Number.isFinite(time)?time:0)*34:0;
+        for(const [part,point,axis,angle]of [['mainRotor',model.rotors.main,Y,rotorAngle],['tailRotor',model.rotors.tail,X,rotorAngle*1.7]]){
+          this._position.set(point.x,point.y,point.z);this._scale.set(1,1,1);this._wheelQ.setFromAxisAngle(axis,angle);
+          this._local.compose(this._position,this._wheelQ,this._scale);this._wheelMatrix.multiplyMatrices(this._matrix,this._local);
+          const pool=this.vehiclePools.get(`helicopter:${part}`);pool.setMatrixAt(pool.count++,this._wheelMatrix);
+        }
       }
     }
     for(const pool of this.vehiclePools.values()) {

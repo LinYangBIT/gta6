@@ -2,6 +2,10 @@
 export const GTA_SCORE_URL='https://open.spotify.com/album/5EJAJsaHhQYLwVbynpcGkD';
 export const GTA_SCORE_EMBED='https://open.spotify.com/embed/album/5EJAJsaHhQYLwVbynpcGkD?theme=0';
 export const SPOTIFY_API_URL='https://open.spotify.com/embed/iframe-api/v1';
+export const PULSE_TRACKS=Object.freeze([
+  Object.freeze({id:'on-my-way',title:'On My Way',artist:'Alex feat. Donnie Ozone',bpm:140,src:'./assets/music/on-my-way.mp3',url:'https://ccmixter.org/files/AlexBeroza/42806'}),
+  Object.freeze({id:'road-back-to-you',title:'Road Back To You',artist:'Allerlei von Nicolai feat. Admiral Bob',bpm:128,src:'./assets/music/road-back-to-you.mp3',url:'https://ccmixter.org/files/Allerlei_von_Nicolai/61840'}),
+]);
 const spotifyAPIs=new WeakMap();
 function loadSpotifyAPI(dom,win){
   if(!win||!dom.head)return Promise.reject(new Error('Spotify API unavailable'));
@@ -15,10 +19,12 @@ function loadSpotifyAPI(dom,win){
 }
 
 export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:dom=globalThis.document,
-  window:win=globalThis.window,urlAPI=globalThis.URL,spotifyLoader}={}){
+  window:win=globalThis.window,urlAPI=globalThis.URL,spotifyLoader,initialSource='pulse'}={}){
   const byId=id=>dom.getElementById(id),panel=byId('soundtrack-panel'),mount=byId('spotify-mount');
   const audio=byId('local-audio'),fileInput=byId('local-audio-file'),localLabel=byId('local-audio-name');
-  let source='spotify',opened=false,suspended=false,disposed=false,started=false,desired=false,userPaused=false;
+  const pulse=dom.createElement('audio');pulse.preload='auto';pulse.loop=false;
+  let pulseIndex=0,pulsePlaying=false,pulseFallback=false,expectedPulsePause=false,ducked=false;
+  let source=['pulse','spotify','coast','local'].includes(initialSource)?initialSource:'pulse',opened=false,suspended=false,disposed=false,started=false,desired=false,userPaused=false;
   let localPlaying=false,coastPlaying=false,spotifyPlaying=false,spotifyKnown=false,volume=.38;
   let fallbackPlaying=false,fallbackPending=null,uncontrolledSpotify=false;
   let objectURL=null,filename='',controller=null,controllerReady=false,spotifyNode=null,spotifyLoading=false,expectedLocalPause=false;
@@ -26,19 +32,28 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   const removers=[];
   const status=message=>{const node=byId('soundtrack-status');if(node)node.textContent=message;onStatus?.(message);};
   const listen=(element,type,callback)=>{element?.addEventListener(type,callback);removers.push(()=>element?.removeEventListener(type,callback));};
-  const isPlaying=()=>!suspended&&(source==='coast'?coastPlaying:source==='local'?localPlaying:spotifyPlaying||fallbackPlaying);
+  const isPlaying=()=>!suspended&&(source==='pulse'?(pulsePlaying||pulseFallback):source==='coast'?coastPlaying:source==='local'?localPlaying:spotifyPlaying||fallbackPlaying);
   const isDocked=()=>source==='spotify'&&!opened&&Boolean(spotifyNode||spotifyLoading);
   function sync(){
     panel.hidden=!opened;panel.setAttribute('data-compact','false');panel.setAttribute('data-docked',String(isDocked()));
     const compact=byId('soundtrack-compact');
     if(compact){compact.hidden=true;compact.textContent='收起';compact.setAttribute('aria-pressed','false');compact.setAttribute('aria-label','收起设置，音乐继续播放');}
     byId('music-button')?.setAttribute('aria-expanded',String(opened));
-    for(const name of ['spotify','coast','local']){byId(`music-source-${name}`)?.setAttribute('aria-pressed',String(name===source));const node=byId(`soundtrack-${name}`);if(node)node.hidden=name!==source;}
+    for(const name of ['pulse','spotify','coast','local']){byId(`music-source-${name}`)?.setAttribute('aria-pressed',String(name===source));const node=byId(`soundtrack-${name}`);if(node)node.hidden=name!==source;}
     const waiting=desired&&source==='spotify'&&!spotifyKnown;
     for(const id of ['music-play-toggle','intro-music-toggle']){const toggle=byId(id);if(toggle){toggle.textContent=id==='intro-music-toggle'?(isPlaying()?'音乐 · 暂停':waiting?'停止 Spotify':'音乐 · 播放'):(isPlaying()?'Ⅱ':waiting?'■':'▶');toggle.setAttribute('aria-label',isPlaying()?'暂停背景音乐':waiting?'停止 Spotify 播放器':'播放背景音乐');toggle.setAttribute('aria-pressed',String(isPlaying()));}}
     const slider=byId('music-volume');if(slider){const nativeVolume=source==='spotify'&&!fallbackPlaying;slider.value=String(volume);slider.disabled=nativeVolume;slider.setAttribute('aria-label',nativeVolume?'Spotify 音量请使用系统控制':'背景音乐音量');}
+    const track=PULSE_TRACKS[pulseIndex],trackName=byId('pulse-track-name'),credit=byId('pulse-track-credit');
+    if(trackName)trackName.textContent=`${track.title} · ${track.bpm} BPM`;
+    if(credit&&credit.dataset?.track!==track.id){
+      credit.textContent=`${track.artist} · CC BY 3.0 · `;
+      const link=dom.createElement('a');link.href=track.url;link.target='_blank';link.rel='noopener';link.textContent='ccMixter';credit.appendChild(link);
+      if(credit.dataset)credit.dataset.track=track.id;
+    }
+    const pulseButton=byId('pulse-toggle');if(pulseButton)pulseButton.textContent=source==='pulse'&&isPlaying()?'暂停音乐':'播放音乐';
     const coastButton=byId('coast-toggle');if(coastButton)coastButton.textContent=source==='coast'&&isPlaying()?'暂停音乐':'播放音乐';
   }
+  function pausePulse(){if(!pulse.paused)expectedPulsePause=true;pulse.pause();pulsePlaying=false;}
   function pauseLocal(){if(!audio.paused)expectedLocalPause=true;audio.pause();localPlaying=false;}
   function unloadSpotify(){
     spotifyEpoch++;spotifyLoading=false;try{controller?.destroy();}catch{}
@@ -47,7 +62,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
     spotifyPlaying=false;spotifyKnown=false;
   }
   function pauseSpotify(){if(controller){try{controller.pause();}catch{unloadSpotify();}}else if(spotifyNode)unloadSpotify();spotifyPlaying=false;}
-  function stopCurrent(){epoch++;pendingPlayback=false;fallbackPending=null;fallbackPlaying=false;radio?.setPaused(true);coastPlaying=false;pauseLocal();pauseSpotify();sync();}
+  function stopCurrent(){epoch++;pendingPlayback=false;fallbackPending=null;fallbackPlaying=false;radio?.setPaused(true);coastPlaying=false;pulseFallback=false;pausePulse();pauseLocal();pauseSpotify();sync();}
   function confirmSpotify(){
     // A real player event, never SDK readiness, owns the audio handover.
     const newlyStarted=!spotifyPlaying,hadFallback=fallbackPlaying||Boolean(fallbackPending);
@@ -110,8 +125,35 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
       });
     }).catch(()=>fallbackSpotify(ticket));
   }
+  function loadPulse(index){
+    pausePulse();pulseFallback=false;pulseIndex=(index+PULSE_TRACKS.length)%PULSE_TRACKS.length;
+    pulse.src=PULSE_TRACKS[pulseIndex].src;pulse.load();sync();
+  }
+  async function startPulseFallback(ticket){
+    if(ticket!==epoch||disposed||suspended||source!=='pulse'||!desired)return false;
+    pausePulse();radio?.setPaused(false);
+    let ok=false;try{ok=Boolean(await radio?.start());}catch{}
+    if(ticket!==epoch||disposed||suspended||source!=='pulse'||!desired)return false;
+    pendingPlayback=false;pulseFallback=ok;
+    status(ok?'英文歌曲暂不可用 · 正在播放 COAST FM，点下一首重试':'点击顶部播放键开启英文歌曲');sync();return ok;
+  }
+  async function playPulse(){
+    if(pulsePlaying)return true;
+    const ticket=++epoch;pendingPlayback=true;pulseFallback=false;radio?.setPaused(true);
+    try{
+      // Native play runs synchronously in the Enter click; opening a panel is unnecessary.
+      await pulse.play();
+      if(ticket!==epoch||disposed||suspended||source!=='pulse'||!desired)return false;
+      pendingPlayback=false;pulsePlaying=true;status(`PULSE FM · ${PULSE_TRACKS[pulseIndex].title}`);sync();return true;
+    }catch(error){
+      if(ticket!==epoch||disposed||suspended||source!=='pulse'||!desired)return false;
+      if(error?.name==='NotAllowedError'){pendingPlayback=false;pulsePlaying=false;status('点击顶部播放键开启英文歌曲');sync();return false;}
+      return startPulseFallback(ticket);
+    }
+  }
   async function playCurrent(){
     if(disposed||suspended||!desired)return false;
+    if(source==='pulse')return playPulse();
     if(source==='spotify'){
       if(spotifyPlaying)return true;
       const fallback=startFallback();ensureSpotify();attemptSpotify();sync();return fallback;
@@ -130,7 +172,7 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   }
   // Warm the official controller during asset loading, without requesting any
   // audio. A later trusted Enter click can call play() before its first await.
-  function prepare(){if(!disposed&&source==='spotify')ensureSpotify();}
+  function prepare(){if(disposed)return;if(source==='spotify')ensureSpotify();else if(source==='pulse'&&!pulse.src)loadPulse(pulseIndex);}
   function start(){if(disposed)return Promise.resolve(false);if(started&&userPaused)return Promise.resolve(false);started=true;desired=true;return playCurrent();}
   function togglePlayback(){
     if(disposed)return Promise.resolve(false);
@@ -138,10 +180,11 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
     started=true;userPaused=false;desired=true;return playCurrent();
   }
   function select(next){
-    if(disposed||!['coast','spotify','local'].includes(next))return;
+    if(disposed||!['pulse','coast','spotify','local'].includes(next))return;
     if(source!==next){stopCurrent();unloadSpotify();source=next;}
     started=true;userPaused=false;desired=true;onSelection?.(source);sync();
-    if(source==='spotify')status('GTA V 原声 · 自动播放受浏览器、账号和地区限制');
+    if(source==='pulse')status('PULSE FM · 英文人声舞曲');
+    else if(source==='spotify')status('GTA V 原声 · 自动播放受浏览器、账号和地区限制');
     else if(source==='local')status(filename?'本机音频 · 收起设置后继续播放':'选择你自己的音频，文件只在本机播放');
     else status('COAST FM · 原创背景音乐');
     void playCurrent();
@@ -149,7 +192,9 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
   function open(){if(disposed)return;opened=true;sync();if(source==='spotify')ensureSpotify();}
   function close(){if(disposed)return;opened=false;sync();}
   function setSuspended(value){value=Boolean(value);if(disposed||value===suspended)return;suspended=value;if(suspended)stopCurrent();else if(desired&&!userPaused)void playCurrent();sync();}
-  function setVolume(value){value=Number(value);if(!Number.isFinite(value))return;volume=Math.max(0,Math.min(1,value));audio.volume=volume;radio?.setVolume(volume);sync();}
+  function applyVolume(){const output=volume*(ducked?.25:1);audio.volume=output;pulse.volume=output;radio?.setVolume(output);}
+  function setVolume(value){value=Number(value);if(!Number.isFinite(value))return;volume=Math.max(0,Math.min(1,value));applyVolume();sync();}
+  function setDucked(value){ducked=Boolean(value);applyVolume();}
   function loadFile(file){
     if(disposed||!file)return false;
     if(!file.type?.startsWith('audio/')&&!/\.(mp3|wav|ogg|m4a|aac|flac|opus|webm)$/i.test(file.name||'')){status('请选择 MP3、M4A、WAV 或其他音频文件');return false;}
@@ -157,27 +202,33 @@ export function createSoundtrack({radio,onSelection,onStatus,onFocus,document:do
     objectURL=urlAPI.createObjectURL(file);filename=String(file.name||'本地音乐');audio.src=objectURL;audio.loop=true;audio.load();localLabel.textContent=filename;select('local');return true;
   }
   function nextTrack(){
+    if(source==='pulse'){epoch++;pendingPlayback=false;radio?.setPaused(true);loadPulse(pulseIndex+1);return desired&&!suspended?playCurrent():Promise.resolve(false);}
     if(source==='coast')return Promise.resolve(radio?.nextTrack()).then(ok=>{coastPlaying=Boolean(ok)&&desired&&!suspended;sync();return coastPlaying;});
     if(source==='local'&&objectURL){audio.currentTime=0;return desired?playCurrent():Promise.resolve(false);}
     open();status('使用 Spotify 播放器选择下一首');return Promise.resolve(false);
   }
-  for(const name of ['spotify','coast','local'])listen(byId(`music-source-${name}`),'click',()=>select(name));
+  for(const name of ['pulse','spotify','coast','local'])listen(byId(`music-source-${name}`),'click',()=>select(name));
   listen(byId('soundtrack-close'),'click',()=>{close();onFocus?.();});
   listen(byId('soundtrack-compact'),'click',()=>{opened?close():open();onFocus?.();});
   listen(byId('music-play-toggle'),'click',()=>{void togglePlayback();onFocus?.();});
   listen(byId('intro-music-toggle'),'click',()=>{void togglePlayback();});
   listen(byId('music-volume'),'input',event=>setVolume(event.target.value));
+  listen(byId('pulse-toggle'),'click',()=>{void togglePlayback();});listen(byId('pulse-next'),'click',()=>{void nextTrack();});
   listen(byId('coast-toggle'),'click',()=>{void togglePlayback();});listen(byId('coast-next'),'click',()=>{void nextTrack();});
   listen(byId('local-audio-pick'),'click',()=>fileInput.click());listen(fileInput,'change',()=>{loadFile(fileInput.files?.[0]);fileInput.value='';});
+  listen(pulse,'play',()=>{if(disposed||suspended||source!=='pulse'||!desired){pausePulse();return;}pulsePlaying=true;pulseFallback=false;radio?.setPaused(true);sync();});
+  listen(pulse,'pause',()=>{pulsePlaying=false;if(expectedPulsePause)expectedPulsePause=false;else if(source==='pulse'&&!suspended&&!pulse.ended){desired=false;userPaused=true;}sync();});
+  listen(pulse,'ended',()=>{pulsePlaying=false;if(source==='pulse'&&desired&&!suspended)void nextTrack();else sync();});
+  listen(pulse,'error',()=>{pulsePlaying=false;if(source==='pulse'&&desired&&!suspended)void startPulseFallback(++epoch);else sync();});
   listen(audio,'play',()=>{if(disposed||suspended||source!=='local'){pauseLocal();return;}localPlaying=true;desired=true;userPaused=false;sync();});
   listen(audio,'pause',()=>{localPlaying=false;if(expectedLocalPause)expectedLocalPause=false;else if(source==='local'&&!suspended){desired=false;userPaused=true;}sync();});
   listen(audio,'ended',()=>{localPlaying=false;sync();});listen(audio,'error',()=>{localPlaying=false;status('这段音频无法播放，请换一个格式');sync();});
   listen(panel,'keydown',event=>{if(event.code==='Escape'){event.preventDefault();close();onFocus?.();}event.stopPropagation();});
-  audio.loop=true;setVolume(volume);sync();
+  pulse.src=PULSE_TRACKS[pulseIndex].src;audio.loop=true;setVolume(volume);sync();
   return {
     get source(){return source;},get isOpen(){return opened;},get isDocked(){return isDocked();},get isCompact(){return isDocked();},get playing(){return isPlaying();},
-    get usingFallback(){return source==='spotify'&&fallbackPlaying;},get playbackKnown(){return source!=='spotify'||spotifyKnown||fallbackPlaying;},get volume(){return volume;},get label(){return source==='spotify'?(fallbackPlaying?'COAST FM · 等待原声':'GTA V · THE SCORE'):source==='local'?filename||'本地音乐':radio?.trackLabel||'COAST FM';},
-    prepare,start,togglePlayback,nextTrack,select,open,close,togglePanel(){opened?close():open();},setSuspended,setPaused:setSuspended,setVolume,loadFile,
-    dispose(){if(disposed)return;desired=false;userPaused=true;stopCurrent();unloadSpotify();opened=false;disposed=true;sync();for(const remove of removers)remove();audio.removeAttribute('src');audio.load();if(objectURL)urlAPI.revokeObjectURL(objectURL);objectURL=null;panel.hidden=true;radio?.dispose();},
+    get usingFallback(){return source==='pulse'?pulseFallback:source==='spotify'&&fallbackPlaying;},get playbackKnown(){return source!=='spotify'||spotifyKnown||fallbackPlaying;},get volume(){return volume;},get label(){return source==='pulse'?(pulseFallback?'COAST FM · 歌曲加载失败':`${PULSE_TRACKS[pulseIndex].title} · ${PULSE_TRACKS[pulseIndex].artist}`):source==='spotify'?(fallbackPlaying?'COAST FM · 等待原声':'GTA V · THE SCORE'):source==='local'?filename||'本地音乐':radio?.trackLabel||'COAST FM';},
+    prepare,start,togglePlayback,nextTrack,select,open,close,togglePanel(){opened?close():open();},setSuspended,setPaused:setSuspended,setVolume,setDucked,loadFile,
+    dispose(){if(disposed)return;desired=false;userPaused=true;stopCurrent();unloadSpotify();opened=false;disposed=true;sync();for(const remove of removers)remove();audio.removeAttribute('src');audio.load();pulse.removeAttribute('src');pulse.load();if(objectURL)urlAPI.revokeObjectURL(objectURL);objectURL=null;panel.hidden=true;radio?.dispose();},
   };
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MissionSystem } from '../dist/missions.js';
-import { collidersNear, isRoad } from '../dist/world-layout.js';
+import { collidersNear, districtAt, isRoad } from '../dist/world-layout.js';
 
 const walk = (x, z) => ({ mode: 'walk', x, z, speed: 0, activeVehicleId: null });
 const drive = (x, z, speed = 0, activeVehicleId = 'any-sedan-42') => ({ mode: 'drive', x, z, speed, activeVehicleId });
@@ -135,4 +135,37 @@ test('snapshots cannot mutate mission state and reset clears job rewards and not
   assert.equal(missions.stage, 'pickup');
   assert.equal(missions.seed, 61);
   assert.equal(missions.noticeId, 0);
+});
+
+test('contracts five and six introduce freight and aviation via clear road-facing handovers', () => {
+  for (const seed of [1, 281, 610, 999999]) {
+    const missions = new MissionSystem({ seed });
+    start(missions);
+    for (let contract = 1; contract <= 6; contract++) {
+      assert.equal(missions.contract, contract);
+      if (contract === 5 || contract === 6) {
+        const parking = missions.snapshot().target, contact = missions.contact;
+        assert.equal(districtAt(contact.x, contact.z, seed).id, contract === 5 ? 'cargo' : 'aviation');
+        assert.equal(isRoad(parking.x, parking.z), true, 'all vehicle types can stop on the connected street');
+        assert.equal(isRoad(contact.x, contact.z), false, 'contact waits off the traffic lanes');
+        assert.match(missions.snapshot().title, contract === 5 ? /货运/ : /空港/);
+        for (const obstacle of collidersNear(parking.x, parking.z, seed)) {
+          assert.ok(parking.x < obstacle.minX - 2.5 || parking.x > obstacle.maxX + 2.5 || parking.z < obstacle.minZ - 2.5 || parking.z > obstacle.maxZ + 2.5, 'parking is clear of architecture and furniture');
+        }
+        // Walk from the kerb to the contact without crossing any solid geometry.
+        for (let sample = 0; sample <= 20; sample++) {
+          const t = sample / 20, x = parking.x + (contact.x - parking.x) * t, z = parking.z + (contact.z - parking.z) * t;
+          for (const obstacle of collidersNear(x, z, seed)) {
+            assert.ok(x < obstacle.minX - .7 || x > obstacle.maxX + .7 || z < obstacle.minZ - .7 || z > obstacle.maxZ + .7, 'direct handover approach has pedestrian clearance');
+          }
+        }
+      }
+      finish(missions);
+      missions.interact(walk(missions.contact.x, missions.contact.z));
+      missions.update(.1, drive(missions.contact.x - 6, missions.contact.z));
+    }
+    assert.equal(missions.contract, 7);
+    assert.equal(missions.stage, 'drive', 'later procedural contracts continue normally');
+    assert.notEqual(missions.contact.label, '航空站地勤');
+  }
 });

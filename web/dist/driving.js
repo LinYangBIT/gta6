@@ -3,12 +3,10 @@
  * World coordinates stay in double precision; rendering owns its floating origin.
  * +Z is forward at yaw 0; positive steering turns left. Brake never reverses.
  */
-import { CHUNK_SIZE, collidersNear, districtAt, isRoad } from './world-layout.js?v=11';
-import { coastRoadAt, coastRoute } from './coast-layout.js?v=11';
+import { CHUNK_SIZE, collidersNear, districtAt, generateChunk, isRoad } from './world-layout.js?v=12';
+import { coastRoadAt, coastRoute } from './coast-layout.js?v=12';
 
-const WHEEL_RADIUS = .43;
-const CAR_RADIUS = 1.10;
-const CAR_HALF_SPINE = 1.15;
+import { vehicleSpec } from './vehicle-specs.js?v=12';
 const TAU = Math.PI * 2;
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
@@ -95,8 +93,24 @@ export class DrivingSimulation {
     this.seed = Math.trunc(finite(seed, 610));
     this.state = { bestTime: Math.max(0, finite(bestTime)) };
     this._steeringSettings = { ...STEERING_DEFAULTS };
+    this.vehicleKind = 'coupe';
+    this._heightCache = new Map();
     this.setSteeringSettings(steeringSettings);
     this.reset();
+  }
+
+  setVehicleKind(kind) { this.vehicleKind = vehicleSpec(kind).kind; this.state.vehicleKind = this.vehicleKind; return vehicleSpec(kind); }
+
+  get velocity() {
+    return { x: Math.sin(this._motionYaw) * this.state.speed + (this.state.impulseX || 0), z: Math.cos(this._motionYaw) * this.state.speed + (this.state.impulseZ || 0) };
+  }
+
+  setVelocity(x, z) {
+    x = finite(x); z = finite(z);
+    const fx = Math.sin(this._motionYaw), fz = Math.cos(this._motionYaw);
+    this.state.speed = x * fx + z * fz;
+    this.state.impulseX = x - this.state.speed * fx;
+    this.state.impulseZ = z - this.state.speed * fz;
   }
 
   get steeringSettings() { return { ...this._steeringSettings }; }
@@ -120,7 +134,9 @@ export class DrivingSimulation {
       distance: 0, checkpoint: 0, total: 0, lapTime: 0, seed: this.seed,
       bestTime, completed: false, completedLaps: 0, cruising: false,
       collision: false, cameraBump: 0, surface: 'road', running: false,
+      altitude: 0, verticalSpeed: 0, impulseX: 0, impulseZ: 0, angularVelocity: 0, vehicleKind: this.vehicleKind, impactId: 0, impact: null,
     });
+    this._heightCache.clear();
     this._motionYaw = Math.PI;
     this._routeHeading = 0;
     this._horizontalRun = 0;
@@ -160,6 +176,7 @@ export class DrivingSimulation {
   /** Join a nearby connected street before continuing the same physical car. */
   setCruise(enabled) {
     const s = this.state;
+    if (this.vehicleKind === 'helicopter') enabled = false;
     const entering = Boolean(enabled) && !s.cruising;
     s.cruising = Boolean(enabled);
     if (entering) {
@@ -216,10 +233,14 @@ export class DrivingSimulation {
       reverse: clamp(finite(input.reverse), 0, 1),
       steer: clamp(finite(input.steer), -1, 1),
       handbrake: Boolean(input.handbrake),
+      ascend: clamp(finite(input.ascend), 0, 1), descend: clamp(finite(input.descend), 0, 1),
     };
     const count = Math.max(1, Math.ceil(dt * 120));
     const step = dt / count;
-    for (let i = 0; i < count; i++) this._step(step, this.state.cruising ? this._cruiseInput(step) : normalized);
+    for (let i = 0; i < count; i++) {
+      if (this.vehicleKind === 'helicopter') this._flightStep(step, normalized);
+      else this._step(step, this.state.cruising ? this._cruiseInput(step) : normalized);
+    }
     return this.state;
   }
 
@@ -251,39 +272,109 @@ export class DrivingSimulation {
 
   _collide() {
     const s = this.state;
+    const spec = vehicleSpec(this.vehicleKind), radius = spec.radius;
     const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
     for (const rect of collidersNear(s.x, s.z, this.seed)) {
-      for (const offset of [-CAR_HALF_SPINE, CAR_HALF_SPINE]) {
+      if ((rect.minY ?? rect.minHeight ?? 0) > s.altitude + spec.height + .22) continue;
+      if (s.altitude > this.obstacleHeight(rect) + .7) continue;
+      for (const offset of [-spec.spine, 0, spec.spine]) {
         const px = s.x + fx * offset, pz = s.z + fz * offset;
         const closestX = clamp(px, rect.minX, rect.maxX), closestZ = clamp(pz, rect.minZ, rect.maxZ);
         let nx = px - closestX, nz = pz - closestZ;
         const distance = Math.hypot(nx, nz);
-        if (distance >= CAR_RADIUS) continue;
+        if (distance >= radius) continue;
         let separation;
         if (distance > .0001) {
           nx /= distance; nz /= distance;
-          separation = CAR_RADIUS - distance + .001;
+          separation = radius - distance + .001;
         } else {
           const sides = [
             { gap: px - rect.minX, nx: -1, nz: 0 }, { gap: rect.maxX - px, nx: 1, nz: 0 },
             { gap: pz - rect.minZ, nx: 0, nz: -1 }, { gap: rect.maxZ - pz, nx: 0, nz: 1 },
           ];
           const side = sides.reduce((a, b) => a.gap < b.gap ? a : b);
-          nx = side.nx; nz = side.nz; separation = side.gap + CAR_RADIUS + .001;
+          nx = side.nx; nz = side.nz; separation = side.gap + radius + .001;
         }
         s.x += nx * separation; s.z += nz * separation;
-        const approach = (Math.sin(this._motionYaw) * nx + Math.cos(this._motionYaw) * nz) * s.speed;
+        const velocity = this.velocity, approach = velocity.x * nx + velocity.z * nz;
         if (approach < 0) {
-          s.cameraBump = Math.max(s.cameraBump, Math.min(1, Math.abs(s.speed) / 15));
-          s.speed *= -.08;
+          s.cameraBump = Math.max(s.cameraBump, Math.min(1, -approach / 15));
+          // Reflect the normal component; tangential momentum remains available
+          // for sliding along the wall instead of reversing the entire velocity.
+          this.setVelocity(velocity.x - nx * approach * 1.08, velocity.z - nz * approach * 1.08);
+          if (-approach > .8) {
+            s.impactId++;
+            s.impact = { x: px - nx * radius, z: pz - nz * radius, altitude: s.altitude,
+              nx, nz, speed: -approach, strength: Math.min(1, -approach / 18), kind: 'wall' };
+          }
         }
         s.collision = true;
       }
     }
   }
 
+  /** Heights are queried lazily only for flight; ground collisions need no map rebuild. */
+  obstacleHeight(rect) {
+    if (Number.isFinite(rect.height)) return rect.height;
+    if (!this.state.altitude) return Infinity;
+    if (rect.kind !== 'building') return rect.kind === 'water' ? 1.5 : 3;
+    const cx = Math.floor((rect.minX + rect.maxX) / 2 / CHUNK_SIZE), cz = Math.floor((rect.minZ + rect.maxZ) / 2 / CHUNK_SIZE), key = `${cx},${cz}`;
+    if (!this._heightCache.has(key)) {
+      this._heightCache.set(key, new Map(generateChunk(cx, cz, this.seed).buildings.map(b => [b.id, b.height + 2])));
+      if (this._heightCache.size > 16) this._heightCache.delete(this._heightCache.keys().next().value);
+    }
+    return this._heightCache.get(key).get(rect.id) ?? 150;
+  }
+
+  _flightStep(dt, input) {
+    const s = this.state, spec = vehicleSpec('helicopter'), previousX = s.x, previousZ = s.z;
+    s.cruising = false; s.cameraBump *= Math.exp(-8 * dt);
+    const lift = input.ascend - input.descend;
+    const verticalTarget = lift > 0 ? lift * 9 : lift * 6;
+    s.verticalSpeed += (verticalTarget - s.verticalSpeed) * (1 - Math.exp(-3.8 * dt));
+    let altitude = clamp(s.altitude + s.verticalSpeed * dt, 0, 160);
+    // A descending craft stops above roofs and water rather than clipping
+    // through them. Roof landing remains non-exitable; street landing is safe.
+    if (altitude < s.altitude && s.altitude > .01) {
+      const radius = spec.radius + .3;
+      for (const wall of collidersNear(s.x, s.z, this.seed)) {
+        if (s.x + radius < wall.minX || s.x - radius > wall.maxX || s.z + radius < wall.minZ || s.z - radius > wall.maxZ) continue;
+        const floor = this.obstacleHeight(wall) + 1;
+        if (s.altitude >= floor && altitude < floor) { altitude = floor; s.verticalSpeed = 0; }
+      }
+    }
+    if (altitude > s.altitude) {
+      const radius = spec.radius + .3;
+      for (const wall of collidersNear(s.x, s.z, this.seed)) {
+        const ceiling = wall.minY ?? wall.minHeight;
+        if (!Number.isFinite(ceiling) || s.x + radius < wall.minX || s.x - radius > wall.maxX || s.z + radius < wall.minZ || s.z - radius > wall.maxZ) continue;
+        const safe = Math.max(0, ceiling - spec.height - .23);
+        if (s.altitude <= safe && altitude > safe) { altitude = safe; s.verticalSpeed = 0; }
+      }
+    }
+    s.altitude = altitude;
+    if (altitude === 0 || altitude === 160) s.verticalSpeed = 0;
+    const flying = altitude > .7, drive = input.brake || input.handbrake ? 0 : input.throttle - input.reverse;
+    const oldSpeed = s.speed;
+    s.speed += (drive * (flying ? spec.power : 3.5) - s.speed * (input.brake || input.handbrake ? 4.5 : .17)) * dt;
+    s.speed = clamp(s.speed, flying ? -12 : -2, flying ? 40 : 4);
+    if (!drive && Math.abs(s.speed) < .025) s.speed = 0;
+    s.steering += (input.steer - s.steering) * (1 - Math.exp(-5 * dt));
+    s.yaw = wrapAngle(s.yaw + (s.steering * (flying ? .95 : Math.abs(s.speed) * .18) + s.angularVelocity) * dt);
+    this._motionYaw = wrapAngle(this._motionYaw + wrapAngle(s.yaw - this._motionYaw) * (1 - Math.exp(-(flying ? 2.2 : 8) * dt)));
+    const velocity = this.velocity;
+    s.x += velocity.x * dt; s.z += velocity.z * dt;
+    s.impulseX *= Math.exp(-.8 * dt); s.impulseZ *= Math.exp(-.8 * dt); s.angularVelocity *= Math.exp(-2.8 * dt);
+    this._collide();
+    const travelled = Math.hypot(s.x - previousX, s.z - previousZ);
+    s.distance += travelled; s.wheelAngle += Math.sign(oldSpeed || s.speed) * travelled / spec.wheelRadius;
+    s.surface = flying ? 'air' : isRoad(s.x, s.z) ? 'road' : 'sidewalk';
+    s.running = true; s.lapTime += dt;
+  }
+
   _step(dt, input) {
     const s = this.state;
+    const spec = vehicleSpec(this.vehicleKind);
     const previousX = s.x, previousZ = s.z;
     const wasRoad = isRoad(s.x, s.z);
     s.surface = wasRoad ? 'road' : 'sidewalk';
@@ -293,14 +384,14 @@ export class DrivingSimulation {
     const oldSpeed = s.speed;
     const drive = input.brake || input.handbrake ? 0 : input.throttle - input.reverse;
     const opposingMotion = drive * s.speed < -.05;
-    const power = opposingMotion ? 18 : drive < 0 ? 6.5 : wasRoad ? 9.5 : 6.5;
+    const power = opposingMotion ? 18 : drive < 0 ? spec.power * .6842105263 : wasRoad ? spec.power : spec.power * .6842105263;
     let acceleration = drive * power;
-    acceleration -= Math.sign(s.speed) * (input.brake * 21 + (input.handbrake ? 24 : 0));
+    acceleration -= Math.sign(s.speed) * (input.brake * spec.braking + (input.handbrake ? spec.braking + 3 : 0));
     const drag = (wasRoad ? .65 : 1.4) + Math.abs(s.speed) * .04 + s.speed * s.speed * .004;
     if (Math.abs(s.speed) > .005) acceleration -= Math.sign(s.speed) * drag;
     s.speed += acceleration * dt;
     if (!drive && Math.sign(oldSpeed) !== Math.sign(s.speed)) s.speed = 0;
-    s.speed = clamp(s.speed, -6, wasRoad ? 42 : 20);
+    s.speed = clamp(s.speed, -spec.reverseSpeed, wasRoad ? spec.maxSpeed : Math.min(20, spec.maxSpeed));
     if (!drive && Math.abs(s.speed) < .035) s.speed = 0;
     const speed = Math.abs(s.speed);
     // A thumbstick has useful travel around centre; a digital key takes time
@@ -318,17 +409,19 @@ export class DrivingSimulation {
     // High-speed full lock should make a sweeping bend, not whip the car
     // sideways. Reverse keeps the same wheel direction and opposite yaw.
     const yawLimit = s.cruising ? 1.4 : Math.min(1.05 * sensitivity, (input.handbrake ? 9.2 : 7.2) * sensitivity / Math.max(speed, 1));
-    const yawRate = clamp(s.speed / 2.65 * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -yawLimit, yawLimit);
-    s.yaw = wrapAngle(s.yaw + yawRate * dt);
+    const yawRate = clamp(s.speed / spec.wheelbase * Math.tan(s.steering) * (input.handbrake ? 1.25 : 1), -yawLimit, yawLimit);
+    s.yaw = wrapAngle(s.yaw + (yawRate + s.angularVelocity) * dt);
     const grip = input.handbrake && Math.abs(s.speed) > 4 ? 2.1 : wasRoad ? 13 : 8;
     this._motionYaw = wrapAngle(this._motionYaw + wrapAngle(s.yaw - this._motionYaw) * (1 - Math.exp(-grip * dt)));
-    s.x += Math.sin(this._motionYaw) * s.speed * dt;
-    s.z += Math.cos(this._motionYaw) * s.speed * dt;
+    const velocity = this.velocity;
+    s.x += velocity.x * dt; s.z += velocity.z * dt;
+    const momentumDamping = Math.exp(-(input.brake || input.handbrake ? 7 : 2.8) * dt);
+    s.impulseX *= momentumDamping; s.impulseZ *= momentumDamping; s.angularVelocity *= Math.exp(-3.5 * dt);
     if (isRoad(s.x, s.z) !== wasRoad) s.cameraBump = Math.max(s.cameraBump, .10);
     this._collide();
     const travelled = Math.hypot(s.x - previousX, s.z - previousZ);
     s.distance += travelled;
-    s.wheelAngle += Math.sign(oldSpeed || s.speed) * travelled / WHEEL_RADIUS;
+    s.wheelAngle += Math.sign(oldSpeed || s.speed) * travelled / spec.wheelRadius;
     const target = s.destination;
     if (s.running && sweptDistance(s.x, s.z, previousX, previousZ, target.x, target.z) <= target.radius) {
       s.checkpoint++;

@@ -1,0 +1,49 @@
+{
+  "title": "PULSE FM English vocal playlist",
+  "verified_on": "2026-10-29",
+  "notes": "Track-level CC BY 3.0 licenses were checked on the artist upload pages and original vocal source pages. The ccMixter website text license is separate. These recordings are not covered by the project MIT license. Artist names identify credits only; no endorsement is implied.",
+  "tracks": [
+    {
+      "title": "On My Way",
+      "artist": "Alex (AlexBeroza)",
+      "featuring": "Donnie Ozone",
+      "year": 2013,
+      "bpm": 140,
+      "language": "English",
+      "style": "Electronic / dance with male vocals",
+      "source_page": "https://ccmixter.org/files/AlexBeroza/42806",
+      "source_audio": "https://ccmixter.org/content/AlexBeroza/AlexBeroza_-_On_My_Way.mp3",
+      "vocal_source": "https://ccmixter.org/files/donnieozone/42767",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "attribution": "On My Way by Alex (AlexBeroza) featuring Donnie Ozone (2013), licensed CC BY 3.0, via ccMixter.",
+      "changes": "Transcoded original full-length vocal mix to MP3 128 kbit/s stereo for browser delivery; metadata removed. No remix, excerpt or tempo change.",
+      "file": "music/on-my-way.mp3",
+      "bytes": 3814338,
+      "duration_seconds": 238.367347,
+      "sha256": "c29df2981951b6485e683a8ac91c4a4a0fa9c397db45638f2623364168c2098d",
+      "original_sha256": "158df1381e1d9b7cd0bb0a880243317d0f09f824e9c016b95f7e2865403ddf55"
+    },
+    {
+      "title": "Road Back To You",
+      "artist": "Allerlei von Nicolai",
+      "featuring": "Admiral Bob",
+      "year": 2020,
+      "bpm": 128,
+      "language": "English",
+      "style": "Electronic / dance with male vocals",
+      "source_page": "https://ccmixter.org/files/Allerlei_von_Nicolai/61840",
+      "source_audio": "https://ccmixter.org/content/Allerlei_von_Nicolai/Allerlei_von_Nicolai_-_Road_Back_To_You_1.mp3",
+      "vocal_source": "https://ccmixter.org/files/admiralbob77/61493",
+      "license": "CC BY 3.0",
+      "license_url": "https://creativecommons.org/licenses/by/3.0/",
+      "attribution": "Road Back To You by Allerlei von Nicolai featuring Admiral Bob (2020), licensed CC BY 3.0, via ccMixter.",
+      "changes": "Transcoded original full-length vocal mix to MP3 128 kbit/s stereo for browser delivery; metadata removed. No remix, excerpt or tempo change.",
+      "file": "music/road-back-to-you.mp3",
+      "bytes": 4200950,
+      "duration_seconds": 262.530612,
+      "sha256": "562a908b9ef9a9921d80558bd4badb047f7331039149a03f3edc2a87b1826aa4",
+      "original_sha256": "8bfe7aa83e6c85cabeab59b319052943c100ffedbb5d04df4740288d9b1275d6"
+    }
+  ]
+}

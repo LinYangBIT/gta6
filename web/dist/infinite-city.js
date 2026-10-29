@@ -1,9 +1,10 @@
+import { describeCityElements } from './metro-districts.js?v=12';
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=11';
-import { createStreetSignMaterial } from './street-signs.js?v=11';
-import { describeCoastChunk } from './coast-render.js?v=11';
-import { describeUrbanBuilding } from './urban-architecture.js?v=11';
-import { CityHorizon } from './city-horizon.js?v=11';
+import { CHUNK_SIZE, generateChunk, districtAt } from './world-layout.js?v=12';
+import { createStreetSignMaterial } from './street-signs.js?v=12';
+import { describeCoastChunk } from './coast-render.js?v=12';
+import { describeUrbanBuilding } from './urban-architecture.js?v=12';
+import { CityHorizon } from './city-horizon.js?v=12';
 
 const WHITE = '#b1c5db';
 const DARK = '#182632';
@@ -147,7 +148,11 @@ function describeChunk(data, lod = 0) {
     if(building.infill)records.push(...describeUrbanBuilding(building,lod));
     else buildingParts(building);
   }
-  for(const feature of data.features || []) featureParts(feature);
+  for(const feature of data.features || []){
+    if(data.metro||(data.cityElements||[]).some(f=>f.x===feature.x&&f.z===feature.z))box(feature.x,.20,feature.z,feature.width,.10,feature.depth,feature.kind==='park'?'#567c67':'#687a88','paving');
+    else featureParts(feature);
+  }
+  records.push(...describeCityElements(data.cityElements,lod));
 
   function lamp(x,z,angle) {
     cylinder(x,3.7,z,.095,7.2,'#303f57');
@@ -444,7 +449,7 @@ export class InfiniteCity {
           this._rotation.set(r.rx||0,r.ry||0,r.rz||0);this._quaternion.setFromEuler(this._rotation);this._position.set(r.x-this.originX,r.y,r.z-this.originZ);this._scale.set(r.sx,r.sy,r.sz);this._matrix.compose(this._position,this._quaternion,this._scale);
         }else this._matrix.set(c*r.sx,0,s*r.sz,r.x-this.originX,0,r.sy,0,r.y,-s*r.sx,0,c*r.sz,r.z-this.originZ,0,0,0,1);
         pool.setMatrixAt(i,this._matrix);
-        let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);this.colors.set(r.color,color);}
+        let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);if(this.colors.size>=240)this.colors.delete(this.colors.keys().next().value);this.colors.set(r.color,color);}
         pool.setColorAt(i,color);
         if(pool.geometry.attributes.facadeSeed)pool.geometry.attributes.facadeSeed.setX(i,r.seed);
         if(pool.geometry.attributes.signIndex)pool.geometry.attributes.signIndex.setX(i,r.seed);

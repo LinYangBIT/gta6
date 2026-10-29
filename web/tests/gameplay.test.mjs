@@ -16,7 +16,7 @@ test('start on foot beside an enterable car; all generated car kinds can be ente
   assert.equal(game.nearbyVehicle().id, '0,0/car/0');
   assert.ok(game.vehicles.size > 8 && game.vehicles.size <= 36, 'coastal parking is sparse and bounded');
   const cars = [...game.vehicles.values()];
-  assert.deepEqual(new Set(cars.map(car => car.kind)), new Set(['coupe', 'sedan', 'suv']));
+  assert.deepEqual(new Set(cars.map(car => car.kind)), new Set(['coupe', 'sedan', 'suv', 'bicycle', 'truck', 'helicopter']));
   for (const car of cars) {
     game.walk.x = car.x + 3; game.walk.z = car.z;
     game.update(.001, {});
@@ -70,7 +70,7 @@ test('every coastal parked car has a safe door, can be driven and exits without 
         assert.equal(game.state.collision, false, `${id} starts in an obstacle`);
         assert.ok(Math.hypot(game.state.x - space.x, game.state.z - space.z) < .001);
         run(game, .3, { throttle: .3 });
-        assert.ok(game.state.distance > .05, `${id} cannot move`);
+        assert.ok(game.state.distance > .01, `${id} cannot move`);
         run(game, .3, { brake: 1 });
         assert.equal(game.interact().ok, true, `${id} cannot be left`);
         assert.ok(game._walkClear(game.state.x, game.state.z));

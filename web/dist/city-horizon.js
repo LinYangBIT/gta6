@@ -1,5 +1,6 @@
+import { describeCityElements } from './metro-districts.js?v=12';
 import * as THREE from './vendor/three.module.js';
-import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=11';
+import { CHUNK_SIZE, generateChunk } from './world-layout.js?v=12';
 
 /** A finite moving window onto the same unlimited city, with cheap distant geometry.
  * Far buildings keep the exact footprint/height of their detailed counterparts.
@@ -39,6 +40,8 @@ export function describeHorizonChunk(data) {
     box('solid',b.x,.22+b.height+.13,b.z,b.width+.35,.26,b.depth+.35,b.style==='glass'?'#8095b4':'#b1c5db');
     if(b.height>55)box(type,b.x,.22+b.height+1.9,b.z,b.width*.60,3.6,b.depth*.60,b.color,seed+1);
   }
+  const silhouettes=(data.cityElements||[]).filter(f=>['container','crane','pier','flyover','hangar','hill','lifeguard'].includes(f.kind));
+  for(const r of describeCityElements(silhouettes,2))records.push({...r,type:r.type==='facade'?'facade':'solid'});
   return records;
 }
 
@@ -99,7 +102,7 @@ export class CityHorizon {
         const r=records[index],c=Math.cos(r.ry),s=Math.sin(r.ry);
         this.matrix.set(c*r.sx,0,s*r.sz,r.x-this.originX,0,r.sy,0,r.y,-s*r.sx,0,c*r.sz,r.z-this.originZ,0,0,0,1);
         pool.setMatrixAt(index,this.matrix);
-        let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);this.colors.set(r.color,color);}
+        let color=this.colors.get(r.color);if(!color){color=new THREE.Color(r.color);if(this.colors.size>=120)this.colors.delete(this.colors.keys().next().value);this.colors.set(r.color,color);}
         pool.setColorAt(index,color);
         pool.geometry.attributes.facadeSeed?.setX(index,r.seed);
       }

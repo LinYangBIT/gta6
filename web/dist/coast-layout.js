@@ -1,3 +1,4 @@
+import { coastCityElements, cityElementColliders, COAST_CITY_ELEMENTS } from './metro-districts.js?v=12';
 /** A connected, hand-authored coastal quarter, surrounded by the infinite city.
  * One source of truth for asphalt, architecture, vehicles and collision queries.
  * The boulevard's east side opens into a beach, rather than another square block.
@@ -152,7 +153,7 @@ const water=[
  {id:'coast/marina',kind:'water',minX:35,maxX:83,minZ:-365,maxZ:-303},
  {id:'coast/fountain',kind:'fountain',minX:-135,maxX:-121,minZ:-167,maxZ:-153},
 ];
-const allColliders=[...buildings.map(b=>({id:b.id,kind:'building',...bounds(b)})),...water];
+const allColliders=[...buildings.map(b=>({id:b.id,kind:'building',height:b.height+5,...bounds(b)})),...water,...cityElementColliders(COAST_CITY_ELEMENTS)];
 export function coastCollidersNear(x,z){if(!inBounds(x,z,16))return null;return allColliders.filter(r=>r.minX<=x+16&&r.maxX>=x-16&&r.minZ<=z+16&&r.maxZ>=z-16);}
 
 export const COAST_MISSION_STOPS=Object.freeze([
@@ -197,7 +198,7 @@ export function getCoastChunk(cx,cz,seed=610){
  const features=[];
  for(const f of COAST_FEATURES){const b=bounds(f);if(!overlap(r,b))continue;const minX=Math.max(r.minX,b.minX),maxX=Math.min(r.maxX,b.maxX),minZ=Math.max(r.minZ,b.minZ),maxZ=Math.min(r.maxZ,b.maxZ);features.push({...f,x:(minX+maxX)/2,z:(minZ+maxZ)/2,width:maxX-minX,depth:maxZ-minZ,detailSeed:hash(seed,key,f.id),sourceX:f.x,sourceZ:f.z,sourceWidth:f.width,sourceDepth:f.depth});}
  const owned=buildings.filter(b=>b.x>=x&&b.x<x+S&&b.z>=z&&b.z<z+S).map(b=>({...b,detailSeed:hash(seed,b.id)}));
- return {key,cx,cz,x,z,seed,detailSeed:hash('coast',key,seed),layout:'coastal',coastal:true,district:COAST_DISTRICT,buildings:owned,features,roads,colliders:allColliders.filter(c=>overlap(r,c)),vehicleSpawns:(spawnsByChunk.get(key)||[]).map(v=>({...v}))};
+ return {key,cx,cz,x,z,seed,detailSeed:hash('coast',key,seed),layout:'coastal',coastal:true,district:COAST_DISTRICT,buildings:owned,features,roads,cityElements:coastCityElements(cx,cz),colliders:allColliders.filter(c=>overlap(r,c)),vehicleSpawns:(spawnsByChunk.get(key)||[]).map(v=>({...v}))};
 }
 
 // Every connector shares exact sample nodes. This avoids fake grid navigation

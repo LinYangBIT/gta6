@@ -37,6 +37,7 @@ function firstDelivery({ seed = 610, parkingSlot = 0, stepTime = 1 / 60 } = {}) 
   walkTo(13, parkingZ);
   assert.equal(game.interact().ok, true);
   assert.equal(game.activeVehicle.id, `0,0/car/${parkingSlot}`);
+  assert.equal(game.activeVehicle.kind, parkingSlot === 0 ? 'coupe' : 'bicycle');
   step();
   assert.equal(missions.stage, 'drive');
 
@@ -74,9 +75,12 @@ function firstDelivery({ seed = 610, parkingSlot = 0, stepTime = 1 / 60 } = {}) 
   assert.equal(game.interact().ok, true);
   assert.equal(game.mode, 'walk');
 
-  // Walk around the parked car's front to the contact on the sidewalk.
-  walkTo(game.state.x, -112);
-  walkTo(13, -112);
+  // Cross behind the larger curbside fleet before approaching the contact.
+  // At seed 4928 a truck occupies the old z=-112 waypoint; z=-116 keeps
+  // clearance from both that truck and our stopped vehicle, without teleporting.
+  assert.ok(game._walkClear(game.state.x, -116), 'pedestrian crossing starts in clear space');
+  walkTo(game.state.x, -116);
+  walkTo(13, -116);
   walkTo(13, -115);
   assert.equal(missions.interact(actor()).ok, true);
   assert.equal(missions.cash, 300);
@@ -97,6 +101,6 @@ test('complete the first mission from walking spawn through pickup, driving, exi
   firstDelivery();
 });
 
-test('the same full journey works with a different parked car, city seed and 30 Hz updates', () => {
+test('the same full journey works by bicycle with a different city seed and 30 Hz updates', () => {
   firstDelivery({ seed: 4928, parkingSlot: 1, stepTime: 1 / 30 });
 });

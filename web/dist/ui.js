@@ -1,4 +1,6 @@
 /** DOM-only presentation and touch controls for Sunset Coast. */
+import { createMissionGuidance, missionDirection } from './mission-guidance.js?v=12';
+
 export function createUI(handlers = {}) {
   const byId = id => document.getElementById(id);
   const intro = byId('intro');
@@ -24,13 +26,35 @@ export function createUI(handlers = {}) {
   const last = {};
   let ready = false;
   let toastTimeout;
+  let bannerTimeout;
+  let currentVehicleKind = '';
   let orientationBlocked = false;
+  const guidance = createMissionGuidance({
+    onChange({ enabled, supported, status }) {
+      byId('mission-voice-toggle')?.setAttribute('aria-pressed', String(enabled));
+      byId('mission-voice-toggle')?.setAttribute('aria-label', enabled ? '关闭英文任务语音' : '开启英文任务语音');
+      text('mission-voice-status', !enabled ? 'EN OFF' : !supported || status === 'text-only' ? 'EN 字幕' : status === 'speaking' ? 'EN ▶' : 'EN VOICE');
+    },
+    onSpeaking(speaking) {
+      handlers.voiceSpeaking?.(speaking);
+    },
+    onStage(mission) {
+      text('mission-banner-title', mission.stage === 'offer' ? `任务完成 +$${mission.reward}` : '目标已更新');
+      text('mission-banner-objective', mission.objective);
+      text('mission-banner-caption', mission.voiceText);
+      byId('mission-banner')?.classList.add('is-visible');
+      clearTimeout(bannerTimeout);
+      bannerTimeout = setTimeout(() => byId('mission-banner')?.classList.remove('is-visible'), 4600);
+      bannerTimeout.unref?.();
+    },
+  });
   const portraitMedia = window.matchMedia?.('(pointer: coarse) and (orientation: portrait)');
   function syncOrientation() {
     const blocked = Boolean(portraitMedia?.matches && !document.body.classList.contains('allow-portrait'));
     if (blocked === orientationBlocked) return;
     orientationBlocked = blocked;
     releaseAll();
+    if (blocked) guidance.pause();
     handlers.orientation?.(blocked);
   }
 
@@ -50,6 +74,7 @@ export function createUI(handlers = {}) {
   function openDialog(dialog) {
     if (!dialog || dialog.open) return;
     releaseAll();
+    guidance.pause();
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
     dialogState();
@@ -100,6 +125,8 @@ export function createUI(handlers = {}) {
   }
   function showIntro() {
     releaseAll();
+    guidance.pause();
+    byId('mission-banner')?.classList.remove('is-visible');
     intro.classList.remove('is-hidden');
     intro.removeAttribute('aria-hidden');
     intro.inert = false;
@@ -116,17 +143,19 @@ export function createUI(handlers = {}) {
     world?.focus({ preventScroll: true });
   }
 
-  onClick('start-drive', () => { if (ready) handlers.start?.('walk'); });
-  onClick('start-cruise', () => { if (ready) handlers.start?.('free'); });
+  onClick('start-drive', () => { if (ready) { guidance.unlock(); handlers.start?.('walk'); } });
+  onClick('start-cruise', () => { if (ready) { guidance.unlock(); handlers.start?.('free'); } });
   onClick('interact-button', () => { if (!byId('interact-button').disabled) { releaseAll(); handlers.interact?.(); world?.focus({ preventScroll: true }); } });
   onClick('continue-portrait', () => { document.body.classList.add('allow-portrait'); syncOrientation(); world?.focus({ preventScroll: true }); });
   onClick('rotate-fullscreen', () => handlers.fullscreen?.());
-  onClick('new-city-button', () => { if (ready) { releaseAll(); handlers.newCity?.(); } });
+  onClick('new-city-button', () => { if (ready) { releaseAll(); guidance.reset(); handlers.newCity?.(); } });
   onClick('camera-button', () => handlers.camera?.());
   onClick('recenter-button', () => handlers.recenter?.());
   onClick('music-button', () => handlers.music?.());
   onClick('track-button', () => handlers.track?.());
-  onClick('reset-button', () => handlers.reset?.());
+  onClick('reset-button', () => { guidance.reset(); handlers.reset?.(); });
+  onClick('mission-voice-toggle', () => guidance.toggle());
+  onClick('mission-voice-replay', () => guidance.replay());
   onClick('sound-button', () => handlers.sound?.());
   onClick('fullscreen-button', () => handlers.fullscreen?.());
   onClick('menu-button', () => { releaseAll(); handlers.menu?.(); });
@@ -236,14 +265,15 @@ export function createUI(handlers = {}) {
     setMove(0, 0);
   });
   steeringPad.addEventListener('blur', () => { steeringPointer = null; setSteering(0); setMove(0, 0); });
-  window.addEventListener('blur', releaseAll);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+  window.addEventListener('blur', () => { releaseAll(); guidance.pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseAll(); guidance.pause(); } });
 
   portraitMedia?.addEventListener?.('change', syncOrientation);
   syncOrientation();
 
   return {
     get orientationBlocked() { return orientationBlocked; },
+    resetGuidance() { guidance.reset(); },
     setLoading(progress, message) {
       if (ready) return;
       const fraction = Number.isFinite(progress) ? Math.max(0, Math.min(1, progress > 1 ? progress / 100 : progress)) : 0;
@@ -277,15 +307,21 @@ export function createUI(handlers = {}) {
     update(state = {}) {
       const mode = state.mode || currentMode;
       if (mode !== currentMode) { releaseAll(); currentMode = mode; }
+      const vehicleKind = state.vehicleKind || '';
+      if (vehicleKind !== currentVehicleKind) { releaseAll(); currentVehicleKind = vehicleKind; }
       document.body.classList.toggle('is-driving', mode === 'drive');
+      const flying = mode === 'drive' && vehicleKind === 'helicopter';
+      document.body.classList.toggle('is-flying', flying);
       const walking = mode !== 'drive';
       text('movement-caption', walking ? '拖动摇杆 · 自由移动' : '左右拖动 · 转向');
       text('movement-hint', walking ? '移动' : '驾驶');
-      text('secondary-key', walking ? 'SHIFT' : 'SPACE');
-      text('secondary-hint', walking ? '奔跑' : '手刹');
+      text('secondary-key', walking ? 'SHIFT' : flying ? 'SPACE / CTRL' : 'SPACE');
+      text('secondary-hint', walking ? '奔跑' : flying ? '上升 / 下降' : '手刹');
+      text('flight-altitude', `${Math.round(Math.max(0, Number(state.altitude) || 0))} m`);
       text('vehicle-label', walking ? 'ON FOOT · 步行' : state.vehicleLabel || 'COASTAL GT');
       steeringPad.setAttribute('aria-label', walking ? '移动摇杆，拖动选择方向' : '方向盘，左右拖动转向');
       byId('interact-button').disabled = !state.canInteract;
+      byId('interact-button').classList.toggle('is-action-ready', Boolean(state.canInteract));
       text('interaction-label', state.interactionLabel || (walking ? '靠近车辆或任务地点' : '停车后下车'));
       if (state.mission) {
         const mission = state.mission;
@@ -299,6 +335,16 @@ export function createUI(handlers = {}) {
         text('mission-cash', `$${Math.max(0, Number(mission.cash) || 0).toLocaleString('en-US')}`);
         text('mission-reward', `$${Math.max(0, Number(mission.reward) || 0).toLocaleString('en-US')}`);
         byId('mission-reward-wrap').hidden = total === 0;
+        text('mission-action-hint', total ? mission.actionHint || mission.objective : '小地图 B 自行车 · T 卡车 · H 直升机');
+        text('mission-caption', total ? mission.voiceText || '' : 'FREE ROAM · Explore the city. Choose your ride.');
+        const direction = missionDirection(state.navigationAngle ?? mission.directionAngle);
+        const navigation = byId('mission-navigation');
+        if (navigation) navigation.hidden = total === 0;
+        byId('mission-direction-arrow')?.style.setProperty('--bearing', `${direction.degrees}deg`);
+        text('mission-direction', direction.label);
+        const metres = Number.isFinite(state.targetDistance) ? state.targetDistance : mission.distance;
+        text('mission-nav-distance', Number.isFinite(metres) ? metres >= 1000 ? distanceLabel(metres, 1) : `${Math.round(metres)} m` : '选一辆车');
+        guidance.update(mission, { active: Boolean(state.guidanceActive && !orientationBlocked && !document.hidden) });
       }
       const speed = Math.max(0, Math.round(Math.abs(Number(state.speed) || 0)));
       text('speed', speed);
@@ -332,10 +378,10 @@ export function createUI(handlers = {}) {
       byId('music-button').setAttribute('aria-pressed', String(musicOpen ?? musicOn));
       byId('music-button').setAttribute('data-playing', String(musicOn));
       byId('music-button').setAttribute('aria-label', musicOpen ? '收起音乐设置，继续播放' : '打开音乐设置');
-      text('music-source-label', musicSource === 'spotify' ? 'GTA V 原声' : musicSource === 'local' ? '本地音乐' : 'COAST FM');
+      text('music-source-label', musicSource === 'spotify' ? 'GTA V 原声' : musicSource === 'pulse' ? 'PULSE FM' : musicSource === 'local' ? '本地音乐' : 'COAST FM');
       text('radio-state', musicOn ? 'ON AIR' : musicSource === 'spotify' ? 'READY' : 'PAUSED');
       if (state.trackLabel) text('track-label', state.trackLabel);
-      byId('track-button').setAttribute('aria-label', musicSource === 'coast' ? '切换下一首音乐' : '打开音乐播放器选择曲目');
+      byId('track-button').setAttribute('aria-label', ['coast', 'pulse'].includes(musicSource) ? '切换下一首音乐' : '打开音乐播放器选择曲目');
       byId('cruise-badge').hidden = !state.cruising;
     },
     showIntro,

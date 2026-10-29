@@ -27,6 +27,12 @@ blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
 #   --input /tmp/cyberpunk-city.json --output previews/cyberpunk_city.png \
 #   --overview-output previews/cyberpunk_city_aerial.png --blend scenes/cyberpunk_city.blend \
 #   --resolution 1920 --samples 48
+# Expanded metro district; vehicle positions come from its actual streamed cells:
+# node scripts/export_infinite_preview.mjs --metro --seed 610 --output /tmp/metro-city.json
+# blender -b --python-exit-code 1 --python scripts/render_infinite_preview.py -- \
+#   --input /tmp/metro-city.json --output previews/metro_city.png \
+#   --overview-output previews/metro_city_aerial.png --blend scenes/metro_city.blend \
+#   --resolution 1920 --samples 48
 
 The live city is infinite; this preview contains only its bounded nearby cells.
 Facade window masks are baked offline from the browser shader; GPU precision,
@@ -254,6 +260,11 @@ if data.get('dense'):
     scene['visible_building_count'] = data['stats'].get('totalBuildings',data['stats']['buildings'])
 if data.get('cyberpunk'):
     scene['visual_profile'] = 'Cyberpunk blue hour / actual runtime geometry and hero neon overlays'
+if data.get('metro'):
+    scene['visual_profile'] = 'Metro expansion / cargo, transit, recreation, hillside and actual streamed vehicle models'
+    scene['observer_world_xz'] = data.get('actorCenter', data['center'])
+    scene['snapshot_source_sha256'] = json.dumps(data.get('sourceSha256', {}), sort_keys=True)
+    scene['snapshot_script_sha256'] = json.dumps(data.get('scriptSha256', {}), sort_keys=True)
 scene['preview_limits'] = 'Finite snapshot of the live infinite world. Offline materials, lighting and tone mapping differ from the browser. This is not a gameplay screenshot.'
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = args.samples if data.get('street') else min(args.samples,16)

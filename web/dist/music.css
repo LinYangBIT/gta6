@@ -13,6 +13,10 @@
 .soundtrack-panel__header #soundtrack-close{width:44px;height:44px;min-width:44px;display:grid;place-items:center;background:#fff3dd0b}
 .soundtrack-panel__header #soundtrack-close svg{width:20px;height:20px}
 .soundtrack-sources button{min-height:36px;font-size:10px}
+.soundtrack-sources{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+#pulse-track-name{display:block;margin:5px 0 9px;font-size:13px;color:var(--cream)}
+#pulse-track-credit{display:block;margin-top:9px;line-height:1.5;color:var(--muted)}
+#soundtrack-pulse>a,#pulse-track-credit a{font-size:10px;color:var(--mint)}
 .soundtrack-note,.soundtrack-status{position:static;clip:auto;width:auto;height:auto;overflow:visible;white-space:normal;font-size:10px;line-height:1.5}
 .music-volume,.music-volume-label{display:flex;align-items:center;gap:9px;margin:10px 2px 1px;font-size:10px;color:var(--muted)}
 #music-volume{min-width:0;flex:1;width:100%;accent-color:#f4c68e;pointer-events:auto}

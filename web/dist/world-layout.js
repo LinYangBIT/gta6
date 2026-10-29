@@ -1,4 +1,5 @@
-import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=11';
+import { getMetroChunk, metroDistrictAt, cityElementColliders } from './metro-districts.js?v=12';
+import { getCoastChunk, coastRoadAt, coastCollidersNear, COAST_DISTRICT, inCoast } from './coast-layout.js?v=12';
 /**
  * Seeded city planning shared by the renderer, collisions and navigation.
  * Coordinates are metres. A curved coastal quarter connects to the infinite street grid.
@@ -54,6 +55,7 @@ export function isRoad(x, z) {
 }
 
 function districtForChunk(cx, cz, seed) {
+  const metro=metroDistrictAt(cx,cz);if(metro)return metro;
   const regionX = Math.floor(cx / 3), regionZ = Math.floor(cz / 3);
   // The initial neighborhood retains the project's pastel Art Deco identity.
   if (regionX === 0 && regionZ === 0) return DISTRICTS[0];
@@ -75,6 +77,7 @@ export function districtAt(x, z, seed = WORLD_SEED) {
 export function generateChunk(cx, cz, seed = WORLD_SEED) {
   if (!Number.isSafeInteger(cx) || !Number.isSafeInteger(cz)) throw new RangeError('Chunk coordinates must be safe integers');
   const coast=getCoastChunk(cx,cz,seed);if(coast)return coast;
+  const metro=getMetroChunk(cx,cz,seed);if(metro)return metro;
   const x = cx * CHUNK_SIZE, z = cz * CHUNK_SIZE;
   const key = `${cx},${cz}`;
   const detailSeed = hashCoordinates('chunk', cx, cz, seed);
@@ -100,7 +103,7 @@ export function generateChunk(cx, cz, seed = WORLD_SEED) {
       orientation, infill: true,
     };
     buildings.push(building);
-    colliders.push({ id: building.id, kind: 'building', minX: building.x - width / 2, maxX: building.x + width / 2, minZ: building.z - depth / 2, maxZ: building.z + depth / 2 });
+    colliders.push({ id: building.id, kind: 'building', height: building.height + 5, minX: building.x - width / 2, maxX: building.x + width / 2, minZ: building.z - depth / 2, maxZ: building.z + depth / 2 });
   }
 
   function addFeature(kind, localX, localZ, width, depth) {
@@ -169,7 +172,17 @@ export function generateChunk(cx, cz, seed = WORLD_SEED) {
     addFeature(district.id === 'marina' ? 'canal' : district.id === 'oldtown' ? 'plaza' : 'park', 64, 64, 24, 42);
   }
 
-  return { key, cx, cz, x, z, seed, detailSeed, layout, district, buildings, features, colliders };
+  const cityElements=[];
+  const court=features.find(f=>f.kind==='park'||f.kind==='plaza');
+  if(court&&court.width>=24&&court.depth>=24){
+    const kinds=district.id==='garden'?['basketball','garden']:district.id==='oldtown'?['market','skate']:['market','garden'];
+    const kind=kinds[detailSeed%kinds.length];
+    cityElements.push({...court,id:`${key}/venue/${kind}`,kind,width:Math.min(court.width-4,27),depth:Math.min(court.depth-4,31)});
+    // Keep the established fountain as the centrepiece rather than overlapping it.
+    if(features.some(f=>f.kind==='fountain'))cityElements.length=0;
+  }
+  colliders.push(...cityElementColliders(cityElements));
+  return { key, cx, cz, x, z, seed, detailSeed, layout, district, buildings, features, colliders, cityElements };
 }
 
 // Physics queries are independent from what has finished rendering. A discarded

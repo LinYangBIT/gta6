@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {createSoundtrack,GTA_SCORE_EMBED,GTA_SCORE_URL} from '../dist/soundtrack.js';
+import {createSoundtrack,GTA_SCORE_EMBED,GTA_SCORE_URL,PULSE_TRACKS} from '../dist/soundtrack.js';
 const html=await readFile(new URL('../dist/index.html',import.meta.url),'utf8');
 const flush=async()=>{for(let i=0;i<8;i++)await Promise.resolve();};
 
@@ -16,7 +16,7 @@ function harness(options={}){
     appendChild(child){child.parent=this;this.children.push(child);return child;}
     removeChild(child){this.children=this.children.filter(c=>c!==child);child.parent=null;}
     remove(){this.parent?.removeChild(this);this.removed=true;}
-    play(){this.playCount++;if(options.localReject)return Promise.reject(new Error('autoplay blocked'));this.paused=false;this.emit('play');return Promise.resolve();}
+    play(){this.playCount++;if(this.id==='audio'&&options.pulseReject){const error=new Error('blocked');error.name=options.pulseReject;return Promise.reject(error);}if(options.localReject)return Promise.reject(new Error('autoplay blocked'));this.paused=false;this.emit('play');return Promise.resolve();}
     pause(){this.pauseCount++;if(!this.paused){this.paused=true;this.emit('pause');}}
     load(){this.loadCount++;}click(){this.emit('click');}
   }
@@ -36,10 +36,10 @@ function harness(options={}){
       play(){this.playCount++;if(options.spotifyPlayReject)throw new Error('autoplay blocked');},pause(){this.pauseCount++;this.emit('playback_update',{isPaused:true});},destroy(){this.destroyCount++;frame.remove();}};
     controllers.push(control);if(options.lateController)pendingCallbacks.push(()=>callback(control));else callback(control);
   }};
-  const api=createSoundtrack({document,radio,urlAPI:{createObjectURL:file=>'blob:'+file.name,revokeObjectURL:url=>revoked.push(url)},
+  const api=createSoundtrack({document,radio,...(options.defaultSource?{}:{initialSource:options.initialSource??'spotify'}),urlAPI:{createObjectURL:file=>'blob:'+file.name,revokeObjectURL:url=>revoked.push(url)},
     spotifyLoader:()=>{loads++;return options.spotifyReject?Promise.reject(new Error('blocked')):Promise.resolve(spotifyAPI);},
     onStatus:m=>notices.push(m),onSelection:s=>selections.push(s),onFocus:()=>focus++});
-  return{api,radio,options,e:id=>elements.get(id),created,revoked,notices,selections,controllers,pendingCallbacks,get loads(){return loads;},get focus(){return focus;}};
+  return{api,radio,options,e:id=>elements.get(id),pulse:created.find(e=>e.id==='audio'),created,revoked,notices,selections,controllers,pendingCallbacks,get loads(){return loads;},get focus(){return focus;}};
 }
 
 test('official GTA score is prepared silently and the enter gesture requests playback synchronously',async()=>{
@@ -213,4 +213,49 @@ test('a browser rejecting both audio paths is never reported as audible BGM',asy
   const h=harness({radioStart:()=>Promise.resolve(false),spotifyPlayReject:true});
   h.api.prepare();await flush();h.controllers[0].emit('ready');await h.api.start();
   assert.equal(h.api.playing,false);assert.equal(h.api.usingFallback,false);assert.match(h.notices.at(-1),/开启 BGM/);h.api.dispose();
+});
+
+
+test('PULSE is the true default and plays an English vocal file in the enter gesture',async()=>{
+  const h=harness({defaultSource:true});assert.equal(h.api.source,'pulse');assert.equal(h.api.playing,false);
+  h.api.prepare();assert.equal(h.pulse.src,PULSE_TRACKS[0].src);assert.equal(h.pulse.playCount,0);assert.equal(h.loads,0);
+  const pending=h.api.start();assert.equal(h.pulse.playCount,1,'play is called before the first await');assert.equal(await pending,true);
+  assert.equal(h.api.playing,true);assert.equal(h.radio.paused,true);assert.match(h.api.label,/On My Way/);
+  assert.equal(h.e('soundtrack-panel').hidden,true);h.api.open();h.api.close();assert.equal(h.pulse.paused,false);
+  await h.api.start();assert.equal(h.pulse.playCount,1,'menu re-entry does not restart the track');
+  h.api.dispose();assert.equal(h.pulse.paused,true);assert.equal(h.pulse.src,'');
+});
+
+test('English playlist advances automatically and next respects explicit pause',async()=>{
+  const h=harness({defaultSource:true});await h.api.start();h.pulse.emit('ended');await flush();
+  assert.equal(h.pulse.src,PULSE_TRACKS[1].src);assert.match(h.api.label,/Road Back To You/);assert.equal(h.api.playing,true);
+  await h.api.togglePlayback();assert.equal(h.pulse.paused,true);await h.api.nextTrack();assert.equal(h.pulse.src,PULSE_TRACKS[0].src);assert.equal(h.api.playing,false);
+  await h.api.start();assert.equal(h.api.playing,false,'manual pause survives entry');await h.api.togglePlayback();assert.equal(h.api.playing,true);h.api.dispose();
+});
+
+test('English music ducks for speech without changing user volume and suspension resumes',async()=>{
+  const h=harness({defaultSource:true});await h.api.start();h.api.setVolume(.8);h.api.setDucked(true);
+  assert.equal(h.api.volume,.8);assert.equal(h.pulse.volume,.2);h.api.setDucked(false);assert.equal(h.pulse.volume,.8);
+  h.api.setSuspended(true);assert.equal(h.pulse.paused,true);assert.equal(h.api.playing,false);h.api.setSuspended(false);await flush();assert.equal(h.api.playing,true);
+  h.api.select('coast');await flush();assert.equal(h.pulse.paused,true);assert.equal(h.api.source,'coast');h.api.dispose();
+});
+
+test('English asset failure is labelled honestly and next can recover without overlapping sources',async()=>{
+  const h=harness({defaultSource:true});await h.api.start();h.pulse.emit('error');await flush();
+  assert.equal(h.api.usingFallback,true);assert.match(h.api.label,/COAST FM/);assert.equal(h.pulse.paused,true);assert.equal(h.radio.paused,false);
+  await h.api.nextTrack();assert.equal(h.api.usingFallback,false);assert.equal(h.radio.paused,true);assert.equal(h.api.playing,true);
+  h.api.loadFile({name:'local.mp3',type:'audio/mpeg'});await flush();assert.equal(h.pulse.paused,true);assert.equal(h.api.source,'local');h.api.dispose();
+});
+
+
+test('blocked English autoplay stays honest and retries from a later gesture',async()=>{
+  const h=harness({defaultSource:true,pulseReject:'NotAllowedError'});assert.equal(await h.api.start(),false);
+  assert.equal(h.api.playing,false);assert.equal(h.api.usingFallback,false);assert.equal(h.radio.startCount,0);assert.match(h.notices.at(-1),/点击顶部播放键/);
+  h.options.pulseReject=false;assert.equal(await h.api.togglePlayback(),true);assert.equal(h.api.playing,true);h.api.dispose();
+});
+
+test('unavailable English recording falls back only after a real media error',async()=>{
+  const h=harness({defaultSource:true,pulseReject:'NotSupportedError'});assert.equal(await h.api.start(),true);
+  assert.equal(h.api.usingFallback,true);assert.equal(h.api.source,'pulse');assert.match(h.api.label,/COAST FM/);
+  h.options.pulseReject=false;await h.api.nextTrack();assert.equal(h.api.usingFallback,false);assert.equal(h.radio.paused,true);h.api.dispose();
 });

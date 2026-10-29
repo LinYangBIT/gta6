@@ -14,14 +14,14 @@ function game(count=6,x=13,z=30){
 test('each visible vehicle is backed by gameplay and shared batches remain bounded',()=>{
   const scene=new THREE.Scene(),actors=new ActorVisuals(scene,{mobile:true}),g=game(36);
   actors.update(g,{x:0,z:0},1,{contact:{x:13,z:13}});
-  assert.equal(actors.stats.vehicles,36);assert.equal(actors.vehiclePools.size,17);
+  assert.equal(actors.stats.vehicles,36);assert.equal(actors.vehiclePools.size,34);
   assert.equal(actors.vehiclePools.get('tire').count,36*4);
   assert.equal(actors.vehiclePools.get('rim').count,36*4);
   assert.equal(actors.vehiclePools.get('coupe:paint').count,12);
   assert.equal(actors.avatar.visible,true);assert.equal(actors.contact.visible,true);
   const vehicleGeometry=new Set([...actors.vehiclePools.values()].map(p=>p.geometry));
   for(let n=0;n<120;n++)actors.update(game(36,n*128,-n*128),{x:n*128,z:-n*128},n,{});
-  assert.equal(actors.vehiclePools.size,17);assert.equal(actors.geometries.size,17);
+  assert.equal(actors.vehiclePools.size,34);assert.equal(actors.geometries.size,34);
   assert.ok([...actors.vehiclePools.values()].every(p=>vehicleGeometry.has(p.geometry)));
   actors.update(game(100),{x:0,z:0},121,{});
   assert.equal(actors.stats.vehicles,100,'a full relocation history never creates invisible cars');

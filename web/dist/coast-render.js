@@ -1,7 +1,8 @@
+import { describeCityElements } from './metro-districts.js?v=12';
 /** Street-scale coastal scenery. Every object follows the shared road layout. */
-import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=11';
-import { describeCoastBuilding } from './coast-architecture.js?v=11';
-import { describeUrbanBuilding } from './urban-architecture.js?v=11';
+import { COAST_ROADS, COAST_BUILDINGS } from './coast-layout.js?v=12';
+import { describeCoastBuilding } from './coast-architecture.js?v=12';
+import { describeUrbanBuilding } from './urban-architecture.js?v=12';
 
 const TAU=Math.PI*2;
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
@@ -120,6 +121,7 @@ export function describeCoastChunk(data,lod=0){
       if(owns(shore,z)&&Math.abs(shore-110)<.1&&distanceFromRoad(shore+1,z)>5)box(shore+1.5,.025,z,2.2,.018,10,'#86c5d5','foam');
     }
   }
+  records.push(...describeCityElements(data.cityElements,lod));
   return records;
 
   function lamp(x,z,yaw){
